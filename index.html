@@ -3,82 +3,116 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>특수학급 통합 시간표 & 일지 시스템</title>
+  <title>특수학급 스마트 시간표 & 일지</title>
   <style>
     * { box-sizing: border-box; font-family: 'Pretendard', 'Malgun Gothic', sans-serif; }
     body { display: flex; flex-direction: column; height: 100vh; margin: 0; background: #f8fafc; color: #1e293b; }
     
-    /* 상단 네비게이션 & 컨트롤 */
-    .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: white; border-bottom: 1px solid #cbd5e1; flex-wrap: wrap; gap: 10px; }
-    .nav-tabs { display: flex; gap: 6px; background: #f1f5f9; padding: 4px; border-radius: 8px; }
-    .tab-btn { padding: 6px 14px; border: none; background: transparent; border-radius: 6px; font-weight: bold; cursor: pointer; color: #64748b; font-size: 0.85rem; }
+    /* 상단 네비게이션 */
+    .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: white; border-bottom: 1px solid #cbd5e1; flex-wrap: wrap; gap: 8px; }
+    .nav-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .nav-tabs { display: flex; gap: 4px; background: #f1f5f9; padding: 3px; border-radius: 8px; }
+    .tab-btn { padding: 5px 12px; border: none; background: transparent; border-radius: 6px; font-weight: bold; cursor: pointer; color: #64748b; font-size: 0.8rem; }
     .tab-btn.active { background: white; color: #2563eb; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     
-    .date-nav { display: flex; align-items: center; gap: 8px; }
-    .date-nav button { padding: 5px 10px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; }
-    .year-badge { background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+    .badge { background: #dbeafe; color: #1e40af; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+    .badge-absent { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+
+    /* 일일 행사 배너 */
+    .daily-event-banner { background: #fef3c7; border-bottom: 1px solid #fde047; padding: 6px 16px; font-size: 0.85rem; font-weight: bold; color: #92400e; display: flex; align-items: center; justify-content: space-between; }
 
     /* 메인 뷰 컨테이너 */
     .main-container { display: flex; flex: 1; overflow: hidden; }
-    .content-area { flex: 1; padding: 16px; overflow: auto; }
+    .content-area { flex: 1; padding: 12px; overflow: auto; }
 
-    /* 테이블 공통 스타일 */
-    table { width: 100%; border-collapse: collapse; background: white; font-size: 0.8rem; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-    th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: center; min-width: 80px; }
+    /* 테이블 공통 */
+    table { width: 100%; border-collapse: collapse; background: white; font-size: 0.78rem; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    th, td { border: 1px solid #e2e8f0; padding: 5px 6px; text-align: center; min-width: 85px; vertical-align: top; }
     th { background: #f1f5f9; font-weight: bold; color: #334155; }
-    .time-col { background: #f8fafc; font-weight: bold; width: 100px; color: #475569; }
+    .time-col { background: #f8fafc; font-weight: bold; width: 110px; color: #475569; }
+    .time-sub { font-size: 0.7rem; color: #64748b; font-weight: normal; display: block; margin-top: 1px; }
     .clickable-cell { cursor: pointer; transition: background 0.15s; }
     .clickable-cell:hover { background: #eff6ff !important; }
 
-    /* 태그 스타일 */
-    .tag { display: inline-block; padding: 2px 5px; border-radius: 4px; font-size: 0.72rem; font-weight: bold; margin: 1px; }
+    /* 결석/결근 스타일 */
+    .absent-person { text-decoration: line-through; opacity: 0.4; }
+    .cell-has-behavior { background: #fff1f2 !important; border: 2px solid #fda4af !important; }
+
+    /* 태그 및 아이콘 */
+    .tag { display: inline-block; padding: 2px 4px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; margin: 1px; }
     .tag-main { background: #ffedd5; color: #9a3412; }
-    .tag-extra { background: #fef3c7; color: #92400e; }
     .tag-helper { background: #e0e7ff; color: #3730a3; }
     .tag-teacher { background: #dcfce7; color: #166534; }
-    .memo-text { font-size: 0.75rem; color: #475569; margin-top: 3px; }
+    .tag-behavior { background: #fecdd3; color: #9f1239; border: 1px solid #fda4af; }
+    .tag-positive { background: #fef9c3; color: #854d0e; }
 
-    /* 모달 및 팝업 */
+    /* 모달 */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 999; }
-    .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 480px; max-width: 90%; z-index: 1000; max-height: 85vh; overflow-y: auto; }
+    .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 12px; padding: 18px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 500px; max-width: 92%; z-index: 1000; max-height: 88vh; overflow-y: auto; }
     
-    .form-group { margin-bottom: 12px; }
-    .form-group label { display: block; font-size: 0.8rem; font-weight: bold; color: #475569; margin-bottom: 4px; }
-    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; }
-    .checkbox-grid { display: flex; flex-wrap: wrap; gap: 4px; border: 1px solid #e2e8f0; padding: 8px; border-radius: 6px; max-height: 100px; overflow-y: auto; }
-    .checkbox-grid label { font-size: 0.75rem; background: #f8fafc; padding: 3px 6px; border-radius: 4px; border: 1px solid #e2e8f0; cursor: pointer; }
-    
-    .btn { padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
+    .form-group { margin-bottom: 10px; }
+    .form-group label { display: block; font-size: 0.78rem; font-weight: bold; color: #475569; margin-bottom: 3px; }
+    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.8rem; }
+    .checkbox-grid { display: flex; flex-wrap: wrap; gap: 4px; border: 1px solid #e2e8f0; padding: 6px; border-radius: 6px; max-height: 90px; overflow-y: auto; }
+    .checkbox-grid label { font-size: 0.73rem; background: #f8fafc; padding: 2px 5px; border-radius: 4px; border: 1px solid #e2e8f0; cursor: pointer; }
+
+    .btn { padding: 5px 12px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; font-size: 0.8rem; }
     .btn-primary { background: #2563eb; color: white; }
     .btn-secondary { background: #94a3b8; color: white; }
+
+    /* 미니 달력 팝업 */
+    #mini-cal-popup { display: none; position: absolute; top: 45px; right: 200px; background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1001; width: 220px; }
   </style>
 </head>
 <body>
 
   <script>
-    const GOOGLE_SCRIPT_URL = '여기에_구글_URL_붙여넣기'; // 구글 Apps Script Web App URL
+    const GOOGLE_SCRIPT_URL = '여기에_구글_URL_붙여넣기';
   </script>
 
   <!-- 상단 제어바 -->
   <div class="top-bar">
-    <div style="display:flex; align-items:center; gap:10px;">
-      <span class="year-badge" id="academic-year-badge">2026학년도</span>
+    <div class="nav-group">
+      <span class="badge" id="academic-year-badge">2026학년도</span>
       <div class="nav-tabs">
-        <button class="tab-btn active" onclick="switchView('classWeekly')">우리반 주간</button>
-        <button class="tab-btn" onclick="switchView('personWeekly')">개인별 주간</button>
-        <button class="tab-btn" onclick="switchView('dailyMatrix')">일일 전체 매트릭스</button>
+        <button class="tab-btn active" onclick="switchView('classWeekly')">학급 주간</button>
+        <button class="tab-btn" onclick="switchView('personWeekly')">개인 주간</button>
+        <button class="tab-btn" onclick="switchView('dailyMatrix')">일일 매트릭스</button>
       </div>
+      <select id="class-filter" onchange="render()" style="padding: 3px 6px; font-size: 0.8rem; font-weight: bold;">
+        <option value="ALL">전체 학급 보기</option>
+        <option value="저학년반">저학년반</option>
+        <option value="고학년반">고학년반</option>
+        <option value="윤슬반">윤슬반</option>
+      </select>
     </div>
 
-    <div class="date-nav">
+    <div class="nav-group">
       <button onclick="changeDate(-7)">&lt; 지난주</button>
       <button onclick="changeDate(-1)">&lt; 어제</button>
       <button onclick="goToday()">오늘</button>
       <button onclick="changeDate(1)">내일 &gt;</button>
       <button onclick="changeDate(7)">다음주 &gt;</button>
-      <span id="current-date-text" style="font-weight:bold; font-size:0.9rem; margin-left:8px;"></span>
-      <button onclick="openSettingsModal()" style="margin-left:10px; background:#f1f5f9;">⚙️ 명단 설정</button>
+      <span id="current-date-text" style="font-weight:bold; font-size:0.85rem;"></span>
+      <button onclick="toggleMiniCal()">📅 미니달력</button>
+      <button onclick="openAttendanceModal()">🏥 결석/결근</button>
+      <button onclick="openSettingsModal()">⚙️ 설정</button>
     </div>
+  </div>
+
+  <!-- 일일 행사 배너 -->
+  <div class="daily-event-banner" id="event-banner">
+    <span id="event-text">🗓️ 일일 행사/일정: 등록된 일정이 없습니다.</span>
+    <button onclick="openEventModal()" style="font-size: 0.72rem; padding: 2px 6px; cursor: pointer;">행사 수정</button>
+  </div>
+
+  <!-- 미니 달력 팝업 -->
+  <div id="mini-cal-popup">
+    <div style="display:flex; justify-between; align-items:center; margin-bottom:6px;">
+      <input type="month" id="cal-month-picker" onchange="renderMiniCal()" style="font-size:0.75rem;">
+      <button onclick="toggleMiniCal()" style="font-size:0.7rem;">X</button>
+    </div>
+    <div id="mini-cal-grid" style="display:grid; grid-template-columns:repeat(7, 1fr); gap:2px; font-size:0.7rem; text-align:center;"></div>
   </div>
 
   <!-- 메인 뷰 영역 -->
@@ -89,7 +123,15 @@
   <!-- 입력 및 수정 팝오버 모달 -->
   <div class="modal-overlay" id="overlay" onclick="closeModal()"></div>
   <div class="modal" id="input-modal">
-    <h3 style="margin-top:0;" id="modal-title">수업 및 지원 기록</h3>
+    <h4 style="margin-top:0; margin-bottom:8px;" id="modal-title">수업 및 지원 기록</h4>
+    <div class="form-group">
+      <label>해당 학급 선택</label>
+      <select id="input-class">
+        <option value="저학년반">저학년반</option>
+        <option value="고학년반">고학년반</option>
+        <option value="윤슬반">윤슬반</option>
+      </select>
+    </div>
     <div class="form-group">
       <label>우리반 학생</label>
       <div class="checkbox-grid" id="cb-main-students"></div>
@@ -107,68 +149,151 @@
       <div class="checkbox-grid" id="cb-teachers"></div>
     </div>
     <div class="form-group">
-      <label>수업 내용 / 메모 / 행동 기록</label>
-      <textarea id="memo-input" rows="3" placeholder="학생 선택 없이 메모만 남기기 가능"></textarea>
+      <label>🚨 돌발/문제행동 기록 (화살표 ↕ 및 색상 강조)</label>
+      <div style="display:flex; gap:4px; margin-bottom:4px;">
+        <select id="behavior-preset" style="flex:2;">
+          <option value="">-- 행동 선택 --</option>
+          <option value="소리지름">소리지름</option>
+          <option value="수업거부">수업거부</option>
+          <option value="자리이탈">자리이탈</option>
+          <option value="공격행동">공격행동</option>
+          <option value="물건던짐">물건던짐</option>
+          <option value="자해행동">자해행동</option>
+        </select>
+        <input type="text" id="behavior-time" placeholder="예: 09:10-09:25" style="flex:1;">
+      </div>
     </div>
-    <div style="display:flex; justify-direction:flex-end; gap:8px;">
+    <div class="form-group">
+      <label>⭐ 잘한 행동 / 칭찬 이모지</label>
+      <select id="positive-preset">
+        <option value="">-- 칭찬 선택 --</option>
+        <option value="⭐ 수업 집중 최고">⭐ 수업 집중 최고</option>
+        <option value="👏 스스로 과제 완수">👏 스스로 과제 완수</option>
+        <option value="🤝 친구 도와줌">🤝 친구 도와줌</option>
+        <option value="😊 규칙 잘 지킴">😊 규칙 잘 지킴</option>
+        <option value="🎉 칭찬 스티커 획득">🎉 칭찬 스티커 획득</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>수업 내용 / 특이사항 메모</label>
+      <textarea id="memo-input" rows="2" placeholder="메모 남기기"></textarea>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:6px;">
       <button class="btn btn-secondary" onclick="closeModal()">취소</button>
-      <button class="btn btn-primary" onclick="saveData()">저장하기</button>
+      <button class="btn btn-primary" onclick="saveData()">저장</button>
     </div>
   </div>
 
-  <!-- 학년도 & 명단 설정 모달 -->
-  <div class="modal" id="settings-modal">
-    <h3 style="margin-top:0;">⚙️ 학년도별 명단 설정</h3>
-    <p style="font-size:0.75rem; color:#64748b;">쉼표(,)로 구분하여 입력하세요. (3월~다음해 2월 신학기 기준 자동 세팅)</p>
+  <!-- 결석/결근 설정 모달 -->
+  <div class="modal" id="attendance-modal">
+    <h4 style="margin-top:0; margin-bottom:8px;">🏥 오늘의 결석 / 결근 등록</h4>
+    <p style="font-size:0.72rem; color:#64748b;">체크된 인력/학생은 오늘 시간표에서 취소선(line-through) 처리됩니다.</p>
     <div class="form-group">
-      <label>우리반 학생 명단</label>
+      <label>학생 결석</label>
+      <div class="checkbox-grid" id="att-students"></div>
+    </div>
+    <div class="form-group">
+      <label>교사/지원인력 결근</label>
+      <div class="checkbox-grid" id="att-staff"></div>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:6px;">
+      <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveAttendance()">저장</button>
+    </div>
+  </div>
+
+  <!-- 행사 입력 모달 -->
+  <div class="modal" id="event-modal">
+    <h4 style="margin-top:0;">🗓️ 일일 행사/일정 등록</h4>
+    <input type="text" id="event-input" placeholder="예: 현장체험학습, 체육대회, 개교기념일 등">
+    <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:12px;">
+      <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveEvent()">저장</button>
+    </div>
+  </div>
+
+  <!-- 학년도 & 환경 설정 모달 -->
+  <div class="modal" id="settings-modal">
+    <h4 style="margin-top:0;">⚙️ 시스템 & 학년도 설정</h4>
+    
+    <div class="form-group">
+      <label>조회/수정 학년도 선택</label>
+      <select id="cfg-year-select" onchange="loadYearConfigToModal()">
+        <option value="2025">2025학년도</option>
+        <option value="2026">2026학년도</option>
+        <option value="2027">2027학년도</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>기본 메인 반 설정 (접속 시 첫 화면)</label>
+      <select id="cfg-default-class">
+        <option value="ALL">전체 보기</option>
+        <option value="저학년반">저학년반</option>
+        <option value="고학년반">고학년반</option>
+        <option value="윤슬반">윤슬반</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>우리반 학생 명단 (쉼표 구분)</label>
       <input type="text" id="cfg-main-students">
     </div>
     <div class="form-group">
-      <label>외부/옆반 학생 명단 (여분)</label>
+      <label>외부/옆반 학생 명단 (쉼표 구분)</label>
       <input type="text" id="cfg-extra-students">
     </div>
     <div class="form-group">
-      <label>지원인력 (사회복무요원/실무사 등)</label>
+      <label>지원인력 명단</label>
       <input type="text" id="cfg-helpers">
     </div>
     <div class="form-group">
       <label>특수교사 명단</label>
       <input type="text" id="cfg-teachers">
     </div>
-    <div style="display:flex; justify-direction:flex-end; gap:8px;">
+
+    <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:12px;">
       <button class="btn btn-secondary" onclick="closeModal()">취소</button>
       <button class="btn btn-primary" onclick="saveSettings()">설정 저장</button>
     </div>
   </div>
 
   <script>
-    // 1. 기본 상태 및 데이터 초기화
+    // 1. 상태 변수
     let currentDate = new Date();
-    let currentView = 'classWeekly'; // classWeekly, personWeekly, dailyMatrix
+    let currentView = 'classWeekly';
     let selectedPerson = '';
     let selectedCellId = '';
-    const scheduleData = {}; 
+    const scheduleData = {};
+    const attendanceData = {}; 
+    const eventData = {}; 
 
+    // 정확한 교시 및 시간 정의
     const PERIODS = [
-      '등교', '1교시', '이동(1-2)', '2교시', '이동(2-3)', '3교시', 
-      '저점/고4', '저4/고점', '5교시', '이동(5-6)', '6교시', '방과후'
+      { name: '등교', time: '~ 09:00' },
+      { name: '1교시', time: '09:00 - 09:40' },
+      { name: '2교시', time: '09:50 - 10:30' },
+      { name: '3교시', time: '10:40 - 11:20' },
+      { name: '저점/고4', time: '11:20 - 12:10' },
+      { name: '고점/저4', time: '12:10 - 13:00' },
+      { name: '5교시', time: '13:00 - 13:40' },
+      { name: '6교시', time: '13:50 - 14:30' },
+      { name: '방과후', time: '14:30 ~' }
     ];
 
-    // 2. 학년도 계산 (3월 1일 ~ 다음해 2월 28/29일)
+    // 2. 학년도 계산 (3월 1일 ~ 다음해 2월말)
     function getAcademicYear(date) {
       const y = date.getFullYear();
-      const m = date.getMonth() + 1; 
+      const m = date.getMonth() + 1;
       return (m === 1 || m === 2) ? y - 1 : y;
     }
 
-    // 3. 학년도별 명단 로드 & 저장
-    function getRoster() {
-      const year = getAcademicYear(currentDate);
+    // 3. 로스터 불러오기 & 기본 세팅
+    function getRoster(targetYear) {
+      const year = targetYear || getAcademicYear(currentDate);
       const saved = localStorage.getItem(`roster_${year}`);
       if(saved) return JSON.parse(saved);
-      
-      // 기본값 세팅
+
       return {
         mainStudents: ['학생01', '학생02', '학생03', '학생04', '학생05', '학생06'],
         extraStudents: ['학생07', '학생08', '학생09', '학생10', '학생11', '학생12', '학생13', '학생14'],
@@ -177,37 +302,16 @@
       };
     }
 
-    function saveSettings() {
-      const year = getAcademicYear(currentDate);
-      const roster = {
-        mainStudents: document.getElementById('cfg-main-students').value.split(',').map(s=>s.trim()).filter(Boolean),
-        extraStudents: document.getElementById('cfg-extra-students').value.split(',').map(s=>s.trim()).filter(Boolean),
-        helpers: document.getElementById('cfg-helpers').value.split(',').map(s=>s.trim()).filter(Boolean),
-        teachers: document.getElementById('cfg-teachers').value.split(',').map(s=>s.trim()).filter(Boolean),
-      };
-      localStorage.setItem(`roster_${year}`, JSON.stringify(roster));
-      closeModal();
-      render();
-    }
-
-    // 4. 날짜 및 주차 계산
+    // 4. 날짜 컨트롤
     function getMonday(d) {
       const date = new Date(d);
       const day = date.getDay();
       const diff = date.getDate() - day + (day === 0 ? -6 : 1);
       return new Date(date.setDate(diff));
     }
+    function changeDate(days) { currentDate.setDate(currentDate.getDate() + days); render(); }
+    function goToday() { currentDate = new Date(); render(); }
 
-    function changeDate(days) {
-      currentDate.setDate(currentDate.getDate() + days);
-      render();
-    }
-    function goToday() {
-      currentDate = new Date();
-      render();
-    }
-
-    // 5. 뷰 전환 및 메인 렌더링
     function switchView(viewName) {
       currentView = viewName;
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -215,14 +319,20 @@
       render();
     }
 
+    // 5. 메인 렌더링
     function render() {
-      const acadYear = getAcademicYear(currentDate);
-      document.getElementById('academic-year-badge').innerText = `${acadYear}학년도`;
-      
+      const year = getAcademicYear(currentDate);
+      document.getElementById('academic-year-badge').innerText = `${year}학년도`;
+
       const monday = getMonday(currentDate);
       const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
       document.getElementById('current-date-text').innerText = 
-        `${currentDate.getMonth()+1}월 ${currentDate.getDate()}일 (${['일','월','화','수','목','금','토'][currentDate.getDay()]}) | 주차: ${monday.getMonth()+1}/${monday.getDate()} ~ ${friday.getMonth()+1}/${friday.getDate()}`;
+        `${currentDate.getMonth()+1}월 ${currentDate.getDate()}일 (${['일','월','화','수','목','금','토'][currentDate.getDay()]})`;
+
+      // 일일 행사 배너 갱신
+      const dateStr = currentDate.toISOString().split('T')[0];
+      const ev = eventData[dateStr];
+      document.getElementById('event-text').innerText = ev ? `🗓️ 오늘 행사: ${ev}` : `🗓️ 일일 행사/일정: 등록된 일정이 없습니다.`;
 
       const container = document.getElementById('view-content');
       container.innerHTML = '';
@@ -232,10 +342,13 @@
       else if(currentView === 'dailyMatrix') renderDailyMatrix(container);
     }
 
-    // 뷰①: 우리반 주간 시간표
+    // 뷰①: 학급 주간 시간표
     function renderClassWeekly(container, monday) {
       const days = ['월', '화', '수', '목', '금'];
-      let html = `<table><thead><tr><th class="time-col">교시</th>`;
+      const classFilter = document.getElementById('class-filter').value;
+      const todayAtt = attendanceData[currentDate.toISOString().split('T')[0]] || [];
+
+      let html = `<table><thead><tr><th class="time-col">교시 / 시간</th>`;
       days.forEach((d, i) => {
         const dt = new Date(monday); dt.setDate(monday.getDate() + i);
         html += `<th>${d} (${dt.getMonth()+1}/${dt.getDate()})</th>`;
@@ -243,63 +356,35 @@
       html += `</tr></thead><tbody>`;
 
       PERIODS.forEach(p => {
-        html += `<tr><td class="time-col">${p}</td>`;
+        html += `<tr><td class="time-col">${p.name}<span class="time-sub">${p.time}</span></td>`;
         days.forEach((d, i) => {
           const dt = new Date(monday); dt.setDate(monday.getDate() + i);
           const dateStr = dt.toISOString().split('T')[0];
-          const cellId = `${dateStr}_${p}`;
-          const data = scheduleData[cellId] || { students:[], helpers:[], teachers:[], memo:'' };
+          const cellId = `${dateStr}_${p.name}`;
+          const data = scheduleData[cellId] || { students:[], helpers:[], teachers:[], memo:'', behavior:'', behaviorTime:'', positive:'', className:'' };
 
-          html += `<td class="clickable-cell" onclick="openInputModal('${cellId}')">`;
-          data.students.forEach(s => html += `<span class="tag tag-main">${s}</span>`);
-          data.teachers.forEach(t => html += `<span class="tag tag-teacher">${t}</span>`);
-          data.helpers.forEach(h => html += `<span class="tag tag-helper">${h}</span>`);
-          if(data.memo) html += `<div class="memo-text">📝 ${data.memo}</div>`;
-          html += `</td>`;
-        });
-        html += `</tr>`;
-      });
-      container.innerHTML = html + `</tbody></table>`;
-    }
+          // 반 필터링
+          const matchClass = (classFilter === 'ALL' || !data.className || data.className === classFilter);
+          const hasBehavior = data.behavior ? 'cell-has-behavior' : '';
 
-    // 뷰②: 교사/인력/학생 개인별 주간 시간표
-    function renderPersonWeekly(container, monday) {
-      const roster = getRoster();
-      const allPeople = [...roster.teachers, ...roster.helpers, ...roster.mainStudents, ...roster.extraStudents];
-      if(!selectedPerson) selectedPerson = allPeople[0] || '';
-
-      let selectorHtml = `<div style="margin-bottom:12px; display:flex; align-items:center; gap:8px;">
-        <label style="font-weight:bold; font-size:0.85rem;">조회 대상 선택:</label>
-        <select onchange="selectedPerson=this.value; render();" style="padding:4px 8px; font-weight:bold;">`;
-      allPeople.forEach(p => {
-        selectorHtml += `<option value="${p}" ${p===selectedPerson?'selected':''}>${p}</option>`;
-      });
-      selectorHtml += `</select></div>`;
-
-      const days = ['월', '화', '수', '목', '금'];
-      let html = selectorHtml + `<table><thead><tr><th class="time-col">교시</th>`;
-      days.forEach((d, i) => {
-        const dt = new Date(monday); dt.setDate(monday.getDate() + i);
-        html += `<th>${d} (${dt.getMonth()+1}/${dt.getDate()})</th>`;
-      });
-      html += `</tr></thead><tbody>`;
-
-      PERIODS.forEach(p => {
-        html += `<tr><td class="time-col">${p}</td>`;
-        days.forEach((d, i) => {
-          const dt = new Date(monday); dt.setDate(monday.getDate() + i);
-          const dateStr = dt.toISOString().split('T')[0];
-          const cellId = `${dateStr}_${p}`;
-          const data = scheduleData[cellId] || { students:[], helpers:[], teachers:[], memo:'' };
-          
-          const isAssigned = data.students.includes(selectedPerson) || 
-                             data.helpers.includes(selectedPerson) || 
-                             data.teachers.includes(selectedPerson);
-
-          html += `<td class="${isAssigned?'clickable-cell':''}" style="${isAssigned?'background:#f0fdf4;':''}" onclick="openInputModal('${cellId}')">`;
-          if(isAssigned) {
-            html += `<strong>[배정됨]</strong>`;
-            if(data.memo) html += `<div class="memo-text">📝 ${data.memo}</div>`;
+          html += `<td class="clickable-cell ${hasBehavior}" onclick="openInputModal('${cellId}')">`;
+          if(matchClass) {
+            if(data.className) html += `<div style="font-size:0.65rem; color:#2563eb; font-weight:bold;">[${data.className}]</div>`;
+            data.students.forEach(s => {
+              const isAbsent = todayAtt.includes(s) ? 'absent-person' : '';
+              html += `<span class="tag tag-main ${isAbsent}">${s}</span>`;
+            });
+            data.teachers.forEach(t => {
+              const isAbsent = todayAtt.includes(t) ? 'absent-person' : '';
+              html += `<span class="tag tag-teacher ${isAbsent}">${t}</span>`;
+            });
+            data.helpers.forEach(h => {
+              const isAbsent = todayAtt.includes(h) ? 'absent-person' : '';
+              html += `<span class="tag tag-helper ${isAbsent}">${h}</span>`;
+            });
+            if(data.behavior) html += `<div class="tag tag-behavior">↕ ${data.behavior} (${data.behaviorTime||'시작-종료'})</div>`;
+            if(data.positive) html += `<div class="tag tag-positive">${data.positive}</div>`;
+            if(data.memo) html += `<div style="font-size:0.72rem; color:#475569; margin-top:2px;">📝 ${data.memo}</div>`;
           }
           html += `</td>`;
         });
@@ -308,51 +393,108 @@
       container.innerHTML = html + `</tbody></table>`;
     }
 
-    // 뷰③: 일일 전체 매트릭스 뷰 (세번째 이미지 스타일)
+    // 뷰②: 개인별 주간 시간표
+    function renderPersonWeekly(container, monday) {
+      const roster = getRoster();
+      const allPeople = [...roster.teachers, ...roster.helpers, ...roster.mainStudents, ...roster.extraStudents];
+      if(!selectedPerson) selectedPerson = allPeople[0] || '';
+
+      let selectorHtml = `<div style="margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+        <label style="font-weight:bold; font-size:0.8rem;">조회 대상:</label>
+        <select onchange="selectedPerson=this.value; render();" style="padding:3px 6px; font-weight:bold;">`;
+      allPeople.forEach(p => {
+        selectorHtml += `<option value="${p}" ${p===selectedPerson?'selected':''}>${p}</option>`;
+      });
+      selectorHtml += `</select></div>`;
+
+      const days = ['월', '화', '수', '목', '금'];
+      let html = selectorHtml + `<table><thead><tr><th class="time-col">교시 / 시간</th>`;
+      days.forEach((d, i) => {
+        const dt = new Date(monday); dt.setDate(monday.getDate() + i);
+        html += `<th>${d} (${dt.getMonth()+1}/${dt.getDate()})</th>`;
+      });
+      html += `</tr></thead><tbody>`;
+
+      PERIODS.forEach(p => {
+        html += `<tr><td class="time-col">${p.name}<span class="time-sub">${p.time}</span></td>`;
+        days.forEach((d, i) => {
+          const dt = new Date(monday); dt.setDate(monday.getDate() + i);
+          const dateStr = dt.toISOString().split('T')[0];
+          const cellId = `${dateStr}_${p.name}`;
+          const data = scheduleData[cellId] || { students:[], helpers:[], teachers:[], memo:'', behavior:'', behaviorTime:'', positive:'' };
+          
+          const isAssigned = data.students.includes(selectedPerson) || 
+                             data.helpers.includes(selectedPerson) || 
+                             data.teachers.includes(selectedPerson);
+
+          html += `<td class="${isAssigned?'clickable-cell':''}" style="${isAssigned?'background:#f0fdf4;':''}" onclick="openInputModal('${cellId}')">`;
+          if(isAssigned) {
+            html += `<span class="badge">배정됨</span>`;
+            if(data.behavior) html += `<div class="tag tag-behavior">↕ ${data.behavior}</div>`;
+            if(data.positive) html += `<div class="tag tag-positive">${data.positive}</div>`;
+            if(data.memo) html += `<div style="font-size:0.7rem;">📝 ${data.memo}</div>`;
+          }
+          html += `</td>`;
+        });
+        html += `</tr>`;
+      });
+      container.innerHTML = html + `</tbody></table>`;
+    }
+
+    // 뷰③: 일일 전체 매트릭스 뷰
     function renderDailyMatrix(container) {
       const roster = getRoster();
       const dateStr = currentDate.toISOString().split('T')[0];
+      const todayAtt = attendanceData[dateStr] || [];
 
       let html = `<table><thead>
         <tr>
-          <th class="time-col" rowspan="2">교시</th>
+          <th class="time-col" rowspan="2">교시 / 시간</th>
           <th colspan="${roster.mainStudents.length}">우리반 학생 (${roster.mainStudents.length})</th>
           <th colspan="${roster.helpers.length}">지원인력 (${roster.helpers.length})</th>
           <th colspan="${roster.teachers.length}">담당 교사 (${roster.teachers.length})</th>
         </tr><tr>`;
 
-      roster.mainStudents.forEach(s => html += `<th>${s}</th>`);
-      roster.helpers.forEach(h => html += `<th>${h}</th>`);
-      roster.teachers.forEach(t => html += `<th>${t}</th>`);
+      roster.mainStudents.forEach(s => {
+        const isAbsent = todayAtt.includes(s) ? 'badge-absent' : '';
+        html += `<th class="${isAbsent}">${s} ${isAbsent?'(결석)':''}</th>`;
+      });
+      roster.helpers.forEach(h => {
+        const isAbsent = todayAtt.includes(h) ? 'badge-absent' : '';
+        html += `<th class="${isAbsent}">${h} ${isAbsent?'(결근)':''}</th>`;
+      });
+      roster.teachers.forEach(t => {
+        const isAbsent = todayAtt.includes(t) ? 'badge-absent' : '';
+        html += `<th class="${isAbsent}">${t} ${isAbsent?'(결근)':''}</th>`;
+      });
       html += `</tr></thead><tbody>`;
 
       PERIODS.forEach(p => {
-        const cellId = `${dateStr}_${p}`;
-        const data = scheduleData[cellId] || { students:[], helpers:[], teachers:[], memo:'' };
+        const cellId = `${dateStr}_${p.name}`;
+        const data = scheduleData[cellId] || { students:[], helpers:[], teachers:[], memo:'', behavior:'', behaviorTime:'', positive:'' };
 
-        html += `<tr><td class="time-col">${p}</td>`;
+        html += `<tr><td class="time-col">${p.name}<span class="time-sub">${p.time}</span></td>`;
 
-        // 학생 열
         roster.mainStudents.forEach(s => {
           const active = data.students.includes(s);
           html += `<td class="clickable-cell" style="${active?'background:#fff7ed;':''}" onclick="openInputModal('${cellId}')">
-            ${active ? '<span class="tag tag-main">수업입실</span>' : ''}
+            ${active ? '<span class="tag tag-main">입실</span>' : ''}
+            ${active && data.behavior ? `<div class="tag tag-behavior">↕ ${data.behavior}</div>` : ''}
+            ${active && data.positive ? `<div class="tag tag-positive">${data.positive}</div>` : ''}
           </td>`;
         });
 
-        // 인력 열
         roster.helpers.forEach(h => {
           const active = data.helpers.includes(h);
           html += `<td class="clickable-cell" style="${active?'background:#e0e7ff;':''}" onclick="openInputModal('${cellId}')">
-            ${active ? `<span class="tag tag-helper">지원중</span>` : ''}
+            ${active ? '<span class="tag tag-helper">지원중</span>' : ''}
           </td>`;
         });
 
-        // 교사 열
         roster.teachers.forEach(t => {
           const active = data.teachers.includes(t);
           html += `<td class="clickable-cell" style="${active?'background:#dcfce7;':''}" onclick="openInputModal('${cellId}')">
-            ${active ? `<span class="tag tag-teacher">수업담당</span>` : ''}
+            ${active ? '<span class="tag tag-teacher">수업</span>' : ''}
           </td>`;
         });
 
@@ -362,11 +504,11 @@
       container.innerHTML = html + `</tbody></table>`;
     }
 
-    // 6. 모달 및 제어 로직
+    // 6. 모달 관련 핸들러
     function openInputModal(cellId) {
       selectedCellId = cellId;
       const roster = getRoster();
-      const data = scheduleData[cellId] || { students:[], helpers:[], teachers:[], memo:'' };
+      const data = scheduleData[cellId] || { students:[], helpers:[], teachers:[], memo:'', behavior:'', behaviorTime:'', positive:'', className:'' };
 
       const makeCb = (containerId, list, selected) => {
         document.getElementById(containerId).innerHTML = list.map(item => `
@@ -378,6 +520,11 @@
       makeCb('cb-extra-students', roster.extraStudents, data.students);
       makeCb('cb-helpers', roster.helpers, data.helpers);
       makeCb('cb-teachers', roster.teachers, data.teachers);
+      
+      document.getElementById('input-class').value = data.className || document.getElementById('class-filter').value === 'ALL' ? '저학년반' : document.getElementById('class-filter').value;
+      document.getElementById('behavior-preset').value = data.behavior || '';
+      document.getElementById('behavior-time').value = data.behaviorTime || '';
+      document.getElementById('positive-preset').value = data.positive || '';
       document.getElementById('memo-input').value = data.memo || '';
 
       document.getElementById('modal-title').innerText = `${cellId.replace('_',' ')} 기록`;
@@ -385,20 +532,80 @@
       document.getElementById('overlay').style.display = 'block';
     }
 
-    function openSettingsModal() {
+    function openAttendanceModal() {
+      const dateStr = currentDate.toISOString().split('T')[0];
       const roster = getRoster();
-      document.getElementById('cfg-main-students').value = roster.mainStudents.join(', ');
-      document.getElementById('cfg-extra-students').value = roster.extraStudents.join(', ');
-      document.getElementById('cfg-helpers').value = roster.helpers.join(', ');
-      document.getElementById('cfg-teachers').value = roster.teachers.join(', ');
+      const todayAtt = attendanceData[dateStr] || [];
 
+      const makeCb = (containerId, list) => {
+        document.getElementById(containerId).innerHTML = list.map(item => `
+          <label><input type="checkbox" value="${item}" ${todayAtt.includes(item)?'checked':''}> ${item}</label>
+        `).join('');
+      };
+
+      makeCb('att-students', [...roster.mainStudents, ...roster.extraStudents]);
+      makeCb('att-staff', [...roster.helpers, ...roster.teachers]);
+
+      document.getElementById('attendance-modal').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    }
+
+    function saveAttendance() {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      const getChecked = id => Array.from(document.querySelectorAll(`#${id} input:checked`)).map(c => c.value);
+      attendanceData[dateStr] = [...getChecked('att-students'), ...getChecked('att-staff')];
+      closeModal();
+      render();
+    }
+
+    function openEventModal() {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      document.getElementById('event-input').value = eventData[dateStr] || '';
+      document.getElementById('event-modal').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    }
+
+    function saveEvent() {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      eventData[dateStr] = document.getElementById('event-input').value;
+      closeModal();
+      render();
+    }
+
+    function openSettingsModal() {
+      const year = getAcademicYear(currentDate);
+      document.getElementById('cfg-year-select').value = year;
+      loadYearConfigToModal();
       document.getElementById('settings-modal').style.display = 'block';
       document.getElementById('overlay').style.display = 'block';
     }
 
+    function loadYearConfigToModal() {
+      const year = document.getElementById('cfg-year-select').value;
+      const roster = getRoster(year);
+      document.getElementById('cfg-main-students').value = roster.mainStudents.join(', ');
+      document.getElementById('cfg-extra-students').value = roster.extraStudents.join(', ');
+      document.getElementById('cfg-helpers').value = roster.helpers.join(', ');
+      document.getElementById('cfg-teachers').value = roster.teachers.join(', ');
+    }
+
+    function saveSettings() {
+      const year = document.getElementById('cfg-year-select').value;
+      const roster = {
+        mainStudents: document.getElementById('cfg-main-students').value.split(',').map(s=>s.trim()).filter(Boolean),
+        extraStudents: document.getElementById('cfg-extra-students').value.split(',').map(s=>s.trim()).filter(Boolean),
+        helpers: document.getElementById('cfg-helpers').value.split(',').map(s=>s.trim()).filter(Boolean),
+        teachers: document.getElementById('cfg-teachers').value.split(',').map(s=>s.trim()).filter(Boolean),
+      };
+      localStorage.setItem(`roster_${year}`, JSON.stringify(roster));
+      const defClass = document.getElementById('cfg-default-class').value;
+      document.getElementById('class-filter').value = defClass;
+      closeModal();
+      render();
+    }
+
     function closeModal() {
-      document.getElementById('input-modal').style.display = 'none';
-      document.getElementById('settings-modal').style.display = 'none';
+      document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
       document.getElementById('overlay').style.display = 'none';
     }
 
@@ -407,20 +614,57 @@
       const students = [...getChecked('cb-main-students'), ...getChecked('cb-extra-students')];
       const helpers = getChecked('cb-helpers');
       const teachers = getChecked('cb-teachers');
+      const className = document.getElementById('input-class').value;
+      const behavior = document.getElementById('behavior-preset').value;
+      const behaviorTime = document.getElementById('behavior-time').value;
+      const positive = document.getElementById('positive-preset').value;
       const memo = document.getElementById('memo-input').value;
 
-      scheduleData[selectedCellId] = { students, helpers, teachers, memo };
+      scheduleData[selectedCellId] = { students, helpers, teachers, className, behavior, behaviorTime, positive, memo };
 
-      // 구글 스프레드시트 백엔드 전송
+      // 구글 시트 백엔드 전송
       if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== '여기에_구글_URL_붙여넣기') {
         const [date, period] = selectedCellId.split('_');
         fetch(GOOGLE_SCRIPT_URL, {
           method: 'POST',
-          body: JSON.stringify({ date, period, students: students.join(', '), helpers: helpers.join(', '), teachers: teachers.join(', '), memo })
+          body: JSON.stringify({ date, period, className, students: students.join(', '), helpers: helpers.join(', '), teachers: teachers.join(', '), behavior, positive, memo })
         });
       }
 
       closeModal();
+      render();
+    }
+
+    // 7. 미니 달력 로직
+    function toggleMiniCal() {
+      const pop = document.getElementById('mini-cal-popup');
+      pop.style.display = pop.style.display === 'block' ? 'none' : 'block';
+      if(pop.style.display === 'block') {
+        const ym = currentDate.toISOString().slice(0, 7);
+        document.getElementById('cal-month-picker').value = ym;
+        renderMiniCal();
+      }
+    }
+
+    function renderMiniCal() {
+      const ym = document.getElementById('cal-month-picker').value;
+      if(!ym) return;
+      const [y, m] = ym.split('-').map(Number);
+      const firstDay = new Date(y, m - 1, 1).getDay();
+      const lastDate = new Date(y, m, 0).getDate();
+
+      const grid = document.getElementById('mini-cal-grid');
+      grid.innerHTML = ['일','월','화','수','목','금','토'].map(d => `<strong>${d}</strong>`).join('');
+
+      for(let i=0; i<firstDay; i++) grid.innerHTML += `<div></div>`;
+      for(let d=1; d<=lastDate; d++) {
+        grid.innerHTML += `<div style="cursor:pointer; padding:2px; border-radius:3px; hover:background:#e2e8f0;" onclick="selectCalDate(${y}, ${m}, ${d})">${d}</div>`;
+      }
+    }
+
+    function selectCalDate(y, m, d) {
+      currentDate = new Date(y, m - 1, d);
+      toggleMiniCal();
       render();
     }
 
