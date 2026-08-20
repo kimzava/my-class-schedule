@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>특수학급 시간표</title>
+  <style>
+    body { font-family: 'Malgun Gothic', sans-serif; display: flex; margin: 0; background: #f4f6f8; height: 100vh;}
+    /* 왼쪽 시간표 영역 */
+    .schedule-area { flex: 7; padding: 20px; }
+    .grid { display: grid; grid-template-columns: 80px repeat(5, 1fr); gap: 10px; }
+    .cell { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-height: 100px; cursor: pointer; text-align: center;}
+    .cell:hover { background: #eef2ff; }
+    .header { background: #e2e8f0; font-weight: bold; }
+    /* 오른쪽 메모 패널 영역 */
+    .memo-panel { flex: 3; background: white; border-left: 2px solid #ddd; padding: 20px; box-shadow: -2px 0 5px rgba(0,0,0,0.05); overflow-y: auto;}
+    /* 팝오버 (학생 선택창) */
+    #popover { display: none; position: absolute; background: white; border: 1px solid #333; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 100; }
+    button { padding: 5px 10px; margin-top: 10px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <!-- 왼쪽: 시간표 -->
+  <div class="schedule-area">
+    <h2>이번 주 특수학급 시간표</h2>
+    <div class="grid" id="schedule-grid">
+      <!-- 자바스크립트로 시간표 칸이 자동 생성됩니다 -->
+    </div>
+  </div>
+
+  <!-- 오른쪽: 데일리 메모 패널 -->
+  <div class="memo-panel">
+    <h2>오늘의 메모 (데일리 뷰)</h2>
+    <div id="memo-list">
+      <p style="color:gray;">시간표에 메모를 남기면 이곳에 표시됩니다.</p>
+    </div>
+  </div>
+
+  <!-- 학생 배정 팝오버 (숨겨져 있음) -->
+  <div id="popover">
+    <h4>학생 및 메모 입력</h4>
+    <label><input type="checkbox" value="학생01"> 학생01</label><br>
+    <label><input type="checkbox" value="학생02"> 학생02</label><br>
+    <label><input type="checkbox" value="학생03"> 학생03</label><br>
+    <input type="text" id="memo-input" placeholder="특이사항 메모..." style="margin-top:10px; width:100%;"><br>
+    <button onclick="saveData()">저장하기</button>
+    <button onclick="closePopover()">닫기</button>
+  </div>
+
+  <script>
+    // ★ 여기에 아까 1단계에서 복사한 구글 Apps Script URL을 따옴표 안에 넣으세요!
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxaEJBSSnRjx_m1ZT2Fp1TwkBNghOfpRoudWd-EUdmvT5izmY1ZjNjLAXmAjXyL7M3njg/exec';
+
+    const days = ['월', '화', '수', '목', '금'];
+    const periods = ['1교시', '2교시', '3교시', '4교시'];
+    let currentCell = null;
+
+    // 1. 시간표 격자 그리기
+    const grid = document.getElementById('schedule-grid');
+    grid.innerHTML += `<div class="cell header">교시</div>` + days.map(d => `<div class="cell header">${d}</div>`).join('');
+    
+    periods.forEach(period => {
+      grid.innerHTML += `<div class="cell header">${period}</div>`;
+      days.forEach(day => {
+        grid.innerHTML += `<div class="cell" onclick="openPopover(event, '${day}', '${period}', this)">클릭하여 배정</div>`;
+      });
+    });
+
+    // 2. 팝오버 열기
+    function openPopover(event, day, period, cellElement) {
+      currentCell = { element: cellElement, period: `${day} ${period}` };
+      const popover = document.getElementById('popover');
+      popover.style.display = 'block';
+      popover.style.left = event.pageX + 'px';
+      popover.style.top = event.pageY + 'px';
+    }
+
+    function closePopover() {
+      document.getElementById('popover').style.display = 'none';
+    }
+
+    // 3. 저장하고 우측 패널에 띄우기 & 구글 시트로 보내기
+    function saveData() {
+      const checkboxes = document.querySelectorAll('#popover input[type="checkbox"]:checked');
+      const students = Array.from(checkboxes).map(cb => cb.value).join(', ');
+      const memo = document.getElementById('memo-input').value;
+
+      if(students === '') return alert('학생을 선택해주세요!');
+
+      // 시간표 칸에 표시
+      currentCell.element.innerHTML = `<strong>${students}</strong>`;
+      currentCell.element.style.background = '#d1fae5'; // 연두색으로 변경
+
+      // 우측 패널에 추가
+      const memoList = document.getElementById('memo-list');
+      memoList.innerHTML += `<div style="border-bottom:1px solid #ddd; margin-bottom:10px; padding-bottom:10px;">
+        <strong>[${currentCell.period}] ${students}</strong><br>
+        📝 ${memo}
+      </div>`;
+
+      // 구글 스프레드시트로 데이터 전송 (백그라운드)
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ period: currentCell.period, students: students, memo: memo })
+      });
+
+      // 입력창 초기화 및 닫기
+      document.getElementById('memo-input').value = '';
+      checkboxes.forEach(cb => cb.checked = false);
+      closePopover();
+    }
+  </script>
+</body>
+</html>
