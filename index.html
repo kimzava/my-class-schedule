@@ -2,113 +2,277 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>특수학급 시간표</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>특수학급 시간표 & 일지</title>
   <style>
-    body { font-family: 'Malgun Gothic', sans-serif; display: flex; margin: 0; background: #f4f6f8; height: 100vh;}
-    /* 왼쪽 시간표 영역 */
-    .schedule-area { flex: 7; padding: 20px; }
-    .grid { display: grid; grid-template-columns: 80px repeat(5, 1fr); gap: 10px; }
-    .cell { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-height: 100px; cursor: pointer; text-align: center;}
-    .cell:hover { background: #eef2ff; }
-    .header { background: #e2e8f0; font-weight: bold; }
-    /* 오른쪽 메모 패널 영역 */
-    .memo-panel { flex: 3; background: white; border-left: 2px solid #ddd; padding: 20px; box-shadow: -2px 0 5px rgba(0,0,0,0.05); overflow-y: auto;}
-    /* 팝오버 (학생 선택창) */
-    #popover { display: none; position: absolute; background: white; border: 1px solid #333; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 100; }
-    button { padding: 5px 10px; margin-top: 10px; cursor: pointer; }
+    * { box-sizing: border-box; font-family: 'Pretendard', 'Malgun Gothic', sans-serif; }
+    body { display: flex; flex-direction: column; height: 100vh; margin: 0; background: #f8fafc; color: #1e293b; }
+    
+    /* 상단 주차 컨트롤러 */
+    .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: white; border-bottom: 1px solid #e2e8f0; }
+    .week-nav { display: flex; align-items: center; gap: 12px; }
+    .week-nav button { padding: 6px 14px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-weight: 600; }
+    .week-nav button:hover { background: #e2e8f0; }
+    .week-title { font-size: 1.1rem; font-weight: bold; color: #0f172a; }
+
+    /* 메인 레이아웃 */
+    .main-container { display: flex; flex: 1; overflow: hidden; }
+    .schedule-area { flex: 7; padding: 16px; overflow-y: auto; }
+    .memo-panel { flex: 3; background: white; border-left: 1px solid #e2e8f0; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+
+    /* 시간표 격자 */
+    .grid { display: grid; grid-template-columns: 140px repeat(5, 1fr); gap: 6px; }
+    .cell { background: white; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; min-height: 75px; cursor: pointer; transition: all 0.15s; font-size: 0.85rem; }
+    .cell:hover { border-color: #3b82f6; background: #eff6ff; }
+    .header-cell { background: #f1f5f9; font-weight: bold; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 45px; border-color: #cbd5e1; }
+    .period-label { font-size: 0.8rem; color: #64748b; font-weight: normal; margin-top: 2px; }
+
+    /* 학생 & 메모 태그 */
+    .tag-student { display: inline-block; background: #ffedd5; color: #9a3412; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin: 2px; font-size: 0.75rem; }
+    .tag-helper { display: inline-block; background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; margin: 2px; font-size: 0.75rem; }
+    .memo-text { font-size: 0.8rem; color: #334155; margin-top: 4px; white-space: pre-line; word-break: break-all; }
+
+    /* 팝오버 모달 */
+    #popover { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 420px; z-index: 1000; border: 1px solid #cbd5e1; }
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 999; }
+    .section-title { font-size: 0.85rem; font-weight: bold; color: #64748b; margin: 10px 0 6px 0; }
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow-y: auto; padding: 4px; border: 1px solid #f1f5f9; border-radius: 6px; }
+    .checkbox-group label { font-size: 0.8rem; background: #f8fafc; padding: 4px 8px; border-radius: 4px; border: 1px solid #e2e8f0; cursor: pointer; }
+    textarea { width: 100%; height: 60px; margin-top: 6px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; resize: none; }
+    .btn-group { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+    .btn { padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-secondary { background: #94a3b8; color: white; }
   </style>
 </head>
 <body>
 
-  <!-- 왼쪽: 시간표 -->
-  <div class="schedule-area">
-    <h2>이번 주 특수학급 시간표</h2>
-    <div class="grid" id="schedule-grid">
-      <!-- 자바스크립트로 시간표 칸이 자동 생성됩니다 -->
+  <!-- 구글 시트 URL 입력 설정 -->
+  <script>
+    // ★ 1단계에서 복사한 구글 Apps Script URL을 아래 작은따옴표 안에 입력하세요.
+    const GOOGLE_SCRIPT_URL = '여기에_구글_URL_붙여넣기';
+
+    // ★ 학생 및 지원인력 명단 설정 (매년 여기서 이름만 수정하면 됩니다)
+    const MAIN_STUDENTS = ['학생01', '학생02', '학생03', '학생04', '학생05', '학생06']; // 우리반
+    const EXTRA_STUDENTS = ['학생07', '학생08', '학생09', '학생10', '학생11', '학생12', '학생13', '학생14']; // 옆반/외부
+    const HELPERS = ['사회복무요원A', '특수교육실무사A', '교사A', '교사B', '교사C'];
+  </script>
+
+  <!-- 상단 주차 이동 바 -->
+  <div class="top-bar">
+    <div class="week-nav">
+      <button onclick="changeWeek(-1)">&lt; 이전 주</button>
+      <button onclick="goToday()">오늘</button>
+      <button onclick="changeWeek(1)">다음 주 &gt;</button>
+      <span class="week-title" id="week-title">주차 정보 계산 중...</span>
     </div>
   </div>
 
-  <!-- 오른쪽: 데일리 메모 패널 -->
-  <div class="memo-panel">
-    <h2>오늘의 메모 (데일리 뷰)</h2>
-    <div id="memo-list">
-      <p style="color:gray;">시간표에 메모를 남기면 이곳에 표시됩니다.</p>
+  <div class="main-container">
+    <!-- 왼쪽: 메인 주간 시간표 -->
+    <div class="schedule-area">
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <!-- 오른쪽: 데일리 메모 & 일지 패널 -->
+    <div class="memo-panel">
+      <h3 style="margin: 0; font-size: 1.1rem; color: #0f172a;">📝 데일리 기록 / 메모</h3>
+      <div id="memo-list" style="display: flex; flex-direction: column; gap: 10px;">
+        <p style="color: #94a3b8; font-size: 0.85rem;">시간표 셀을 클릭하여 메모나 학생 활동을 기록하세요.</p>
+      </div>
     </div>
   </div>
 
-  <!-- 학생 배정 팝오버 (숨겨져 있음) -->
+  <!-- 입력 팝오버 및 배경 오버레이 -->
+  <div class="modal-overlay" id="overlay" onclick="closePopover()"></div>
   <div id="popover">
-    <h4>학생 및 메모 입력</h4>
-    <label><input type="checkbox" value="학생01"> 학생01</label><br>
-    <label><input type="checkbox" value="학생02"> 학생02</label><br>
-    <label><input type="checkbox" value="학생03"> 학생03</label><br>
-    <input type="text" id="memo-input" placeholder="특이사항 메모..." style="margin-top:10px; width:100%;"><br>
-    <button onclick="saveData()">저장하기</button>
-    <button onclick="closePopover()">닫기</button>
+    <h4 style="margin: 0 0 10px 0;" id="popover-title">수업/일지 입력</h4>
+    
+    <div class="section-title">우리반 학생 (01~06)</div>
+    <div class="checkbox-group" id="main-student-group"></div>
+
+    <div class="section-title">외부/옆반 학생 (07~14)</div>
+    <div class="checkbox-group" id="extra-student-group"></div>
+
+    <div class="section-title">지원 인력 / 교사</div>
+    <div class="checkbox-group" id="helper-group"></div>
+
+    <div class="section-title">수업 내용 / 특이사항 / 행동 기록</div>
+    <textarea id="memo-input" placeholder="학생 선택 없이 메모만 남길 수도 있습니다."></textarea>
+
+    <div class="btn-group">
+      <button class="btn btn-secondary" onclick="closePopover()">취소</button>
+      <button class="btn btn-primary" onclick="saveData()">저장하기</button>
+    </div>
   </div>
 
   <script>
-    // ★ 여기에 아까 1단계에서 복사한 구글 Apps Script URL을 따옴표 안에 넣으세요!
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxaEJBSSnRjx_m1ZT2Fp1TwkBNghOfpRoudWd-EUdmvT5izmY1ZjNjLAXmAjXyL7M3njg/exec';
+    let currentDate = new Date();
+    let selectedCellInfo = null;
+    const scheduleData = {}; // 셀 데이터 저장 객체
 
-    const days = ['월', '화', '수', '목', '금'];
-    const periods = ['1교시', '2교시', '3교시', '4교시'];
-    let currentCell = null;
+    const PERIODS = [
+      { name: '등교', time: '~09:00' },
+      { name: '1교시', time: '09:00~09:40' },
+      { name: '2교시', time: '09:50~10:30' },
+      { name: '3교시', time: '10:40~11:20' },
+      { name: '저점 / 고4', time: '11:20~12:10' },
+      { name: '저4 / 고점', time: '12:10~12:50' },
+      { name: '5교시', time: '13:00~13:40' },
+      { name: '6교시', time: '13:50~14:30' },
+      { name: '방과후', time: '14:30~' }
+    ];
 
-    // 1. 시간표 격자 그리기
-    const grid = document.getElementById('schedule-grid');
-    grid.innerHTML += `<div class="cell header">교시</div>` + days.map(d => `<div class="cell header">${d}</div>`).join('');
-    
-    periods.forEach(period => {
-      grid.innerHTML += `<div class="cell header">${period}</div>`;
-      days.forEach(day => {
-        grid.innerHTML += `<div class="cell" onclick="openPopover(event, '${day}', '${period}', this)">클릭하여 배정</div>`;
+    // 월요일 날짜 구하기
+    function getMonday(d) {
+      const date = new Date(d);
+      const day = date.getDay();
+      const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+      return new Date(date.setDate(diff));
+    }
+
+    // 주차 계산 및 화면 렌더링
+    function render() {
+      const monday = getMonday(currentDate);
+      const friday = new Date(monday);
+      friday.setDate(monday.getDate() + 4);
+
+      // 주차 타이틀 업데이트
+      document.getElementById('week-title').innerText = 
+        `${monday.getFullYear()}년 ${monday.getMonth()+1}월 ${monday.getDate()}일 ~ ${friday.getMonth()+1}월 ${friday.getDate()}일`;
+
+      // 시간표 격자 생성
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '<div class="cell header-cell">교시 / 요일</div>';
+
+      const days = ['월', '화', '수', '목', '금'];
+      const weekDates = [];
+
+      days.forEach((day, idx) => {
+        const dayDate = new Date(monday);
+        dayDate.setDate(monday.getDate() + idx);
+        weekDates.push(dayDate);
+        grid.innerHTML += `<div class="cell header-cell">${day}<span class="period-label">(${dayDate.getMonth()+1}/${dayDate.getDate()})</span></div>`;
       });
-    });
 
-    // 2. 팝오버 열기
-    function openPopover(event, day, period, cellElement) {
-      currentCell = { element: cellElement, period: `${day} ${period}` };
-      const popover = document.getElementById('popover');
-      popover.style.display = 'block';
-      popover.style.left = event.pageX + 'px';
-      popover.style.top = event.pageY + 'px';
+      // 교시별 행 생성
+      PERIODS.forEach(period => {
+        grid.innerHTML += `<div class="cell header-cell">${period.name}<span class="period-label">${period.time}</span></div>`;
+        
+        weekDates.forEach((date) => {
+          const dateStr = date.toISOString().split('T')[0];
+          const cellId = `${dateStr}_${period.name}`;
+          const cellData = scheduleData[cellId] || { students: [], helpers: [], memo: '' };
+
+          let contentHtml = '';
+          if(cellData.students.length) contentHtml += cellData.students.map(s => `<span class="tag-student">${s}</span>`).join('');
+          if(cellData.helpers.length) contentHtml += cellData.helpers.map(h => `<span class="tag-helper">${h}</span>`).join('');
+          if(cellData.memo) contentHtml += `<div class="memo-text">📝 ${cellData.memo}</div>`;
+
+          grid.innerHTML += `<div class="cell" onclick="openPopover('${dateStr}', '${period.name}', '${cellId}')">${contentHtml}</div>`;
+        });
+      });
+
+      renderDailyPanel(monday);
+    }
+
+    // 주차 이동
+    function changeWeek(offset) {
+      currentDate.setDate(currentDate.getDate() + (offset * 7));
+      render();
+    }
+    function goToday() {
+      currentDate = new Date();
+      render();
+    }
+
+    // 팝오버 열기
+    function openPopover(dateStr, periodName, cellId) {
+      selectedCellInfo = { dateStr, periodName, cellId };
+      const data = scheduleData[cellId] || { students: [], helpers: [], memo: '' };
+
+      document.getElementById('popover-title').innerText = `${dateStr} [${periodName}] 기록`;
+      
+      // 체크박스 생성 함수
+      const makeCheckboxes = (containerId, list, selectedList) => {
+        const container = document.getElementById(containerId);
+        container.innerHTML = list.map(item => `
+          <label><input type="checkbox" value="${item}" ${selectedList.includes(item) ? 'checked' : ''}> ${item}</label>
+        `).join('');
+      };
+
+      makeCheckboxes('main-student-group', MAIN_STUDENTS, data.students);
+      makeCheckboxes('extra-student-group', EXTRA_STUDENTS, data.students);
+      makeCheckboxes('helper-group', HELPERS, data.helpers);
+      document.getElementById('memo-input').value = data.memo;
+
+      document.getElementById('popover').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
     }
 
     function closePopover() {
       document.getElementById('popover').style.display = 'none';
+      document.getElementById('overlay').style.display = 'none';
     }
 
-    // 3. 저장하고 우측 패널에 띄우기 & 구글 시트로 보내기
+    // 데이터 저장
     function saveData() {
-      const checkboxes = document.querySelectorAll('#popover input[type="checkbox"]:checked');
-      const students = Array.from(checkboxes).map(cb => cb.value).join(', ');
+      const getChecked = (containerId) => 
+        Array.from(document.querySelectorAll(`#${containerId} input:checked`)).map(cb => cb.value);
+
+      const students = [...getChecked('main-student-group'), ...getChecked('extra-student-group')];
+      const helpers = getChecked('helper-group');
       const memo = document.getElementById('memo-input').value;
 
-      if(students === '') return alert('학생을 선택해주세요!');
+      scheduleData[selectedCellInfo.cellId] = { students, helpers, memo };
 
-      // 시간표 칸에 표시
-      currentCell.element.innerHTML = `<strong>${students}</strong>`;
-      currentCell.element.style.background = '#d1fae5'; // 연두색으로 변경
+      // 구글 스프레드시트 백엔드 전송
+      if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== '여기에_구글_URL_붙여넣기') {
+        fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            date: selectedCellInfo.dateStr,
+            period: selectedCellInfo.periodName,
+            students: students.join(', '),
+            helpers: helpers.join(', '),
+            memo: memo
+          })
+        });
+      }
 
-      // 우측 패널에 추가
+      closePopover();
+      render();
+    }
+
+    // 우측 데일리 패널 목록 갱신
+    function renderDailyPanel(monday) {
       const memoList = document.getElementById('memo-list');
-      memoList.innerHTML += `<div style="border-bottom:1px solid #ddd; margin-bottom:10px; padding-bottom:10px;">
-        <strong>[${currentCell.period}] ${students}</strong><br>
-        📝 ${memo}
-      </div>`;
+      memoList.innerHTML = '';
 
-      // 구글 스프레드시트로 데이터 전송 (백그라운드)
-      fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        body: JSON.stringify({ period: currentCell.period, students: students, memo: memo })
+      let hasData = false;
+      Object.keys(scheduleData).sort().forEach(cellId => {
+        const data = scheduleData[cellId];
+        if(data.students.length || data.helpers.length || data.memo) {
+          hasData = true;
+          const [date, period] = cellId.split('_');
+          memoList.innerHTML += `
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px; border-radius:6px;">
+              <div style="font-size:0.8rem; font-weight:bold; color:#2563eb;">${date} [${period}]</div>
+              ${data.students.length ? `<div style="margin-top:4px;">학생: ${data.students.join(', ')}</div>` : ''}
+              ${data.helpers.length ? `<div style="margin-top:2px; font-size:0.8rem; color:#475569;">지원: ${data.helpers.join(', ')}</div>` : ''}
+              ${data.memo ? `<div style="margin-top:4px; font-size:0.85rem; color:#1e293b;">📝 ${data.memo}</div>` : ''}
+            </div>
+          `;
+        }
       });
 
-      // 입력창 초기화 및 닫기
-      document.getElementById('memo-input').value = '';
-      checkboxes.forEach(cb => cb.checked = false);
-      closePopover();
+      if(!hasData) {
+        memoList.innerHTML = '<p style="color: #94a3b8; font-size: 0.85rem;">기록된 내용이 없습니다.</p>';
+      }
     }
+
+    // 초기화 실행
+    render();
   </script>
 </body>
 </html>
