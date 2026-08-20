@@ -24,14 +24,23 @@
 
     /* 메인 뷰 레이아웃 (우측 메모 패널 포함 7:3 비율) */
     .main-container { display: flex; flex: 1; overflow: hidden; }
-    .content-area { flex: 7; padding: 12px; overflow: auto; }
-    .memo-panel { flex: 3; background: white; border-left: 1px solid #cbd5e1; padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    .content-area { flex: 1 1 auto; min-width: 0; padding: 12px; overflow: auto; }
+    .memo-panel { flex: 0 0 30%; max-width: 30%; background: white; border-left: 1px solid #cbd5e1; padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; transition: flex-basis 0.2s ease, max-width 0.2s ease, padding 0.2s ease; }
+    .memo-panel.collapsed { flex: 0 0 44px; max-width: 44px; padding: 10px 4px; overflow: hidden; align-items: center; }
+    .memo-panel-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; width: 100%; }
+    .memo-panel.collapsed .memo-panel-header { border-bottom: none; justify-content: center; padding-bottom: 0; }
+    .memo-panel.collapsed .memo-title,
+    .memo-panel.collapsed #daily-memo-list { display: none; }
+    .memo-collapsed-label { display: none; writing-mode: vertical-rl; text-orientation: mixed; font-size: 0.75rem; font-weight: bold; color: #475569; letter-spacing: 1px; margin-top: 10px; cursor: pointer; }
+    .memo-panel.collapsed .memo-collapsed-label { display: block; }
+    .memo-toggle-btn { border: none; background: #f1f5f9; border-radius: 4px; cursor: pointer; font-size: 0.75rem; padding: 3px 8px; color: #475569; font-weight: bold; flex-shrink: 0; }
 
     /* 테이블 공통 */
     table { width: 100%; border-collapse: collapse; background: white; font-size: 0.78rem; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     th, td { border: 1px solid #e2e8f0; padding: 5px 6px; text-align: center; min-width: 85px; vertical-align: top; }
     th { background: #f1f5f9; font-weight: bold; color: #334155; }
     .time-col { background: #f8fafc; font-weight: bold; width: 110px; color: #475569; }
+    .time-col.is-break { background: #f1f5f9; color: #94a3b8; font-weight: normal; font-size: 0.78rem; }
     .time-sub { font-size: 0.7rem; color: #64748b; font-weight: normal; display: block; margin-top: 1px; }
     .clickable-cell { cursor: pointer; transition: background 0.15s; }
     .clickable-cell:hover { background: #eff6ff !important; }
@@ -47,15 +56,54 @@
     .tag-helper { background: #e0e7ff; color: #3730a3; }
     .tag-teacher { background: #dcfce7; color: #166534; }
     .tag-behavior { background: #fecdd3; color: #9f1239; border: 1px solid #fda4af; }
+    .tag-student-behavior { background: #fecdd3; color: #9f1239; border: 1px solid #f43f5e; font-weight: bold; }
     .tag-positive { background: #fef9c3; color: #854d0e; }
 
+    /* 학급 주간 뷰: 한 교시+날짜 셀 안에 여러 기록(항목)이 있을 때 구분 표시 */
+    .matrix-entry-block { cursor: pointer; border-radius: 4px; padding: 3px 2px; margin-bottom: 3px; transition: background 0.15s; text-align: left; }
+    .matrix-entry-block:hover { background: #eff6ff; }
+    .matrix-entry-block + .matrix-entry-block { border-top: 1px dashed #cbd5e1; padding-top: 4px; }
+    .add-entry-btn { cursor: pointer; font-size: 0.68rem; color: #2563eb; font-weight: bold; padding: 2px 4px; border: 1px dashed #93c5fd; border-radius: 4px; text-align: center; margin-top: 2px; }
+    .add-entry-btn:hover { background: #eff6ff; }
+    .empty-cell-add { display: block; min-height: 22px; }
+
+    /* 늘봄학교 프로그램 관리 */
+    .nb-day-row { display: flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 4px 8px; }
+    .nb-day-row label { display: flex; align-items: center; gap: 4px; font-weight: bold; font-size: 0.76rem; width: 60px; flex-shrink: 0; }
+    .nb-day-row label input { width: auto; }
+    .nb-day-row input[type="time"] { flex: 1; padding: 3px 4px; font-size: 0.75rem; }
+    .nb-program-card { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
+    .nb-cat-tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; margin-right: 4px; }
+    .nb-cat-맞춤형교실 { background: #dbeafe; color: #1e40af; }
+    .nb-cat-돌봄 { background: #dcfce7; color: #166534; }
+    .nb-cat-특수선택형교육 { background: #ffedd5; color: #9a3412; }
+    .nb-cat-선택형교육 { background: #ede9fe; color: #5b21b6; }
+
+    /* 일일매트릭스: 늘봄/문제행동 시간을 셀 높이에 비례한 수직 화살표로 표시 */
+    .matrix-cell-relative { position: relative; }
+    .matrix-cell-relative.has-neulbom { padding-left: 11px; }
+    .vertical-arrow { position: absolute; right: 3px; width: 0; border-left: 2px solid #e11d48; pointer-events: none; }
+    .vertical-arrow::before, .vertical-arrow::after { content: ''; position: absolute; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; }
+    .vertical-arrow::before { top: -4px; border-bottom: 5px solid #e11d48; }
+    .vertical-arrow::after { bottom: -4px; border-top: 5px solid #e11d48; }
+    .vertical-arrow.neulbom { left: 2px; right: auto; border-left-color: #7c3aed; }
+    .vertical-arrow.neulbom::before { border-bottom-color: #7c3aed; }
+    .vertical-arrow.neulbom::after { border-top-color: #7c3aed; }
+    .tag-neulbom { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; display: block; text-align: left; }
+    .memo-card-clickable { cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+    .memo-card-clickable:hover { background: #eff6ff; border-color: #93c5fd; }
+
     /* 출결 모달 전용 UI */
-    .att-row { display: flex; align-items: center; justify-content: space-between; background: #f8fafc; padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0; margin-bottom: 4px; }
+    .att-row { display: flex; flex-direction: column; align-items: stretch; gap: 4px; background: #f8fafc; padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0; margin-bottom: 4px; }
+    .att-row-top { display: flex; align-items: center; justify-content: space-between; }
     .att-btn-group { display: flex; gap: 4px; }
     .att-btn { border: 1px solid #cbd5e1; background: white; font-size: 0.72rem; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; }
     .att-btn.active-present { background: #dcfce7; color: #166534; border-color: #86efac; }
     .att-btn.active-tardy { background: #fef9c3; color: #854d0e; border-color: #fde047; }
     .att-btn.active-absent { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+    .tardy-time-input { width: 150px; align-self: flex-end; padding: 3px 6px; font-size: 0.75rem; border: 1px solid #fde047; border-radius: 4px; }
+    .att-date-nav { display: flex; align-items: center; justify-content: space-between; background: #eff6ff; padding: 6px 10px; border-radius: 6px; margin-bottom: 8px; }
+    .att-date-nav button { padding: 3px 10px; font-size: 0.78rem; }
 
     /* 모달 */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 999; }
@@ -78,13 +126,14 @@
 <body>
 
   <script>
-    const GOOGLE_SCRIPT_URL = '여기에_구글_URL_붙여넣기';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxN2Zdmlfy8E8kc4_COUyMCoetnw18PSkfI7BK0w2FxkXZEY4n__-1L9yyM57e89_Ddww/exec';
   </script>
 
   <!-- 상단 제어바 -->
   <div class="top-bar">
     <div class="nav-group">
       <span class="badge" id="academic-year-badge">2026학년도</span>
+      <span class="badge" id="sync-status" style="display:none;"></span>
       <div class="nav-tabs">
         <button class="tab-btn active" onclick="switchView('classWeekly')">학급 주간</button>
         <button class="tab-btn" onclick="switchView('personWeekly')">개인 주간</button>
@@ -106,14 +155,16 @@
       <button onclick="changeDate(7)">다음주 &gt;</button>
       <span id="current-date-text" style="font-weight:bold; font-size:0.85rem;"></span>
       <button onclick="toggleMiniCal()">📅 미니달력</button>
+      <button onclick="openEventModal()">🗓️ 행사</button>
       <button onclick="openAttendanceModal()">🏥 출결 관리</button>
+      <button onclick="openNeulbomModal()">🌤️ 늘봄학교</button>
       <button onclick="openSettingsModal()">⚙️ 설정</button>
     </div>
   </div>
 
-  <!-- 일일 행사 배너 -->
-  <div class="daily-event-banner" id="event-banner">
-    <span id="event-text">🗓️ 일일 행사/일정: 등록된 일정이 없습니다.</span>
+  <!-- 일일 행사 배너 (해당 날짜에 등록된 행사가 있을 때만 표시) -->
+  <div class="daily-event-banner" id="event-banner" style="display:none;">
+    <span id="event-text"></span>
     <button onclick="openEventModal()" style="font-size: 0.72rem; padding: 2px 6px; cursor: pointer;">행사 수정</button>
   </div>
 
@@ -129,8 +180,12 @@
   <!-- 메인 뷰 영역 (좌 측 7 : 우 측 3 메모 패널) -->
   <div class="main-container">
     <div class="content-area" id="view-content"></div>
-    <div class="memo-panel">
-      <h4 style="margin:0; font-size:0.95rem; color:#0f172a; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">📝 오늘의 메모 / 일지</h4>
+    <div class="memo-panel" id="memo-panel">
+      <div class="memo-panel-header">
+        <h4 class="memo-title" style="margin:0; font-size:0.95rem; color:#0f172a;">📝 오늘의 메모 / 일지</h4>
+        <button id="memo-toggle-btn" class="memo-toggle-btn" onclick="toggleMemoPanel()" title="메모 패널 접기">◀</button>
+      </div>
+      <div class="memo-collapsed-label" onclick="toggleMemoPanel()">📝 메모 펼치기</div>
       <div id="daily-memo-list" style="display:flex; flex-direction:column; gap:8px;">
         <p style="color:#94a3b8; font-size:0.78rem;">수업 시간표에 작성한 특이사항이 표시됩니다.</p>
       </div>
@@ -140,14 +195,20 @@
   <!-- 시간표 입력 모달 -->
   <div class="modal-overlay" id="overlay" onclick="closeModal()"></div>
   <div class="modal" id="input-modal">
-    <h4 style="margin-top:0; margin-bottom:8px;" id="modal-title">수업 및 지원 기록</h4>
+    <h4 style="margin-top:0; margin-bottom:4px;" id="modal-title">수업 및 지원 기록</h4>
+    <p id="modal-target-info" style="margin:0 0 8px 0; font-size:0.72rem; color:#2563eb; font-weight:bold;"></p>
     <div class="form-group">
-      <label>해당 학급 선택</label>
-      <select id="input-class">
+      <label>해당 학급 / 장소 선택</label>
+      <select id="input-class" onchange="handleClassSelectChange()">
         <option value="저학년반">저학년반</option>
         <option value="고학년반">고학년반</option>
         <option value="윤슬반">윤슬반</option>
+        <option value="통합학급">통합학급</option>
+        <option value="급식실">급식실</option>
+        <option value="하교">하교</option>
+        <option value="기타">기타 (직접 입력)</option>
       </select>
+      <input type="text" id="input-class-custom" placeholder="장소를 직접 입력하세요 (예: 운동장, 보건실, 특별실 등)" style="display:none; margin-top:5px;">
     </div>
     <div class="form-group">
       <label>우리반 학생</label>
@@ -177,7 +238,7 @@
           <option value="물건던짐">물건던짐</option>
           <option value="자해행동">자해행동</option>
         </select>
-        <input type="text" id="behavior-time" placeholder="시간 (예: 09:10-09:25)" style="flex:1;">
+        <input type="text" id="behavior-time" placeholder="시간 (예: 09:10-09:25 또는 09:10~09:25)" style="flex:1;">
       </div>
     </div>
     <div class="form-group">
@@ -195,37 +256,55 @@
       <label>수업 내용 / 특이사항 메모</label>
       <textarea id="memo-input" rows="2" placeholder="메모 남기기"></textarea>
     </div>
-    <div style="display:flex; justify-direction:flex-end; gap:6px;">
-      <button class="btn btn-secondary" onclick="closeModal()">취소</button>
-      <button class="btn btn-primary" onclick="saveData()">저장</button>
+    <div style="display:flex; justify-content:space-between; gap:6px;">
+      <button class="btn" id="delete-entry-btn" style="background:#fee2e2; color:#dc2626; display:none;" onclick="deleteEntry()">이 기록 삭제</button>
+      <div style="display:flex; gap:6px; margin-left:auto;">
+        <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+        <button class="btn btn-primary" onclick="saveData()">저장</button>
+      </div>
     </div>
   </div>
 
-  <!-- 출결 관리 모달 (개편됨) -->
+  <!-- 출결 관리 모달 -->
   <div class="modal" id="attendance-modal">
-    <h4 style="margin-top:0; margin-bottom:8px;">🏥 오늘의 출결 (지각 / 결석) 관리</h4>
-    <p style="font-size:0.72rem; color:#64748b;">상태를 선택하면 개인 주간 뷰 및 매트릭스에 즉시 반영됩니다.</p>
-    
+    <h4 style="margin-top:0; margin-bottom:8px;">🏥 출결 관리</h4>
+
+    <div class="att-date-nav">
+      <button class="btn btn-secondary" onclick="navigateAttDate(-1)">◀ 이전날</button>
+      <span id="att-modal-date-label" style="font-weight:bold; font-size:0.85rem; color:#1e40af;"></span>
+      <button class="btn btn-secondary" onclick="navigateAttDate(1)">다음날 ▶</button>
+    </div>
+    <p style="font-size:0.72rem; color:#64748b; margin-top:0;">위 기준 날짜의 출결 상태를 선택하세요. 날짜를 이동해도 입력한 내용은 즉시 저장됩니다. 지각 선택 시 도착 시각을 입력할 수 있습니다.</p>
+
     <div class="form-group">
-      <label>학생 출결 상태</label>
+      <label>학생 출결 상태 (결석)</label>
       <div id="att-students-list" style="max-height:160px; overflow-y:auto;"></div>
     </div>
     <div class="form-group">
-      <label>교사 / 지원인력 근태 상태</label>
+      <label>교사 / 지원인력 근태 상태 (결근)</label>
       <div id="att-staff-list" style="max-height:160px; overflow-y:auto;"></div>
     </div>
-    <div style="display:flex; justify-direction:flex-end; gap:6px;">
-      <button class="btn btn-secondary" onclick="closeModal()">취소</button>
-      <button class="btn btn-primary" onclick="saveAttendance()">저장</button>
+    <div style="display:flex; justify-content:flex-end; gap:6px;">
+      <button class="btn btn-primary" onclick="saveAttendance()">닫기</button>
     </div>
   </div>
 
   <!-- 행사 입력 모달 -->
   <div class="modal" id="event-modal">
-    <h4 style="margin-top:0;">🗓️ 일일 행사/일정 등록</h4>
+    <h4 style="margin-top:0; margin-bottom:8px;">🗓️ 일일 행사/일정 등록</h4>
+
+    <div class="att-date-nav">
+      <button class="btn btn-secondary" onclick="navigateEventDate(-1)">◀ 이전날</button>
+      <span id="event-modal-date-label" style="font-weight:bold; font-size:0.85rem; color:#1e40af;"></span>
+      <div style="display:flex; gap:4px;">
+        <button class="btn btn-secondary" onclick="toggleMiniCal()">📅</button>
+        <button class="btn btn-secondary" onclick="navigateEventDate(1)">다음날 ▶</button>
+      </div>
+    </div>
+
     <input type="text" id="event-input" placeholder="예: 현장체험학습, 체육대회, 개교기념일 등">
-    <div style="display:flex; justify-direction:flex-end; gap:6px; margin-top:12px;">
-      <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+    <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:12px;">
+      <button class="btn btn-secondary" onclick="closeModal()">닫기</button>
       <button class="btn btn-primary" onclick="saveEvent()">저장</button>
     </div>
   </div>
@@ -244,7 +323,7 @@
     </div>
 
     <div class="form-group">
-      <label>기본 메인 반 설정 (접속 시 첫 화면)</label>
+      <label>기본 메인 반 설정 (접속 시 첫 화면에 자동 적용)</label>
       <select id="cfg-default-class">
         <option value="ALL">전체 보기</option>
         <option value="저학년반">저학년반</option>
@@ -253,20 +332,25 @@
       </select>
     </div>
 
+    <div class="form-group">
+      <label>지원인력 / 교사 명단 (쉼표 구분) — 아래 반별 담당 교사 드롭다운의 목록으로 사용됩니다</label>
+      <input type="text" id="cfg-teachers" oninput="updateClassTeacherDropdowns()">
+    </div>
+
     <div style="background:#f1f5f9; padding:8px; border-radius:6px; margin-bottom:10px;">
-      <label style="font-weight:bold; font-size:0.75rem; color:#1e293b; display:block; margin-bottom:4px;">🏫 반별 담당 교사 연결 설정</label>
+      <label style="font-weight:bold; font-size:0.75rem; color:#1e293b; display:block; margin-bottom:4px;">🏫 반별 담당 교사 연결 설정 (드롭다운 선택)</label>
       <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px;">
         <div>
           <span style="font-size:0.7rem;">저학년반</span>
-          <input type="text" id="cfg-teacher-low" placeholder="교사A">
+          <select id="cfg-teacher-low"><option value="">-- 선택 --</option></select>
         </div>
         <div>
           <span style="font-size:0.7rem;">고학년반</span>
-          <input type="text" id="cfg-teacher-high" placeholder="교사B">
+          <select id="cfg-teacher-high"><option value="">-- 선택 --</option></select>
         </div>
         <div>
           <span style="font-size:0.7rem;">윤슬반</span>
-          <input type="text" id="cfg-teacher-yun" placeholder="교사C">
+          <select id="cfg-teacher-yun"><option value="">-- 선택 --</option></select>
         </div>
       </div>
     </div>
@@ -283,39 +367,264 @@
       <label>지원인력 명단</label>
       <input type="text" id="cfg-helpers">
     </div>
+
     <div class="form-group">
-      <label>특수교사 명단</label>
-      <input type="text" id="cfg-teachers">
+      <label>🏫 추가 장소 목록 (쉼표 구분) — 반 선택 목록에 함께 나타납니다. 기본 제공: 통합학급, 급식실, 하교</label>
+      <input type="text" id="cfg-custom-locations" placeholder="예: 보건실, 운동장, 특별실, 상담실">
     </div>
 
-    <div style="display:flex; justify-direction:flex-end; gap:6px; margin-top:12px;">
+    <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:12px;">
       <button class="btn btn-secondary" onclick="closeModal()">취소</button>
       <button class="btn btn-primary" onclick="saveSettings()">설정 저장</button>
     </div>
   </div>
 
+  <!-- 늘봄학교 프로그램 관리 모달 -->
+  <div class="modal" id="neulbom-modal" style="width:640px;">
+    <h4 style="margin-top:0; margin-bottom:4px;">🌤️ 늘봄학교 프로그램 관리</h4>
+    <p style="font-size:0.72rem; color:#64748b; margin-top:0;">맞춤형교실 / 돌봄 / 특수선택형교육 / 선택형교육 프로그램을 등록하면, 참여 학생의 해당 시간대에 일일매트릭스에 수직 화살표(↕)로 표시됩니다.</p>
+
+    <div id="neulbom-list" style="margin-bottom:14px;"></div>
+
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px;">
+      <h5 id="neulbom-form-title" style="margin:0 0 8px 0; font-size:0.85rem;">➕ 새 프로그램 추가</h5>
+      <input type="hidden" id="nb-edit-id" value="">
+
+      <div class="form-group">
+        <label>카테고리</label>
+        <select id="nb-category">
+          <option value="맞춤형교실">맞춤형교실</option>
+          <option value="돌봄">돌봄</option>
+          <option value="특수선택형교육">특수선택형교육</option>
+          <option value="선택형교육">선택형교육</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>프로그램명</label>
+        <input type="text" id="nb-name" placeholder="예: 미술교실, 오후돌봄A">
+      </div>
+      <div class="form-group">
+        <label>장소</label>
+        <select id="nb-location" onchange="toggleNbLocationCustom()"></select>
+        <input type="text" id="nb-location-custom" placeholder="장소를 직접 입력하세요" style="display:none; margin-top:5px;">
+      </div>
+
+      <div class="form-group">
+        <label>운영 기간</label>
+        <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
+          <label style="display:flex; align-items:center; gap:3px; font-weight:normal;"><input type="radio" name="nb-period-type" value="semester" checked onchange="toggleNbPeriodType()" style="width:auto;"> 학기 선택</label>
+          <label style="display:flex; align-items:center; gap:3px; font-weight:normal;"><input type="radio" name="nb-period-type" value="custom" onchange="toggleNbPeriodType()" style="width:auto;"> 직접 기간 입력</label>
+        </div>
+        <select id="nb-semester">
+          <option value="1학기">1학기 (3/1 ~ 8/31)</option>
+          <option value="2학기">2학기 (9/1 ~ 익년 2/28)</option>
+        </select>
+        <div id="nb-custom-period" style="display:none; gap:6px; margin-top:4px;">
+          <input type="date" id="nb-start-date" style="flex:1;">
+          <span style="align-self:center;">~</span>
+          <input type="date" id="nb-end-date" style="flex:1;">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>반복 주기</label>
+        <select id="nb-recurrence">
+          <option value="weekly">매주</option>
+          <option value="biweekly">격주 (시작일 기준 2주 간격)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>요일별 시작 · 종료 시각</label>
+        <div id="neulbom-days-config" style="display:flex; flex-direction:column; gap:4px;"></div>
+      </div>
+
+      <div class="form-group">
+        <label>참여 학생</label>
+        <div class="checkbox-grid" id="nb-students"></div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:6px;">
+        <button class="btn btn-secondary" id="nb-cancel-edit-btn" style="display:none;" onclick="resetNeulbomForm()">편집 취소</button>
+        <button class="btn btn-primary" onclick="saveNeulbomProgram()">프로그램 저장</button>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+      <button class="btn btn-secondary" onclick="closeModal()">닫기</button>
+    </div>
+  </div>
+
   <script>
-    // 1. 상태 변수
     let currentDate = new Date();
     let currentView = 'classWeekly';
     let selectedPerson = '';
     let selectedCellId = '';
+    let selectedEntryId = null; // null이면 신규 기록 생성, 값이 있으면 해당 기록(entry) 수정
+    let memoPanelCollapsed = false;
+    // scheduleData[dateStr_교시명] = [ {id, students, helpers, teachers, className, behavior, behaviorTime, positive, memo}, ... ]
+    // 한 교시+날짜 셀에 여러 건의 기록(entry)이 있을 수 있음 (예: 같은 시간에 반별로 서로 다른 활동이 진행되는 경우)
     const scheduleData = {};
-    const attendanceData = {}; // { '2026-08-21': { '학생01': 'ABSENT', '교사A': 'TARDY' } }
+    // attendanceData[dateStr][person] = { status: 'TARDY'|'ABSENT', time: 'HH:MM'(지각인 경우) }
+    const attendanceData = {};
     const eventData = {}; 
 
-    // 교시 정의
+    // 늘봄학교 프로그램: { id, category, name, location, students:[], periodType:'semester'|'custom', semester, startDate, endDate, recurrence:'weekly'|'biweekly', schedule: { '월': {start:'HH:MM', end:'HH:MM'}, ... } }
+    let neulbomPrograms = JSON.parse(localStorage.getItem('neulbomPrograms') || '[]');
+    const NEULBOM_CATEGORIES = ['맞춤형교실', '돌봄', '특수선택형교육', '선택형교육'];
+    const WEEKDAY_NAMES = ['월', '화', '수', '목', '금'];
+
+    // 교시 정의 (startMin/endMin: 자정 기준 분 단위 시작/종료 시각). isBreak: 쉬는 시간 행 - 일반 교시와 동일하게 입력 가능 (이름은 셀 ID로 쓰이므로 서로 겹치지 않게 고유해야 함)
     const PERIODS = [
-      { name: '등교', time: '~ 09:00' },
-      { name: '1교시', time: '09:00 - 09:40' },
-      { name: '2교시', time: '09:50 - 10:30' },
-      { name: '3교시', time: '10:40 - 11:20' },
-      { name: '저점/고4', time: '11:20 - 12:10' },
-      { name: '고점/저4', time: '12:10 - 13:00' },
-      { name: '5교시', time: '13:00 - 13:40' },
-      { name: '6교시', time: '13:50 - 14:30' },
-      { name: '방과후', time: '14:30 ~' }
+      { name: '등교', time: '~ 09:00', startMin: 0, endMin: 540 },
+      { name: '1교시', time: '09:00 - 09:40', startMin: 540, endMin: 580 },
+      { name: '쉬는시간(1-2교시)', time: '09:40 - 09:50', startMin: 580, endMin: 590, isBreak: true },
+      { name: '2교시', time: '09:50 - 10:30', startMin: 590, endMin: 630 },
+      { name: '쉬는시간(2-3교시)', time: '10:30 - 10:40', startMin: 630, endMin: 640, isBreak: true },
+      { name: '3교시', time: '10:40 - 11:20', startMin: 640, endMin: 680 },
+      { name: '저점/고4', time: '11:20 - 12:10', startMin: 680, endMin: 730 },
+      { name: '고점/저4', time: '12:10 - 13:00', startMin: 730, endMin: 780 },
+      { name: '5교시', time: '13:00 - 13:40', startMin: 780, endMin: 820 },
+      { name: '쉬는시간(5-6교시)', time: '13:40 - 13:50', startMin: 820, endMin: 830, isBreak: true },
+      { name: '6교시', time: '13:50 - 14:30', startMin: 830, endMin: 870 },
+      { name: '방과후', time: '14:30 ~', startMin: 870, endMin: 1440 }
     ];
+
+    // 1-1. 기록(entry) 관련 헬퍼
+    let entryIdCounter = 0;
+    function generateEntryId() {
+      entryIdCounter += 1;
+      return `e${Date.now()}_${entryIdCounter}`;
+    }
+    function blankEntry() {
+      return { id: null, students: [], helpers: [], teachers: [], memo: '', behavior: '', behaviorTime: '', positive: '', className: '' };
+    }
+    function getEntries(cellId) {
+      return scheduleData[cellId] || [];
+    }
+    // 특정 인물(학생/지원인력/교사)이 포함된 기록(entry)을 해당 셀에서 찾기
+    function findEntryForPerson(cellId, personName) {
+      if(!personName) return null;
+      const entries = getEntries(cellId);
+      return entries.find(e => e.students.includes(personName) || e.helpers.includes(personName) || e.teachers.includes(personName)) || null;
+    }
+
+    // ===== 구글 시트 연동 공통 헬퍼 =====
+    function isSheetConnected() {
+      return typeof GOOGLE_SCRIPT_URL === 'string' && GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== 'https://script.google.com/macros/s/AKfycbxN2Zdmlfy8E8kc4_COUyMCoetnw18PSkfI7BK0w2FxkXZEY4n__-1L9yyM57e89_Ddww/exec';
+    }
+
+    // 콤마로 구분된 "학생01, 학생04" 형태 문자열을 배열로 변환 (시트에서 불러올 때 사용)
+    function splitList(str) {
+      if(!str) return [];
+      return String(str).split(',').map(s => s.trim()).filter(Boolean);
+    }
+
+    function setSyncStatus(state) {
+      const el = document.getElementById('sync-status');
+      if(!isSheetConnected()) { el.style.display = 'none'; return; }
+      el.style.display = 'inline-block';
+      if(state === 'loading') { el.textContent = '☁️ 불러오는 중...'; el.style.background = '#e0e7ff'; el.style.color = '#3730a3'; }
+      else if(state === 'synced') { el.textContent = '☁️ 동기화됨'; el.style.background = '#dcfce7'; el.style.color = '#166534'; }
+      else if(state === 'error') { el.textContent = '⚠️ 동기화 오류'; el.style.background = '#fef2f2'; el.style.color = '#dc2626'; }
+    }
+
+    // 구글 시트로 저장/삭제 요청 전송 (Content-Type을 지정하지 않아야 CORS 사전요청 없이 바로 전송됨)
+    function postToSheet(type, data) {
+      if(!isSheetConnected()) return;
+      fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ type, data }) })
+        .then(res => res.json())
+        .then(json => setSyncStatus(json && json.ok ? 'synced' : 'error'))
+        .catch(err => { console.error('시트 저장 오류:', err); setSyncStatus('error'); });
+    }
+
+    // 앱 시작 시 구글 시트의 모든 데이터를 불러와 로컬 상태를 채움 (시트 미연결 시 로컬 데이터로만 동작)
+    async function loadFromSheet() {
+      if(!isSheetConnected()) { render(); return; }
+      setSyncStatus('loading');
+      try {
+        const res = await fetch(`${GOOGLE_SCRIPT_URL}?type=all`);
+        const json = await res.json();
+
+        (json.schedule || []).forEach(row => {
+          if(!row['날짜'] || !row['교시']) return;
+          const cellId = `${row['날짜']}_${row['교시']}`;
+          if(!scheduleData[cellId]) scheduleData[cellId] = [];
+          scheduleData[cellId].push({
+            id: row['ID'],
+            students: splitList(row['학생명단']),
+            helpers: splitList(row['지원인력']),
+            teachers: splitList(row['담당교사']),
+            className: row['학급/장소'] || '',
+            behavior: row['문제행동'] || '',
+            behaviorTime: row['문제행동시간'] || '',
+            positive: row['칭찬'] || '',
+            memo: row['메모'] || ''
+          });
+        });
+
+        (json.attendance || []).forEach(row => {
+          const date = row['날짜'], name = row['이름'], status = row['상태'];
+          // PRESENT(출석)는 로컬에서도 별도 기록을 두지 않는 상태이므로 지각/결석만 반영
+          if(!date || !name || (status !== 'TARDY' && status !== 'ABSENT')) return;
+          if(!attendanceData[date]) attendanceData[date] = {};
+          attendanceData[date][name] = { status, time: row['지각시각'] || '' };
+        });
+
+        (json.events || []).forEach(row => {
+          if(row['날짜'] && row['행사내용']) eventData[row['날짜']] = row['행사내용'];
+        });
+
+        neulbomPrograms.length = 0;
+        (json.neulbom || []).forEach(row => {
+          const schedule = {};
+          WEEKDAY_NAMES.forEach(day => {
+            const start = row[day + '시작'], end = row[day + '종료'];
+            if(start && end) schedule[day] = { start, end };
+          });
+          neulbomPrograms.push({
+            id: row['ID'], category: row['카테고리'], name: row['프로그램명'], location: row['장소'],
+            students: splitList(row['참여학생']),
+            periodType: row['기간방식'], semester: row['학기'],
+            startDate: row['시작일'], endDate: row['종료일'],
+            academicYear: Number(row['학년도']) || getAcademicYear(currentDate),
+            recurrence: row['반복주기'], schedule
+          });
+        });
+        localStorage.setItem('neulbomPrograms', JSON.stringify(neulbomPrograms));
+
+        (json.roster || []).forEach(row => {
+          const year = row['학년도'];
+          if(!year) return;
+          const rosterObj = {
+            mainStudents: splitList(row['우리반학생']),
+            extraStudents: splitList(row['외부반학생']),
+            helpers: splitList(row['지원인력']),
+            teachers: splitList(row['교사']),
+            classTeachers: {
+              '저학년반': row['저학년반담당교사'] || '',
+              '고학년반': row['고학년반담당교사'] || '',
+              '윤슬반': row['윤슬반담당교사'] || ''
+            }
+          };
+          localStorage.setItem(`roster_${year}`, JSON.stringify(rosterObj));
+        });
+
+        (json.settings || []).forEach(row => {
+          if(row['키'] === 'defaultClass' && row['값']) localStorage.setItem('defaultClass', row['값']);
+          if(row['키'] === 'customLocations' && row['값']) localStorage.setItem('customLocations', row['값']);
+        });
+
+        const savedDefaultClass = localStorage.getItem('defaultClass');
+        if(savedDefaultClass) document.getElementById('class-filter').value = savedDefaultClass;
+
+        setSyncStatus('synced');
+      } catch(err) {
+        console.error('시트 불러오기 실패:', err);
+        setSyncStatus('error');
+      }
+      render();
+    }
 
     // 2. 학년도 계산
     function getAcademicYear(date) {
@@ -356,20 +665,137 @@
       render();
     }
 
+    // 4-1. 출결 배지 헬퍼 (학생: 결석 / 교사·지원인력: 결근, 지각 시 시각 표기) - 날짜 단위 요약(헤더 등)에 사용
+    function formatAttBadge(rec, isStudent) {
+      if(!rec) return null;
+      if(rec.status === 'ABSENT') return { cls: 'badge-absent', text: isStudent ? '결석' : '결근' };
+      if(rec.status === 'TARDY') return { cls: 'badge-tardy', text: `지각${rec.time ? ' ' + rec.time : ''}` };
+      return null;
+    }
+
+    // "HH:MM" 형태 문자열을 분 단위 숫자로 변환
+    function timeToMinutes(timeStr) {
+      if(!timeStr) return null;
+      const m = String(timeStr).match(/^(\d{1,2}):(\d{2})/);
+      if(!m) return null;
+      return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    }
+
+    // 4-1b. 교시별 출결 배지 헬퍼 - 지각 도착시간을 반영해 "도착 이전 교시까지만" 지각으로 표시
+    function formatAttBadgeForPeriod(rec, isStudent, period) {
+      if(!rec) return null;
+      if(rec.status === 'ABSENT') return { cls: 'badge-absent', text: isStudent ? '결석' : '결근' };
+      if(rec.status === 'TARDY') {
+        const arrivalMin = timeToMinutes(rec.time);
+        // 도착 시각 미입력 시: 기존처럼 하루 종일 지각으로 표시
+        if(arrivalMin === null) return { cls: 'badge-tardy', text: '지각' };
+        // 이 교시 시작 시각이 도착 시각보다 이전이면(=도착 전에 이미 시작된 교시) 지각으로 표시
+        if(arrivalMin > period.startMin) return { cls: 'badge-tardy', text: `지각 ${rec.time}` };
+        // 도착 이후 시작하는 교시는 정상 출석으로 처리
+        return null;
+      }
+      return null;
+    }
+
+    // 4-2. 학급 뷰에서 담당 교사 표기 여부 (해당 학급 기본 담당교사와 일치하면 생략, 다르면/학급뷰가 아니면 표기)
+    function shouldShowTeacherTag(data, roster, isClassView) {
+      if(!data.teachers || data.teachers.length === 0) return false;
+      if(!isClassView) return true;
+      const defaultTeacher = (roster.classTeachers || {})[data.className];
+      if(!defaultTeacher) return true;
+      if(data.teachers.length !== 1) return true;
+      return data.teachers[0] !== defaultTeacher;
+    }
+
+    // 4-3. 늘봄학교: 특정 프로그램이 특정 날짜에 운영되는지 판정 (기간/요일/반복주기 반영)
+    function getNeulbomDateRange(program) {
+      if(program.periodType === 'custom') {
+        return { start: new Date(program.startDate + 'T00:00:00'), end: new Date(program.endDate + 'T23:59:59') };
+      }
+      // 학기 기준: 프로그램에 저장된 academicYear를 기준으로 계산
+      const ay = program.academicYear;
+      if(program.semester === '1학기') {
+        return { start: new Date(ay, 2, 1), end: new Date(ay, 7, 31, 23, 59, 59) };
+      }
+      return { start: new Date(ay, 8, 1), end: new Date(ay + 1, 1, 28, 23, 59, 59) };
+    }
+
+    function isNeulbomActiveOnDate(program, date) {
+      const dayName = WEEKDAY_NAMES[date.getDay() - 1]; // getDay(): 0=일,1=월... / 주말(0,6)은 대상 아님
+      if(!dayName || !program.schedule || !program.schedule[dayName]) return false;
+
+      const range = getNeulbomDateRange(program);
+      if(date < range.start || date > range.end) return false;
+
+      if(program.recurrence === 'biweekly') {
+        const diffDays = Math.floor((stripTime(date) - stripTime(range.start)) / 86400000);
+        const weekNum = Math.floor(diffDays / 7);
+        if(weekNum % 2 !== 0) return false; // 격주: 시작일이 속한 주만 활성
+      }
+      return true;
+    }
+    function stripTime(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); }
+
+    // 특정 학생·날짜·교시에 대해 겹치는 늘봄 프로그램들을 [{program, startMin, endMin}] 형태로 반환
+    function getNeulbomOverlapsForPeriod(studentName, date, period) {
+      const results = [];
+      neulbomPrograms.forEach(program => {
+        if(!program.students.includes(studentName)) return;
+        if(!isNeulbomActiveOnDate(program, date)) return;
+        const dayName = WEEKDAY_NAMES[date.getDay() - 1];
+        const sched = program.schedule[dayName];
+        if(!sched) return;
+        const s = timeToMinutes(sched.start), e = timeToMinutes(sched.end);
+        if(s === null || e === null) return;
+        const overlapStart = Math.max(s, period.startMin);
+        const overlapEnd = Math.min(e, period.endMin);
+        if(overlapStart < overlapEnd) results.push({ program, startMin: overlapStart, endMin: overlapEnd });
+      });
+      return results;
+    }
+
+    // 문제행동 시간(behaviorTime, "HH:MM-HH:MM" 형식)이 특정 교시와 겹치는 구간 계산
+    function getBehaviorOverlapForPeriod(entry, period) {
+      if(!entry || !entry.behaviorTime) return null;
+      // 구분자로 -, ~(물결표/전각물결표), 를 폭넓게 허용 (사용자가 "09:10~09:25"처럼 입력해도 인식되도록)
+      const m = entry.behaviorTime.match(/(\d{1,2}:\d{2})\s*[-~〜～]\s*(\d{1,2}:\d{2})/);
+      if(!m) return null;
+      const s = timeToMinutes(m[1]), e = timeToMinutes(m[2]);
+      if(s === null || e === null || s >= e) return null;
+      const overlapStart = Math.max(s, period.startMin);
+      const overlapEnd = Math.min(e, period.endMin);
+      if(overlapStart >= overlapEnd) return null;
+      return { startMin: overlapStart, endMin: overlapEnd };
+    }
+
+    // 교시 내 상대 위치(%)를 계산해 수직 화살표 style(top/height) 문자열 생성
+    function verticalArrowStyle(overlapStart, overlapEnd, period) {
+      const span = period.endMin - period.startMin;
+      if(span <= 0) return '';
+      const topPct = ((overlapStart - period.startMin) / span) * 100;
+      const heightPct = ((overlapEnd - overlapStart) / span) * 100;
+      return `top:${topPct.toFixed(1)}%; height:${Math.max(heightPct, 4).toFixed(1)}%;`;
+    }
+
     // 5. 메인 렌더링
     function render() {
       const year = getAcademicYear(currentDate);
       document.getElementById('academic-year-badge').innerText = `${year}학년도`;
 
       const monday = getMonday(currentDate);
-      const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
       document.getElementById('current-date-text').innerText = 
         `${currentDate.getMonth()+1}월 ${currentDate.getDate()}일 (${['일','월','화','수','목','금','토'][currentDate.getDay()]})`;
 
-      // 일일 행사 배너
+      // 일일 행사 배너 (등록된 행사가 있을 때만 표시, 없으면 알림 없이 숨김)
       const dateStr = currentDate.toISOString().split('T')[0];
       const ev = eventData[dateStr];
-      document.getElementById('event-text').innerText = ev ? `🗓️ 오늘 행사: ${ev}` : `🗓️ 일일 행사/일정: 등록된 일정이 없습니다.`;
+      const banner = document.getElementById('event-banner');
+      if(ev) {
+        banner.style.display = 'flex';
+        document.getElementById('event-text').innerText = `🗓️ 오늘 행사: ${ev}`;
+      } else {
+        banner.style.display = 'none';
+      }
 
       const container = document.getElementById('view-content');
       container.innerHTML = '';
@@ -384,47 +810,72 @@
 
     // 뷰①: 학급 주간 시간표
     function renderClassWeekly(container, monday) {
+      const roster = getRoster();
       const days = ['월', '화', '수', '목', '금'];
       const classFilter = document.getElementById('class-filter').value;
 
       let html = `<table><thead><tr><th class="time-col">교시 / 시간</th>`;
       days.forEach((d, i) => {
         const dt = new Date(monday); dt.setDate(monday.getDate() + i);
-        html += `<th>${d} (${dt.getMonth()+1}/${dt.getDate()})</th>`;
+        const dEv = eventData[dt.toISOString().split('T')[0]];
+        const evBadge = dEv ? `<br><span style="font-size:0.62rem; font-weight:normal; color:#92400e; background:#fef3c7; border:1px solid #fde047; padding:1px 4px; border-radius:3px; display:inline-block; margin-top:2px;">🗓️ ${dEv}</span>` : '';
+        html += `<th>${d} (${dt.getMonth()+1}/${dt.getDate()})${evBadge}</th>`;
       });
       html += `</tr></thead><tbody>`;
 
       PERIODS.forEach(p => {
-        html += `<tr><td class="time-col">${p.name}<span class="time-sub">${p.time}</span></td>`;
+        html += `<tr><td class="time-col ${p.isBreak ? 'is-break' : ''}">${p.name}<span class="time-sub">${p.time}</span></td>`;
         days.forEach((d, i) => {
           const dt = new Date(monday); dt.setDate(monday.getDate() + i);
           const dateStr = dt.toISOString().split('T')[0];
           const todayAtt = attendanceData[dateStr] || {};
           const cellId = `${dateStr}_${p.name}`;
-          const data = scheduleData[cellId] || { students:[], helpers:[], teachers:[], memo:'', behavior:'', behaviorTime:'', positive:'', className:'' };
+          const entries = getEntries(cellId);
+          // 학급 필터 적용: 특정 반 선택 시 해당 반 기록만, 전체 선택 시 모든 기록 표시
+          const visibleEntries = classFilter === 'ALL' ? entries : entries.filter(en => en.className === classFilter);
 
-          const matchClass = (classFilter === 'ALL' || !data.className || data.className === classFilter);
-          const hasBehavior = data.behavior ? 'cell-has-behavior' : '';
+          html += `<td class="matrix-cell-relative">`;
+          if(visibleEntries.length === 0) {
+            html += `<div class="clickable-cell empty-cell-add" onclick="openInputModal('${cellId}', null, null)">&nbsp;</div>`;
+          } else {
+            visibleEntries.forEach(entry => {
+              html += `<div class="matrix-entry-block" onclick="openInputModal('${cellId}', '${entry.id}', null)">`;
+              if(entry.className) html += `<div style="font-size:0.65rem; color:#2563eb; font-weight:bold;">[${entry.className}]</div>`;
+              entry.students.forEach(s => {
+                const b = formatAttBadgeForPeriod(todayAtt[s], true, p);
+                let cls = b ? b.cls : 'tag-main';
+                if(!b && entry.behavior) cls = 'tag-student-behavior'; // 문제행동은 해당 학생 이름표만 붉은색으로 강조
+                const suffix = b ? `(${b.text})` : '';
+                html += `<span class="tag ${cls}">${s}${suffix}</span>`;
+              });
+              if(shouldShowTeacherTag(entry, roster, true)) {
+                entry.teachers.forEach(t => {
+                  const b = formatAttBadgeForPeriod(todayAtt[t], false, p);
+                  const cls = b ? b.cls : 'tag-teacher';
+                  const suffix = b ? `(${b.text})` : '';
+                  html += `<span class="tag ${cls}">${t}${suffix}</span>`;
+                });
+              }
+              entry.helpers.forEach(h => {
+                const b = formatAttBadgeForPeriod(todayAtt[h], false, p);
+                const cls = b ? b.cls : 'tag-helper';
+                const suffix = b ? `(${b.text})` : '';
+                html += `<span class="tag ${cls}">${h}${suffix}</span>`;
+              });
+              if(entry.behavior) html += `<div class="tag tag-behavior">↕ ${entry.behavior} (${entry.behaviorTime||'시작-종료'})</div>`;
+              if(entry.positive) html += `<div class="tag tag-positive">${entry.positive}</div>`;
+              if(entry.memo) html += `<div style="font-size:0.72rem; color:#475569; margin-top:2px;">📝 ${entry.memo}</div>`;
+              html += `</div>`;
+            });
+            html += `<div class="add-entry-btn" onclick="openInputModal('${cellId}', null, null)">+ 기록 추가</div>`;
 
-          html += `<td class="clickable-cell ${hasBehavior}" onclick="openInputModal('${cellId}')">`;
-          if(matchClass) {
-            if(data.className) html += `<div style="font-size:0.65rem; color:#2563eb; font-weight:bold;">[${data.className}]</div>`;
-            data.students.forEach(s => {
-              const status = todayAtt[s];
-              const badgeClass = status==='ABSENT'?'badge-absent':(status==='TARDY'?'badge-tardy':'tag-main');
-              html += `<span class="tag ${badgeClass}">${s}${status==='ABSENT'?'(결석)':(status==='TARDY'?'(지각)': me=>'')}</span>`;
+            // 문제행동 시간대 - 늘봄학교와 동일하게 셀 높이에 비례한 수직 화살표로 표시 (td에 직접 배치해야 %가 정상 적용됨)
+            visibleEntries.forEach(entry => {
+              const behaviorOverlap = getBehaviorOverlapForPeriod(entry, p);
+              if(behaviorOverlap) {
+                html += `<div class="vertical-arrow" style="${verticalArrowStyle(behaviorOverlap.startMin, behaviorOverlap.endMin, p)}" title="문제행동: ${entry.behavior} (${entry.behaviorTime})"></div>`;
+              }
             });
-            data.teachers.forEach(t => {
-              const status = todayAtt[t];
-              html += `<span class="tag tag-teacher ${status==='ABSENT'?'badge-absent':''}">${t}</span>`;
-            });
-            data.helpers.forEach(h => {
-              const status = todayAtt[h];
-              html += `<span class="tag tag-helper ${status==='ABSENT'?'badge-absent':''}">${h}</span>`;
-            });
-            if(data.behavior) html += `<div class="tag tag-behavior">↕ ${data.behavior} (${data.behaviorTime||'시작-종료'})</div>`;
-            if(data.positive) html += `<div class="tag tag-positive">${data.positive}</div>`;
-            if(data.memo) html += `<div style="font-size:0.72rem; color:#475569; margin-top:2px;">📝 ${data.memo}</div>`;
           }
           html += `</td>`;
         });
@@ -438,6 +889,9 @@
       const roster = getRoster();
       const allPeople = [...roster.teachers, ...roster.helpers, ...roster.mainStudents, ...roster.extraStudents];
       if(!selectedPerson) selectedPerson = allPeople[0] || '';
+
+      const isStudentPerson = roster.mainStudents.includes(selectedPerson) || roster.extraStudents.includes(selectedPerson);
+      const isHelperPerson = roster.helpers.includes(selectedPerson);
 
       let selectorHtml = `<div style="margin-bottom:8px; display:flex; align-items:center; gap:6px;">
         <label style="font-weight:bold; font-size:0.8rem;">조회 대상:</label>
@@ -453,50 +907,54 @@
       days.forEach((d, i) => {
         const dt = new Date(monday); dt.setDate(monday.getDate() + i);
         const dateStr = dt.toISOString().split('T')[0];
-        const status = (attendanceData[dateStr] || {})[selectedPerson];
-        const headerBadge = status==='ABSENT'?'<br><span class="badge-absent">결석</span>':(status==='TARDY'?'<br><span class="badge-tardy">지각</span>':'');
-        html += `<th>${d} (${dt.getMonth()+1}/${dt.getDate()})${headerBadge}</th>`;
+        const rec = (attendanceData[dateStr] || {})[selectedPerson];
+        const b = formatAttBadge(rec, isStudentPerson);
+        const headerBadge = b ? `<br><span class="${b.cls}">${b.text}</span>` : '';
+        const dEv = eventData[dateStr];
+        const evBadge = dEv ? `<br><span style="font-size:0.62rem; font-weight:normal; color:#92400e; background:#fef3c7; border:1px solid #fde047; padding:1px 4px; border-radius:3px; display:inline-block; margin-top:2px;">🗓️ ${dEv}</span>` : '';
+        html += `<th>${d} (${dt.getMonth()+1}/${dt.getDate()})${evBadge}${headerBadge}</th>`;
       });
       html += `</tr></thead><tbody>`;
 
       PERIODS.forEach(p => {
-        html += `<tr><td class="time-col">${p.name}<span class="time-sub">${p.time}</span></td>`;
+        html += `<tr><td class="time-col ${p.isBreak ? 'is-break' : ''}">${p.name}<span class="time-sub">${p.time}</span></td>`;
         days.forEach((d, i) => {
           const dt = new Date(monday); dt.setDate(monday.getDate() + i);
           const dateStr = dt.toISOString().split('T')[0];
           const todayAtt = attendanceData[dateStr] || {};
-          const status = todayAtt[selectedPerson];
+          const rec = todayAtt[selectedPerson];
+          const b = formatAttBadgeForPeriod(rec, isStudentPerson, p);
           
           const cellId = `${dateStr}_${p.name}`;
-          const data = scheduleData[cellId] || { students:[], helpers:[], teachers:[], memo:'', behavior:'', behaviorTime:'', positive:'', className:'' };
-          
-          const isAssigned = data.students.includes(selectedPerson) || 
-                             data.helpers.includes(selectedPerson) || 
-                             data.teachers.includes(selectedPerson);
+          const entry = findEntryForPerson(cellId, selectedPerson);
+          const data = entry || blankEntry();
+          const isAssigned = !!entry;
+          const neulbomOverlaps = getNeulbomOverlapsForPeriod(selectedPerson, dt, p);
 
-          // 색상 지정 (결석: 연한 붉은색, 지각: 연한 노란색)
+          // 색상 지정 (결석: 연한 붉은색, 지각: 도착 이전 교시까지만 연한 노란색)
           let cellStyle = '';
-          if (status === 'ABSENT') cellStyle = 'background:#fef2f2;';
-          else if (status === 'TARDY') cellStyle = 'background:#fef9c3;';
+          if (rec && rec.status === 'ABSENT') cellStyle = 'background:#fef2f2;';
+          else if (b && b.cls === 'badge-tardy') cellStyle = 'background:#fef9c3;';
           else if (isAssigned) cellStyle = 'background:#f0fdf4;';
 
-          html += `<td class="clickable-cell" style="${cellStyle}" onclick="openInputModal('${cellId}')">`;
+          const cellClass = `clickable-cell matrix-cell-relative${neulbomOverlaps.length ? ' has-neulbom' : ''}`;
+          html += `<td class="${cellClass}" style="${cellStyle}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${selectedPerson}')">`;
           
-          if(status === 'ABSENT') {
-            html += `<span class="badge-absent">🚨 결석</span>`;
-          } else {
-            if(status === 'TARDY') html += `<div class="badge-tardy" style="margin-bottom:2px;">⏰ 지각</div>`;
+          // 결석/지각 여부는 요일 헤더에 1회만 표기하고, 셀 안에서는 반복 텍스트 없이 배경색으로만 표시
+          if(!(rec && rec.status === 'ABSENT')) {
             if(isAssigned) {
               const cls = data.className || '수업';
-              // 학생인 경우: 어떤 반에 있는지, 지원인력이 누구인지
-              if(roster.mainStudents.includes(selectedPerson) || roster.extraStudents.includes(selectedPerson)) {
+              // 학생인 경우: 어떤 반/장소에 있는지, 지원인력/교사가 누구인지
+              if(isStudentPerson) {
                 html += `<div style="font-weight:bold; color:#1e40af;">[${cls}]</div>`;
-                if(data.helpers.length) html += `<div style="font-size:0.68rem; color:#3730a3;">지원: ${data.helpers.join(',')}</div>`;
+                if(data.helpers.length) html += `<div style="font-size:0.68rem; color:#3730a3;">지원: ${data.helpers.join(', ')}</div>`;
+                if(data.teachers.length) html += `<div style="font-size:0.68rem; color:#166534;">교사: ${data.teachers.join(', ')}</div>`;
               } 
-              // 지원인력인 경우: 어느 반 지원인지, 누구 지원인지
-              else if(roster.helpers.includes(selectedPerson)) {
+              // 지원인력인 경우: 어느 반/장소 지원인지, 누구 지원인지, 담당 교사는 누구인지
+              else if(isHelperPerson) {
                 html += `<div style="font-weight:bold; color:#3730a3;">[${cls} 지원]</div>`;
-                if(data.students.length) html += `<div style="font-size:0.68rem; color:#9a3412;">대상: ${data.students.join(',')}</div>`;
+                if(data.students.length) html += `<div style="font-size:0.68rem; color:#9a3412;">대상: ${data.students.join(', ')}</div>`;
+                if(data.teachers.length) html += `<div style="font-size:0.68rem; color:#166534;">교사: ${data.teachers.join(', ')}</div>`;
               } 
               // 교사인 경우
               else {
@@ -505,7 +963,19 @@
 
               if(data.behavior) html += `<div class="tag tag-behavior">↕ ${data.behavior}</div>`;
               if(data.positive) html += `<div class="tag tag-positive">${data.positive}</div>`;
+
+              // 문제행동 시간대 - 셀 높이에 비례한 수직 화살표 (오른쪽)
+              const behaviorOverlap = getBehaviorOverlapForPeriod(entry, p);
+              if(behaviorOverlap) {
+                html += `<div class="vertical-arrow" style="${verticalArrowStyle(behaviorOverlap.startMin, behaviorOverlap.endMin, p)}" title="문제행동: ${data.behavior} (${data.behaviorTime})"></div>`;
+              }
             }
+            // 늘봄학교 프로그램 시간대 - 셀 왼쪽에 시간 비례 수직 화살표 + 오른쪽에 참여 중인 수업(장소/프로그램명) 텍스트로 표시
+            neulbomOverlaps.forEach(ov => {
+              const timeLabel = `${Math.floor(ov.startMin/60)}:${String(ov.startMin%60).padStart(2,'0')}-${Math.floor(ov.endMin/60)}:${String(ov.endMin%60).padStart(2,'0')}`;
+              html += `<div class="vertical-arrow neulbom" style="${verticalArrowStyle(ov.startMin, ov.endMin, p)}" title="늘봄학교 [${ov.program.category}] ${ov.program.name} (${timeLabel})"></div>`;
+              html += `<div class="tag tag-neulbom" style="margin-top:2px;">🌤️ ${ov.program.name} · ${ov.program.location}</div>`;
+            });
           }
           html += `</td>`;
         });
@@ -514,69 +984,115 @@
       container.innerHTML = html + `</tbody></table>`;
     }
 
-    // 뷰③: 일일 전체 매트릭스 뷰 (지원인력 표기 버그 수정 및 결석/지각 줄바꿈)
+    // 뷰③: 일일 전체 매트릭스 뷰 (학생/지원인력/교사 각 열은 반드시 그 사람이 포함된 기록만 표시·편집)
     function renderDailyMatrix(container) {
       const roster = getRoster();
       const dateStr = currentDate.toISOString().split('T')[0];
       const todayAtt = attendanceData[dateStr] || {};
 
+      // 학생 컬럼 그룹: 우리반 학생 + 외부/옆반 학생
+      const studentGroups = [
+        { label: '우리반 학생', list: roster.mainStudents },
+        { label: '외부/옆반 학생', list: roster.extraStudents }
+      ];
+
       let html = `<table><thead>
         <tr>
           <th class="time-col" rowspan="2">교시 / 시간</th>
-          <th colspan="${roster.mainStudents.length}">우리반 학생 (${roster.mainStudents.length})</th>
+          ${studentGroups.map(g => `<th colspan="${g.list.length}">${g.label} (${g.list.length})</th>`).join('')}
           <th colspan="${roster.helpers.length}">지원인력 (${roster.helpers.length})</th>
           <th colspan="${roster.teachers.length}">담당 교사 (${roster.teachers.length})</th>
         </tr><tr>`;
 
-      // 학생 이름 및 아래 줄바꿈 출결 상태
-      roster.mainStudents.forEach(s => {
-        const st = todayAtt[s];
-        const attBadge = st==='ABSENT'?'<br><span class="badge-absent">결석</span>':(st==='TARDY'?'<br><span class="badge-tardy">지각</span>':'');
-        html += `<th>${s}${attBadge}</th>`;
+      // 학생 이름 및 아래 줄바꿈 출결 상태 (우리반 + 외부/옆반)
+      studentGroups.forEach(g => {
+        g.list.forEach(s => {
+          const b = formatAttBadge(todayAtt[s], true);
+          html += `<th>${s}${b ? `<br><span class="${b.cls}">${b.text}</span>` : ''}</th>`;
+        });
       });
       // 지원인력
       roster.helpers.forEach(h => {
-        const st = todayAtt[h];
-        const attBadge = st==='ABSENT'?'<br><span class="badge-absent">결근</span>':(st==='TARDY'?'<br><span class="badge-tardy">지각</span>':'');
-        html += `<th>${h}${attBadge}</th>`;
+        const b = formatAttBadge(todayAtt[h], false);
+        html += `<th>${h}${b ? `<br><span class="${b.cls}">${b.text}</span>` : ''}</th>`;
       });
       // 교사
       roster.teachers.forEach(t => {
-        const st = todayAtt[t];
-        const attBadge = st==='ABSENT'?'<br><span class="badge-absent">결근</span>':(st==='TARDY'?'<br><span class="badge-tardy">지각</span>':'');
-        html += `<th>${t}${attBadge}</th>`;
+        const b = formatAttBadge(todayAtt[t], false);
+        html += `<th>${t}${b ? `<br><span class="${b.cls}">${b.text}</span>` : ''}</th>`;
       });
       html += `</tr></thead><tbody>`;
 
       PERIODS.forEach(p => {
         const cellId = `${dateStr}_${p.name}`;
-        const data = scheduleData[cellId] || { students:[], helpers:[], teachers:[], memo:'', behavior:'', behaviorTime:'', positive:'', className:'' };
 
-        html += `<tr><td class="time-col">${p.name}<span class="time-sub">${p.time}</span></td>`;
+        html += `<tr><td class="time-col ${p.isBreak ? 'is-break' : ''}">${p.name}<span class="time-sub">${p.time}</span></td>`;
 
-        // 학생 열
-        roster.mainStudents.forEach(s => {
-          const active = data.students.includes(s);
-          html += `<td class="clickable-cell" style="${active?'background:#fff7ed;':''}" onclick="openInputModal('${cellId}')">
-            ${active ? `<span class="tag tag-main">${data.className||'입실'}</span>` : ''}
-            ${active && data.behavior ? `<div class="tag tag-behavior">↕ ${data.behavior}</div>` : ''}
-            ${active && data.positive ? `<div class="tag tag-positive">${data.positive}</div>` : ''}
-          </td>`;
+        // 학생 열(우리반+외부/옆반): 그 학생이 포함된 기록을 찾아 장소 + 지원인력 + (필요 시) 교사 표기
+        // + 문제행동/늘봄학교 시간대를 셀 높이에 비례한 수직 화살표(↕)로 오버레이 표시 (늘봄: 왼쪽 화살표 + 오른쪽에 참여 수업명 텍스트)
+        studentGroups.forEach(g => {
+          g.list.forEach(s => {
+            const entry = findEntryForPerson(cellId, s);
+            const rec = todayAtt[s];
+            const b = formatAttBadgeForPeriod(rec, true, p);
+            const neulbomOverlaps = getNeulbomOverlapsForPeriod(s, currentDate, p);
+            let bg = entry ? '#fff7ed' : '';
+            if(rec && rec.status === 'ABSENT') bg = '#fef2f2';
+            else if(b && b.cls === 'badge-tardy') bg = '#fef9c3';
+            const cellClass = `clickable-cell matrix-cell-relative${neulbomOverlaps.length ? ' has-neulbom' : ''}`;
+            html += `<td class="${cellClass}" style="${bg ? `background:${bg};` : ''}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${s}')">`;
+            if(entry) {
+              const showTeacher = shouldShowTeacherTag(entry, roster, false);
+              html += `<span class="tag tag-main">${entry.className||'입실'}</span>`;
+              if(entry.helpers.length) html += `<div class="tag tag-helper" style="margin-top:2px;">${entry.helpers.join(', ')}</div>`;
+              if(showTeacher) html += `<div class="tag tag-teacher" style="margin-top:2px;">${entry.teachers.join(', ')}</div>`;
+              if(entry.behavior) html += `<div class="tag tag-behavior">↕ ${entry.behavior}</div>`;
+              if(entry.positive) html += `<div class="tag tag-positive">${entry.positive}</div>`;
+
+              // 문제행동 시간대 - 셀 높이에 비례한 수직 화살표 (오른쪽)
+              const behaviorOverlap = getBehaviorOverlapForPeriod(entry, p);
+              if(behaviorOverlap) {
+                html += `<div class="vertical-arrow" style="${verticalArrowStyle(behaviorOverlap.startMin, behaviorOverlap.endMin, p)}" title="문제행동: ${entry.behavior} (${entry.behaviorTime})"></div>`;
+              }
+            }
+            // 늘봄학교 프로그램 시간대 - 셀 왼쪽에 시간 비례 수직 화살표 + 오른쪽에 참여 중인 수업(장소/프로그램명) 텍스트로 표시
+            neulbomOverlaps.forEach(ov => {
+              const timeLabel = `${Math.floor(ov.startMin/60)}:${String(ov.startMin%60).padStart(2,'0')}-${Math.floor(ov.endMin/60)}:${String(ov.endMin%60).padStart(2,'0')}`;
+              html += `<div class="vertical-arrow neulbom" style="${verticalArrowStyle(ov.startMin, ov.endMin, p)}" title="늘봄학교 [${ov.program.category}] ${ov.program.name} (${timeLabel})"></div>`;
+              html += `<div class="tag tag-neulbom" style="margin-top:2px;">🌤️ ${ov.program.name} · ${ov.program.location}</div>`;
+            });
+            html += `</td>`;
+          });
         });
 
-        // 지원인력 열 (버그 수정: 지원인력 추가 시 해당 열에 정상 표기)
+        // 지원인력 열: 그 지원인력이 포함된 기록을 찾아 장소 + 지원 대상 학생 + (필요 시) 교사 표기
         roster.helpers.forEach(h => {
-          const active = data.helpers.includes(h);
-          html += `<td class="clickable-cell" style="${active?'background:#e0e7ff;':''}" onclick="openInputModal('${cellId}')">
-            ${active ? `<span class="tag tag-helper">[${data.className||'지원'}] ${data.students.join(',')||'지원중'}</span>` : ''}
-          </td>`;
+          const entry = findEntryForPerson(cellId, h);
+          const rec = todayAtt[h];
+          const b = formatAttBadgeForPeriod(rec, false, p);
+          let bg = entry ? '#e0e7ff' : '';
+          if(rec && rec.status === 'ABSENT') bg = '#fef2f2';
+          else if(b && b.cls === 'badge-tardy') bg = '#fef9c3';
+          html += `<td class="clickable-cell" style="${bg ? `background:${bg};` : ''}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${h}')">`;
+          if(entry) {
+            const showTeacher = shouldShowTeacherTag(entry, roster, false);
+            html += `<div class="tag tag-helper">[${entry.className||'지원'}]</div>`;
+            if(entry.students.length) html += `<div style="font-size:0.68rem; color:#9a3412; margin-top:1px;">대상: ${entry.students.join(', ')}</div>`;
+            if(showTeacher) html += `<div class="tag tag-teacher" style="margin-top:2px;">${entry.teachers.join(', ')}</div>`;
+          }
+          html += `</td>`;
         });
 
-        // 교사 열
+        // 교사 열: 그 교사가 포함된 기록을 찾아 표기
         roster.teachers.forEach(t => {
-          const active = data.teachers.includes(t);
-          html += `<td class="clickable-cell" style="${active?'background:#dcfce7;':''}" onclick="openInputModal('${cellId}')">
-            ${active ? `<span class="tag tag-teacher">[${data.className||'수업'}]</span>` : ''}
+          const entry = findEntryForPerson(cellId, t);
+          const rec = todayAtt[t];
+          const b = formatAttBadgeForPeriod(rec, false, p);
+          let bg = entry ? '#dcfce7' : '';
+          if(rec && rec.status === 'ABSENT') bg = '#fef2f2';
+          else if(b && b.cls === 'badge-tardy') bg = '#fef9c3';
+          html += `<td class="clickable-cell" style="${bg ? `background:${bg};` : ''}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${t}')">
+            ${entry ? `<span class="tag tag-teacher">[${entry.className||'수업'}]</span>` : ''}
           </td>`;
         });
 
@@ -594,19 +1110,21 @@
       let count = 0;
       PERIODS.forEach(p => {
         const cellId = `${dateStr}_${p.name}`;
-        const data = scheduleData[cellId];
-        if(data && (data.memo || data.behavior || data.positive || data.students.length)) {
-          count++;
-          panel.innerHTML += `
-            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px;">
-              <div style="font-size:0.75rem; font-weight:bold; color:#2563eb;">${p.name} (${p.time}) [${data.className||'학급'}]</div>
-              ${data.students.length ? `<div style="font-size:0.72rem; margin-top:2px;">학생: ${data.students.join(', ')}</div>` : ''}
-              ${data.behavior ? `<div class="tag tag-behavior">↕ ${data.behavior} (${data.behaviorTime||''})</div>` : ''}
-              ${data.positive ? `<div class="tag tag-positive">${data.positive}</div>` : ''}
-              ${data.memo ? `<div style="font-size:0.75rem; color:#334155; margin-top:3px; white-space:pre-line;">📝 ${data.memo}</div>` : ''}
-            </div>
-          `;
-        }
+        const entries = getEntries(cellId);
+        entries.forEach(entry => {
+          if(entry.memo || entry.behavior || entry.positive || entry.students.length) {
+            count++;
+            panel.innerHTML += `
+              <div class="memo-card-clickable" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px;" onclick="openInputModal('${cellId}', '${entry.id}', null)" title="눌러서 수정">
+                <div style="font-size:0.75rem; font-weight:bold; color:#2563eb;">${p.name} (${p.time}) [${entry.className||'학급'}]</div>
+                ${entry.students.length ? `<div style="font-size:0.72rem; margin-top:2px;">학생: ${entry.students.join(', ')}</div>` : ''}
+                ${entry.behavior ? `<div class="tag tag-behavior">↕ ${entry.behavior} (${entry.behaviorTime||''})</div>` : ''}
+                ${entry.positive ? `<div class="tag tag-positive">${entry.positive}</div>` : ''}
+                ${entry.memo ? `<div style="font-size:0.75rem; color:#334155; margin-top:3px; white-space:pre-line;">📝 ${entry.memo}</div>` : ''}
+              </div>
+            `;
+          }
+        });
       });
 
       if(count === 0) {
@@ -614,11 +1132,63 @@
       }
     }
 
+    // 오늘의 메모 패널 접기/펼치기 (패널 폭 자체가 접혀서 좌측 시간표 영역이 넓어짐)
+    function toggleMemoPanel() {
+      memoPanelCollapsed = !memoPanelCollapsed;
+      const panel = document.getElementById('memo-panel');
+      const btn = document.getElementById('memo-toggle-btn');
+      panel.classList.toggle('collapsed', memoPanelCollapsed);
+      btn.innerText = memoPanelCollapsed ? '▶' : '◀';
+      btn.title = memoPanelCollapsed ? '메모 패널 펼치기' : '메모 패널 접기';
+    }
+
     // 6. 모달 관련 로직
-    function openInputModal(cellId) {
+    // 설정에 저장된 추가 장소 목록 (기본 제공: 통합학급, 급식실, 하교 + 사용자 추가분, 중복 제거)
+    function getCustomLocations() {
+      const saved = localStorage.getItem('customLocations');
+      return saved ? JSON.parse(saved) : [];
+    }
+    function getLocationPresets() {
+      const defaults = ['통합학급', '급식실', '하교'];
+      const custom = getCustomLocations();
+      return [...defaults, ...custom.filter(c => !defaults.includes(c))];
+    }
+    // "해당 학급/장소 선택" 드롭다운을 반 목록 + 설정된 장소 목록 + 기타(직접입력)로 재구성
+    function buildClassSelectOptions() {
+      const classes = ['저학년반', '고학년반', '윤슬반'];
+      const locations = getLocationPresets();
+      const classSelect = document.getElementById('input-class');
+      let optionsHtml = classes.map(c => `<option value="${c}">${c}</option>`).join('');
+      optionsHtml += locations.map(l => `<option value="${l}">${l}</option>`).join('');
+      optionsHtml += `<option value="기타">기타 (직접 입력)</option>`;
+      classSelect.innerHTML = optionsHtml;
+      return [...classes, ...locations];
+    }
+
+    function handleClassSelectChange() {
+      const sel = document.getElementById('input-class').value;
+      document.getElementById('input-class-custom').style.display = sel === '기타' ? 'block' : 'none';
+    }
+
+    // cellId: 날짜_교시 / entryId: 편집할 기존 기록의 id (null이면 신규 생성) / focusPerson: 이 인물을 클릭해서 열었는지 (신규 생성 시 자동 체크)
+    function openInputModal(cellId, entryId, focusPerson) {
       selectedCellId = cellId;
+      selectedEntryId = entryId || null;
       const roster = getRoster();
-      const data = scheduleData[cellId] || { students:[], helpers:[], teachers:[], memo:'', behavior:'', behaviorTime:'', positive:'', className:'' };
+      const entries = getEntries(cellId);
+      const existing = selectedEntryId ? entries.find(e => e.id === selectedEntryId) : null;
+      const data = existing ? { ...existing } : blankEntry();
+
+      // 신규 기록을 특정 인물(학생/지원인력/교사) 클릭으로 열었다면 해당 인물을 자동 체크
+      if(!existing && focusPerson) {
+        if(roster.mainStudents.includes(focusPerson) || roster.extraStudents.includes(focusPerson)) {
+          data.students = [focusPerson];
+        } else if(roster.helpers.includes(focusPerson)) {
+          data.helpers = [focusPerson];
+        } else if(roster.teachers.includes(focusPerson)) {
+          data.teachers = [focusPerson];
+        }
+      }
 
       const makeCb = (containerId, list, selected) => {
         document.getElementById(containerId).innerHTML = list.map(item => `
@@ -630,45 +1200,99 @@
       makeCb('cb-extra-students', roster.extraStudents, data.students);
       makeCb('cb-helpers', roster.helpers, data.helpers);
       makeCb('cb-teachers', roster.teachers, data.teachers);
-      
-      document.getElementById('input-class').value = data.className || (document.getElementById('class-filter').value === 'ALL' ? '저학년반' : document.getElementById('class-filter').value);
+
+      // 해당 학급/장소 선택값 반영 (설정에서 추가한 장소 포함, 사전 정의 항목이 아니면 '기타' + 직접입력으로 표시)
+      const presetClasses = buildClassSelectOptions();
+      const classSelect = document.getElementById('input-class');
+      const customInput = document.getElementById('input-class-custom');
+      const currentClassName = data.className || (document.getElementById('class-filter').value !== 'ALL' ? document.getElementById('class-filter').value : '저학년반');
+      if(presetClasses.includes(currentClassName)) {
+        classSelect.value = currentClassName;
+        customInput.style.display = 'none';
+        customInput.value = '';
+      } else {
+        classSelect.value = '기타';
+        customInput.style.display = 'block';
+        customInput.value = currentClassName;
+      }
+
       document.getElementById('behavior-preset').value = data.behavior || '';
       document.getElementById('behavior-time').value = data.behaviorTime || '';
       document.getElementById('positive-preset').value = data.positive || '';
       document.getElementById('memo-input').value = data.memo || '';
 
+      // 모달 제목/안내: 어떤 기록을 편집하는지, 어떤 인물 때문에 열렸는지 명확히 표시
       document.getElementById('modal-title').innerText = `${cellId.replace('_',' ')} 기록`;
+      const targetInfo = document.getElementById('modal-target-info');
+      if(focusPerson) {
+        targetInfo.innerText = existing ? `👤 ${focusPerson} 님이 포함된 기록을 수정합니다.` : `👤 ${focusPerson} 님을 위한 새 기록을 작성합니다.`;
+      } else {
+        targetInfo.innerText = existing ? '기존 기록을 수정합니다.' : '새 기록을 작성합니다.';
+      }
+
+      // 기존 기록을 편집하는 경우에만 삭제 버튼 노출
+      document.getElementById('delete-entry-btn').style.display = existing ? 'inline-block' : 'none';
+
       document.getElementById('input-modal').style.display = 'block';
       document.getElementById('overlay').style.display = 'block';
     }
 
-    // 개편된 출결 관리 모달
+    // 현재 편집 중인 기록(entry)을 통째로 삭제
+    function deleteEntry() {
+      if(!selectedEntryId) { closeModal(); return; }
+      const entries = scheduleData[selectedCellId] || [];
+      const idx = entries.findIndex(e => e.id === selectedEntryId);
+      if(idx >= 0) entries.splice(idx, 1);
+      postToSheet('deleteSchedule', { id: selectedEntryId });
+      closeModal();
+      render();
+    }
+
+    // ===== 출결 관리 모달 (날짜 이동 지원, 즉시 저장) =====
     function openAttendanceModal() {
+      renderAttendanceModalContent();
+      document.getElementById('attendance-modal').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    }
+
+    function navigateAttDate(delta) {
+      changeDate(delta); // 상단 기준 날짜도 함께 이동 + 배경 화면 갱신
+      renderAttendanceModalContent();
+    }
+
+    function renderAttendanceModalContent() {
       const dateStr = currentDate.toISOString().split('T')[0];
-      const roster = getRoster();
+      const roster = getRoster(getAcademicYear(currentDate));
       const todayAtt = attendanceData[dateStr] || {};
 
-      const renderAttList = (containerId, list) => {
+      document.getElementById('att-modal-date-label').innerText =
+        `${currentDate.getFullYear()}. ${currentDate.getMonth()+1}. ${currentDate.getDate()} (${['일','월','화','수','목','금','토'][currentDate.getDay()]}) 기준`;
+
+      const renderAttList = (containerId, list, absentLabel, isStudent) => {
         document.getElementById(containerId).innerHTML = list.map(person => {
-          const status = todayAtt[person] || 'PRESENT';
+          const rec = todayAtt[person] || { status: 'PRESENT' };
+          const status = rec.status || 'PRESENT';
+          const time = rec.time || '';
           return `
             <div class="att-row">
-              <span style="font-size:0.78rem; font-weight:bold;">${person}</span>
-              <div class="att-btn-group" data-person="${person}">
-                <button type="button" class="att-btn ${status==='PRESENT'?'active-present':''}" onclick="setAttState('${person}', 'PRESENT', this)">출석</button>
-                <button type="button" class="att-btn ${status==='TARDY'?'active-tardy':''}" onclick="setAttState('${person}', 'TARDY', this)">지각</button>
-                <button type="button" class="att-btn ${status==='ABSENT'?'active-absent':''}" onclick="setAttState('${person}', 'ABSENT', this)">결석/결근</button>
+              <div class="att-row-top">
+                <span style="font-size:0.78rem; font-weight:bold;">${person}</span>
+                <div class="att-btn-group" data-person="${person}" data-is-student="${isStudent}">
+                  <button type="button" class="att-btn ${status==='PRESENT'?'active-present':''}" onclick="setAttState('${person}', 'PRESENT', this)">출석</button>
+                  <button type="button" class="att-btn ${status==='TARDY'?'active-tardy':''}" onclick="setAttState('${person}', 'TARDY', this)">지각</button>
+                  <button type="button" class="att-btn ${status==='ABSENT'?'active-absent':''}" onclick="setAttState('${person}', 'ABSENT', this)">${absentLabel}</button>
+                </div>
               </div>
+              <input type="time" class="tardy-time-input" data-person="${person}" value="${time}"
+                onchange="commitAttTime('${person}', this.value)"
+                style="display:${status==='TARDY'?'block':'none'};" placeholder="도착 시각">
             </div>
           `;
         }).join('');
       };
 
-      renderAttList('att-students-list', [...roster.mainStudents, ...roster.extraStudents]);
-      renderAttList('att-staff-list', [...roster.helpers, ...roster.teachers]);
-
-      document.getElementById('attendance-modal').style.display = 'block';
-      document.getElementById('overlay').style.display = 'block';
+      renderAttList('att-students-list', [...roster.mainStudents, ...roster.extraStudents], '결석', true);
+      renderAttList('att-staff-list', [...roster.helpers, ...roster.teachers], '결근', false);
     }
 
     function setAttState(person, state, btn) {
@@ -677,39 +1301,69 @@
       if(state === 'PRESENT') btn.classList.add('active-present');
       else if(state === 'TARDY') btn.classList.add('active-tardy');
       else if(state === 'ABSENT') btn.classList.add('active-absent');
-      parent.dataset.state = state;
-    }
 
-    function saveAttendance() {
+      const row = parent.closest('.att-row');
+      const timeInput = row.querySelector('.tardy-time-input');
+
       const dateStr = currentDate.toISOString().split('T')[0];
       if(!attendanceData[dateStr]) attendanceData[dateStr] = {};
 
-      document.querySelectorAll('.att-btn-group').forEach(grp => {
-        const person = grp.dataset.person;
-        const activeBtn = grp.querySelector('.active-present, .active-tardy, .active-absent');
-        if(activeBtn) {
-          if(activeBtn.classList.contains('active-tardy')) attendanceData[dateStr][person] = 'TARDY';
-          else if(activeBtn.classList.contains('active-absent')) attendanceData[dateStr][person] = 'ABSENT';
-          else delete attendanceData[dateStr][person];
-        }
-      });
+      if(state === 'PRESENT') {
+        delete attendanceData[dateStr][person];
+        if(timeInput) timeInput.style.display = 'none';
+        postToSheet('attendance', { date: dateStr, name: person, status: 'PRESENT', time: '' });
+      } else if(state === 'TARDY') {
+        const time = timeInput ? timeInput.value : '';
+        attendanceData[dateStr][person] = { status: 'TARDY', time };
+        if(timeInput) timeInput.style.display = 'block';
+        postToSheet('attendance', { date: dateStr, name: person, status: 'TARDY', time });
+      } else if(state === 'ABSENT') {
+        attendanceData[dateStr][person] = { status: 'ABSENT' };
+        if(timeInput) timeInput.style.display = 'none';
+        postToSheet('attendance', { date: dateStr, name: person, status: 'ABSENT', time: '' });
+      }
+      render(); // 배경 시간표/매트릭스에 즉시 반영
+    }
 
+    function commitAttTime(person, value) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      if(!attendanceData[dateStr]) attendanceData[dateStr] = {};
+      if(attendanceData[dateStr][person] && attendanceData[dateStr][person].status === 'TARDY') {
+        attendanceData[dateStr][person].time = value;
+        postToSheet('attendance', { date: dateStr, name: person, status: 'TARDY', time: value });
+        render();
+      }
+    }
+
+    function saveAttendance() {
       closeModal();
       render();
     }
 
     function openEventModal() {
-      const dateStr = currentDate.toISOString().split('T')[0];
-      document.getElementById('event-input').value = eventData[dateStr] || '';
+      renderEventModalContent();
       document.getElementById('event-modal').style.display = 'block';
       document.getElementById('overlay').style.display = 'block';
     }
 
+    function renderEventModalContent() {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      document.getElementById('event-input').value = eventData[dateStr] || '';
+      document.getElementById('event-modal-date-label').innerText =
+        `${currentDate.getFullYear()}. ${currentDate.getMonth()+1}. ${currentDate.getDate()} (${['일','월','화','수','목','금','토'][currentDate.getDay()]}) 기준`;
+    }
+
+    function navigateEventDate(delta) {
+      changeDate(delta); // 기준 날짜 이동 + 배경 화면(배너, 주간 헤더) 갱신
+      renderEventModalContent();
+    }
+
     function saveEvent() {
       const dateStr = currentDate.toISOString().split('T')[0];
-      eventData[dateStr] = document.getElementById('event-input').value;
-      closeModal();
-      render();
+      const val = document.getElementById('event-input').value.trim();
+      if(val) eventData[dateStr] = val; else delete eventData[dateStr];
+      postToSheet('event', { date: dateStr, text: val });
+      render(); // 모달은 열어둔 채로 유지 - 날짜를 이동하며 연속으로 등록 가능
     }
 
     function openSettingsModal() {
@@ -720,6 +1374,18 @@
       document.getElementById('overlay').style.display = 'block';
     }
 
+    // 담당 교사 드롭다운을 '지원인력/교사 명단' 입력값 기준으로 재구성
+    function updateClassTeacherDropdowns() {
+      const teacherNames = document.getElementById('cfg-teachers').value.split(',').map(s=>s.trim()).filter(Boolean);
+      const selectIds = ['cfg-teacher-low','cfg-teacher-high','cfg-teacher-yun'];
+      selectIds.forEach(id => {
+        const el = document.getElementById(id);
+        const prevVal = el.value;
+        el.innerHTML = '<option value="">-- 선택 --</option>' + teacherNames.map(t => `<option value="${t}">${t}</option>`).join('');
+        if(teacherNames.includes(prevVal)) el.value = prevVal;
+      });
+    }
+
     function loadYearConfigToModal() {
       const year = document.getElementById('cfg-year-select').value;
       const roster = getRoster(year);
@@ -727,11 +1393,18 @@
       document.getElementById('cfg-extra-students').value = roster.extraStudents.join(', ');
       document.getElementById('cfg-helpers').value = roster.helpers.join(', ');
       document.getElementById('cfg-teachers').value = roster.teachers.join(', ');
-      
+
+      updateClassTeacherDropdowns();
+
       const ct = roster.classTeachers || {};
       document.getElementById('cfg-teacher-low').value = ct['저학년반'] || '';
       document.getElementById('cfg-teacher-high').value = ct['고학년반'] || '';
       document.getElementById('cfg-teacher-yun').value = ct['윤슬반'] || '';
+
+      document.getElementById('cfg-default-class').value = localStorage.getItem('defaultClass') || 'ALL';
+
+      // 추가 장소 목록(연도 무관, 전역 설정)
+      document.getElementById('cfg-custom-locations').value = getCustomLocations().join(', ');
     }
 
     function saveSettings() {
@@ -748,8 +1421,27 @@
         }
       };
       localStorage.setItem(`roster_${year}`, JSON.stringify(roster));
+      postToSheet('roster', {
+        academicYear: year,
+        mainStudents: roster.mainStudents.join(', '),
+        extraStudents: roster.extraStudents.join(', '),
+        helpers: roster.helpers.join(', '),
+        teachers: roster.teachers.join(', '),
+        teacherLow: roster.classTeachers['저학년반'],
+        teacherHigh: roster.classTeachers['고학년반'],
+        teacherYun: roster.classTeachers['윤슬반']
+      });
+
       const defClass = document.getElementById('cfg-default-class').value;
+      localStorage.setItem('defaultClass', defClass);
       document.getElementById('class-filter').value = defClass;
+      postToSheet('settings', { key: 'defaultClass', value: defClass });
+
+      // 추가 장소 목록 저장 (연도 무관, 전역 설정)
+      const customLocations = document.getElementById('cfg-custom-locations').value.split(',').map(s=>s.trim()).filter(Boolean);
+      localStorage.setItem('customLocations', JSON.stringify(customLocations));
+      postToSheet('settings', { key: 'customLocations', value: JSON.stringify(customLocations) });
+
       closeModal();
       render();
     }
@@ -759,26 +1451,258 @@
       document.getElementById('overlay').style.display = 'none';
     }
 
+    // ===== 늘봄학교 프로그램 관리 =====
+    function openNeulbomModal() {
+      resetNeulbomForm();
+      renderNeulbomList();
+      document.getElementById('neulbom-modal').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    }
+
+    function toggleNbPeriodType() {
+      const type = document.querySelector('input[name="nb-period-type"]:checked').value;
+      document.getElementById('nb-semester').style.display = type === 'semester' ? 'block' : 'none';
+      document.getElementById('nb-custom-period').style.display = type === 'custom' ? 'flex' : 'none';
+    }
+
+    function toggleNbLocationCustom() {
+      const sel = document.getElementById('nb-location').value;
+      document.getElementById('nb-location-custom').style.display = sel === '기타' ? 'block' : 'none';
+    }
+
+    function populateNbLocationSelect(selectedValue) {
+      const classes = ['저학년반', '고학년반', '윤슬반'];
+      const locations = getLocationPresets();
+      const all = [...classes, ...locations];
+      const select = document.getElementById('nb-location');
+      select.innerHTML = all.map(v => `<option value="${v}">${v}</option>`).join('') + `<option value="기타">기타 (직접 입력)</option>`;
+      const customInput = document.getElementById('nb-location-custom');
+      if(selectedValue && all.includes(selectedValue)) {
+        select.value = selectedValue;
+        customInput.style.display = 'none';
+        customInput.value = '';
+      } else if(selectedValue) {
+        select.value = '기타';
+        customInput.style.display = 'block';
+        customInput.value = selectedValue;
+      } else {
+        select.value = classes[0];
+        customInput.style.display = 'none';
+        customInput.value = '';
+      }
+    }
+
+    // 요일별(월~금) 시작·종료 시각 입력 행 렌더링
+    function renderNeulbomDayConfig(existingSchedule) {
+      const container = document.getElementById('neulbom-days-config');
+      const sched = existingSchedule || {};
+      container.innerHTML = WEEKDAY_NAMES.map(day => {
+        const has = !!sched[day];
+        return `
+          <div class="nb-day-row" data-day="${day}">
+            <label><input type="checkbox" class="nb-day-check" ${has ? 'checked' : ''} onchange="toggleNbDayRow(this)"> ${day}요일</label>
+            <input type="time" class="nb-day-start" value="${has ? sched[day].start : ''}" style="display:${has ? 'block' : 'none'};">
+            <span style="align-self:center;">~</span>
+            <input type="time" class="nb-day-end" value="${has ? sched[day].end : ''}" style="display:${has ? 'block' : 'none'};">
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleNbDayRow(checkbox) {
+      const row = checkbox.closest('.nb-day-row');
+      const show = checkbox.checked;
+      row.querySelectorAll('input[type="time"]').forEach(inp => inp.style.display = show ? 'block' : 'none');
+    }
+
+    function renderNeulbomList() {
+      const container = document.getElementById('neulbom-list');
+      if(neulbomPrograms.length === 0) {
+        container.innerHTML = '<p style="color:#94a3b8; font-size:0.78rem;">등록된 늘봄학교 프로그램이 없습니다.</p>';
+        return;
+      }
+      container.innerHTML = NEULBOM_CATEGORIES.map(cat => {
+        const items = neulbomPrograms.filter(p => p.category === cat);
+        if(items.length === 0) return '';
+        return `
+          <div style="margin-bottom:8px;">
+            <div style="font-size:0.75rem; font-weight:bold; color:#475569; margin-bottom:4px;">${cat} (${items.length})</div>
+            ${items.map(p => {
+              const period = p.periodType === 'semester' ? p.semester : `${p.startDate} ~ ${p.endDate}`;
+              const days = Object.keys(p.schedule || {}).map(d => `${d}(${p.schedule[d].start}-${p.schedule[d].end})`).join(', ');
+              return `
+                <div class="nb-program-card">
+                  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
+                    <div>
+                      <span class="nb-cat-tag nb-cat-${cat}">${cat}</span>
+                      <strong style="font-size:0.82rem;">${p.name}</strong>
+                      <div style="font-size:0.7rem; color:#64748b; margin-top:2px;">📍 ${p.location} · ${period} · ${p.recurrence === 'biweekly' ? '격주' : '매주'}</div>
+                      <div style="font-size:0.7rem; color:#64748b;">🕐 ${days || '요일 미설정'}</div>
+                      <div style="font-size:0.7rem; color:#64748b;">👥 ${p.students.join(', ') || '참여 학생 없음'}</div>
+                    </div>
+                    <div style="display:flex; gap:4px; flex-shrink:0;">
+                      <button class="btn btn-secondary" style="padding:3px 8px; font-size:0.7rem;" onclick="editNeulbomProgram('${p.id}')">수정</button>
+                      <button class="btn" style="padding:3px 8px; font-size:0.7rem; background:#fee2e2; color:#dc2626;" onclick="deleteNeulbomProgram('${p.id}')">삭제</button>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function editNeulbomProgram(id) {
+      const p = neulbomPrograms.find(pr => pr.id === id);
+      if(!p) return;
+      document.getElementById('nb-edit-id').value = p.id;
+      document.getElementById('nb-category').value = p.category;
+      document.getElementById('nb-name').value = p.name;
+      populateNbLocationSelect(p.location);
+
+      document.querySelector(`input[name="nb-period-type"][value="${p.periodType}"]`).checked = true;
+      toggleNbPeriodType();
+      if(p.periodType === 'semester') {
+        document.getElementById('nb-semester').value = p.semester;
+      } else {
+        document.getElementById('nb-start-date').value = p.startDate;
+        document.getElementById('nb-end-date').value = p.endDate;
+      }
+      document.getElementById('nb-recurrence').value = p.recurrence;
+      renderNeulbomDayConfig(p.schedule);
+
+      const roster = getRoster();
+      document.getElementById('nb-students').innerHTML = [...roster.mainStudents, ...roster.extraStudents].map(s => `
+        <label><input type="checkbox" value="${s}" ${p.students.includes(s) ? 'checked' : ''}> ${s}</label>
+      `).join('');
+
+      document.getElementById('neulbom-form-title').innerText = `✏️ 프로그램 수정 - ${p.name}`;
+      document.getElementById('nb-cancel-edit-btn').style.display = 'inline-block';
+    }
+
+    function deleteNeulbomProgram(id) {
+      neulbomPrograms = neulbomPrograms.filter(p => p.id !== id);
+      localStorage.setItem('neulbomPrograms', JSON.stringify(neulbomPrograms));
+      postToSheet('deleteNeulbom', { id });
+      renderNeulbomList();
+      render();
+    }
+
+    function resetNeulbomForm() {
+      document.getElementById('nb-edit-id').value = '';
+      document.getElementById('nb-category').value = NEULBOM_CATEGORIES[0];
+      document.getElementById('nb-name').value = '';
+      populateNbLocationSelect(null);
+      document.querySelector('input[name="nb-period-type"][value="semester"]').checked = true;
+      toggleNbPeriodType();
+      document.getElementById('nb-semester').value = '1학기';
+      document.getElementById('nb-start-date').value = '';
+      document.getElementById('nb-end-date').value = '';
+      document.getElementById('nb-recurrence').value = 'weekly';
+      renderNeulbomDayConfig(null);
+      const roster = getRoster();
+      document.getElementById('nb-students').innerHTML = [...roster.mainStudents, ...roster.extraStudents].map(s => `
+        <label><input type="checkbox" value="${s}"> ${s}</label>
+      `).join('');
+      document.getElementById('neulbom-form-title').innerText = '➕ 새 프로그램 추가';
+      document.getElementById('nb-cancel-edit-btn').style.display = 'none';
+    }
+
+    function saveNeulbomProgram() {
+      const editId = document.getElementById('nb-edit-id').value;
+      const category = document.getElementById('nb-category').value;
+      const name = document.getElementById('nb-name').value.trim();
+      if(!name) { alert('프로그램명을 입력해 주세요.'); return; }
+
+      const locSelectVal = document.getElementById('nb-location').value;
+      const location = locSelectVal === '기타'
+        ? (document.getElementById('nb-location-custom').value.trim() || '기타')
+        : locSelectVal;
+
+      const periodType = document.querySelector('input[name="nb-period-type"]:checked').value;
+      const semester = document.getElementById('nb-semester').value;
+      const startDate = document.getElementById('nb-start-date').value;
+      const endDate = document.getElementById('nb-end-date').value;
+      if(periodType === 'custom' && (!startDate || !endDate)) { alert('운영 기간의 시작일과 종료일을 입력해 주세요.'); return; }
+
+      const recurrence = document.getElementById('nb-recurrence').value;
+
+      const schedule = {};
+      document.querySelectorAll('#neulbom-days-config .nb-day-row').forEach(row => {
+        const check = row.querySelector('.nb-day-check');
+        if(check.checked) {
+          const day = row.dataset.day;
+          const start = row.querySelector('.nb-day-start').value;
+          const end = row.querySelector('.nb-day-end').value;
+          if(start && end) schedule[day] = { start, end };
+        }
+      });
+      if(Object.keys(schedule).length === 0) { alert('요일별 시작·종료 시각을 최소 하나 이상 설정해 주세요.'); return; }
+
+      const students = Array.from(document.querySelectorAll('#nb-students input:checked')).map(c => c.value);
+
+      const program = {
+        id: editId || generateEntryId(),
+        category, name, location, students,
+        periodType, semester, startDate, endDate,
+        academicYear: getAcademicYear(currentDate),
+        recurrence, schedule
+      };
+
+      if(editId) {
+        const idx = neulbomPrograms.findIndex(p => p.id === editId);
+        if(idx >= 0) neulbomPrograms[idx] = program; else neulbomPrograms.push(program);
+      } else {
+        neulbomPrograms.push(program);
+      }
+      localStorage.setItem('neulbomPrograms', JSON.stringify(neulbomPrograms));
+      postToSheet('neulbom', { ...program, students: students.join(', ') });
+
+      resetNeulbomForm();
+      renderNeulbomList();
+      render();
+    }
+
     function saveData() {
       const getChecked = id => Array.from(document.querySelectorAll(`#${id} input:checked`)).map(c => c.value);
       const students = [...getChecked('cb-main-students'), ...getChecked('cb-extra-students')];
       const helpers = getChecked('cb-helpers');
       const teachers = getChecked('cb-teachers');
-      const className = document.getElementById('input-class').value;
+
+      const classSelectVal = document.getElementById('input-class').value;
+      const className = classSelectVal === '기타'
+        ? (document.getElementById('input-class-custom').value.trim() || '기타')
+        : classSelectVal;
+
       const behavior = document.getElementById('behavior-preset').value;
       const behaviorTime = document.getElementById('behavior-time').value;
       const positive = document.getElementById('positive-preset').value;
       const memo = document.getElementById('memo-input').value;
 
-      scheduleData[selectedCellId] = { students, helpers, teachers, className, behavior, behaviorTime, positive, memo };
+      const isEmpty = students.length === 0 && helpers.length === 0 && teachers.length === 0 && !behavior && !positive && !memo;
+      const [date, period] = selectedCellId.split('_');
 
-      // 구글 시트 백엔드 전송
-      if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== '여기에_구글_URL_붙여넣기') {
-        const [date, period] = selectedCellId.split('_');
-        fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          body: JSON.stringify({ date, period, className, students: students.join(', '), helpers: helpers.join(', '), teachers: teachers.join(', '), behavior, positive, memo })
-        });
+      if(!scheduleData[selectedCellId]) scheduleData[selectedCellId] = [];
+      const entries = scheduleData[selectedCellId];
+
+      if(selectedEntryId) {
+        // 기존 기록 수정
+        const idx = entries.findIndex(e => e.id === selectedEntryId);
+        if(isEmpty) {
+          // 아무도 선택되지 않고 내용도 없다면 기록 자체를 삭제
+          if(idx >= 0) entries.splice(idx, 1);
+          postToSheet('deleteSchedule', { id: selectedEntryId });
+        } else {
+          const updated = { id: selectedEntryId, students, helpers, teachers, className, behavior, behaviorTime, positive, memo };
+          if(idx >= 0) entries[idx] = updated; else entries.push(updated);
+          postToSheet('schedule', { id: selectedEntryId, date, period, className, students: students.join(', '), helpers: helpers.join(', '), teachers: teachers.join(', '), behavior, behaviorTime, positive, memo });
+        }
+      } else if(!isEmpty) {
+        // 신규 기록 생성 (내용이 있을 때만 저장)
+        const newId = generateEntryId();
+        entries.push({ id: newId, students, helpers, teachers, className, behavior, behaviorTime, positive, memo });
+        postToSheet('schedule', { id: newId, date, period, className, students: students.join(', '), helpers: helpers.join(', '), teachers: teachers.join(', '), behavior, behaviorTime, positive, memo });
       }
 
       closeModal();
@@ -816,10 +1740,16 @@
       currentDate = new Date(y, m - 1, d);
       toggleMiniCal();
       render();
+      // 행사/출결 모달이 열려 있는 상태로 미니달력에서 날짜를 골랐다면 해당 모달 내용도 갱신
+      if(document.getElementById('event-modal').style.display === 'block') renderEventModalContent();
+      if(document.getElementById('attendance-modal').style.display === 'block') renderAttendanceModalContent();
     }
 
-    // 초기 실행
-    render();
+    // 초기 실행: 저장된 기본 접속 반 반영 후, 구글 시트 연결 시 시트 데이터를 불러와 렌더링 (미연결 시 로컬 데이터로 즉시 렌더링)
+    const savedDefaultClass = localStorage.getItem('defaultClass');
+    if(savedDefaultClass) document.getElementById('class-filter').value = savedDefaultClass;
+
+    loadFromSheet();
   </script>
 </body>
 </html>
