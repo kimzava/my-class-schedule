@@ -3,127 +3,194 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>특수학급 시간표 & 일지</title>
+  <title>특수학급 통합 시간표 & 일지 시스템</title>
   <style>
     * { box-sizing: border-box; font-family: 'Pretendard', 'Malgun Gothic', sans-serif; }
     body { display: flex; flex-direction: column; height: 100vh; margin: 0; background: #f8fafc; color: #1e293b; }
     
-    /* 상단 주차 컨트롤러 */
-    .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: white; border-bottom: 1px solid #e2e8f0; }
-    .week-nav { display: flex; align-items: center; gap: 12px; }
-    .week-nav button { padding: 6px 14px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-weight: 600; }
-    .week-nav button:hover { background: #e2e8f0; }
-    .week-title { font-size: 1.1rem; font-weight: bold; color: #0f172a; }
+    /* 상단 네비게이션 & 컨트롤 */
+    .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: white; border-bottom: 1px solid #cbd5e1; flex-wrap: wrap; gap: 10px; }
+    .nav-tabs { display: flex; gap: 6px; background: #f1f5f9; padding: 4px; border-radius: 8px; }
+    .tab-btn { padding: 6px 14px; border: none; background: transparent; border-radius: 6px; font-weight: bold; cursor: pointer; color: #64748b; font-size: 0.85rem; }
+    .tab-btn.active { background: white; color: #2563eb; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    
+    .date-nav { display: flex; align-items: center; gap: 8px; }
+    .date-nav button { padding: 5px 10px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; }
+    .year-badge { background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
 
-    /* 메인 레이아웃 */
+    /* 메인 뷰 컨테이너 */
     .main-container { display: flex; flex: 1; overflow: hidden; }
-    .schedule-area { flex: 7; padding: 16px; overflow-y: auto; }
-    .memo-panel { flex: 3; background: white; border-left: 1px solid #e2e8f0; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+    .content-area { flex: 1; padding: 16px; overflow: auto; }
 
-    /* 시간표 격자 */
-    .grid { display: grid; grid-template-columns: 140px repeat(5, 1fr); gap: 6px; }
-    .cell { background: white; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; min-height: 75px; cursor: pointer; transition: all 0.15s; font-size: 0.85rem; }
-    .cell:hover { border-color: #3b82f6; background: #eff6ff; }
-    .header-cell { background: #f1f5f9; font-weight: bold; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 45px; border-color: #cbd5e1; }
-    .period-label { font-size: 0.8rem; color: #64748b; font-weight: normal; margin-top: 2px; }
+    /* 테이블 공통 스타일 */
+    table { width: 100%; border-collapse: collapse; background: white; font-size: 0.8rem; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: center; min-width: 80px; }
+    th { background: #f1f5f9; font-weight: bold; color: #334155; }
+    .time-col { background: #f8fafc; font-weight: bold; width: 100px; color: #475569; }
+    .clickable-cell { cursor: pointer; transition: background 0.15s; }
+    .clickable-cell:hover { background: #eff6ff !important; }
 
-    /* 학생 & 메모 태그 */
-    .tag-student { display: inline-block; background: #ffedd5; color: #9a3412; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin: 2px; font-size: 0.75rem; }
-    .tag-helper { display: inline-block; background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; margin: 2px; font-size: 0.75rem; }
-    .memo-text { font-size: 0.8rem; color: #334155; margin-top: 4px; white-space: pre-line; word-break: break-all; }
+    /* 태그 스타일 */
+    .tag { display: inline-block; padding: 2px 5px; border-radius: 4px; font-size: 0.72rem; font-weight: bold; margin: 1px; }
+    .tag-main { background: #ffedd5; color: #9a3412; }
+    .tag-extra { background: #fef3c7; color: #92400e; }
+    .tag-helper { background: #e0e7ff; color: #3730a3; }
+    .tag-teacher { background: #dcfce7; color: #166534; }
+    .memo-text { font-size: 0.75rem; color: #475569; margin-top: 3px; }
 
-    /* 팝오버 모달 */
-    #popover { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 420px; z-index: 1000; border: 1px solid #cbd5e1; }
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 999; }
-    .section-title { font-size: 0.85rem; font-weight: bold; color: #64748b; margin: 10px 0 6px 0; }
-    .checkbox-group { display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow-y: auto; padding: 4px; border: 1px solid #f1f5f9; border-radius: 6px; }
-    .checkbox-group label { font-size: 0.8rem; background: #f8fafc; padding: 4px 8px; border-radius: 4px; border: 1px solid #e2e8f0; cursor: pointer; }
-    textarea { width: 100%; height: 60px; margin-top: 6px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; resize: none; }
-    .btn-group { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
-    .btn { padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
+    /* 모달 및 팝업 */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 999; }
+    .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 480px; max-width: 90%; z-index: 1000; max-height: 85vh; overflow-y: auto; }
+    
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 0.8rem; font-weight: bold; color: #475569; margin-bottom: 4px; }
+    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; }
+    .checkbox-grid { display: flex; flex-wrap: wrap; gap: 4px; border: 1px solid #e2e8f0; padding: 8px; border-radius: 6px; max-height: 100px; overflow-y: auto; }
+    .checkbox-grid label { font-size: 0.75rem; background: #f8fafc; padding: 3px 6px; border-radius: 4px; border: 1px solid #e2e8f0; cursor: pointer; }
+    
+    .btn { padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
     .btn-primary { background: #2563eb; color: white; }
     .btn-secondary { background: #94a3b8; color: white; }
   </style>
 </head>
 <body>
 
-  <!-- 구글 시트 URL 입력 설정 -->
   <script>
-    // ★ 1단계에서 복사한 구글 Apps Script URL을 아래 작은따옴표 안에 입력하세요.
-    const GOOGLE_SCRIPT_URL = '여기에_구글_URL_붙여넣기';
-
-    // ★ 학생 및 지원인력 명단 설정 (매년 여기서 이름만 수정하면 됩니다)
-    const MAIN_STUDENTS = ['학생01', '학생02', '학생03', '학생04', '학생05', '학생06']; // 우리반
-    const EXTRA_STUDENTS = ['학생07', '학생08', '학생09', '학생10', '학생11', '학생12', '학생13', '학생14']; // 옆반/외부
-    const HELPERS = ['사회복무요원A', '특수교육실무사A', '교사A', '교사B', '교사C'];
+    const GOOGLE_SCRIPT_URL = '여기에_구글_URL_붙여넣기'; // 구글 Apps Script Web App URL
   </script>
 
-  <!-- 상단 주차 이동 바 -->
+  <!-- 상단 제어바 -->
   <div class="top-bar">
-    <div class="week-nav">
-      <button onclick="changeWeek(-1)">&lt; 이전 주</button>
-      <button onclick="goToday()">오늘</button>
-      <button onclick="changeWeek(1)">다음 주 &gt;</button>
-      <span class="week-title" id="week-title">주차 정보 계산 중...</span>
-    </div>
-  </div>
-
-  <div class="main-container">
-    <!-- 왼쪽: 메인 주간 시간표 -->
-    <div class="schedule-area">
-      <div class="grid" id="grid"></div>
-    </div>
-
-    <!-- 오른쪽: 데일리 메모 & 일지 패널 -->
-    <div class="memo-panel">
-      <h3 style="margin: 0; font-size: 1.1rem; color: #0f172a;">📝 데일리 기록 / 메모</h3>
-      <div id="memo-list" style="display: flex; flex-direction: column; gap: 10px;">
-        <p style="color: #94a3b8; font-size: 0.85rem;">시간표 셀을 클릭하여 메모나 학생 활동을 기록하세요.</p>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span class="year-badge" id="academic-year-badge">2026학년도</span>
+      <div class="nav-tabs">
+        <button class="tab-btn active" onclick="switchView('classWeekly')">우리반 주간</button>
+        <button class="tab-btn" onclick="switchView('personWeekly')">개인별 주간</button>
+        <button class="tab-btn" onclick="switchView('dailyMatrix')">일일 전체 매트릭스</button>
       </div>
     </div>
+
+    <div class="date-nav">
+      <button onclick="changeDate(-7)">&lt; 지난주</button>
+      <button onclick="changeDate(-1)">&lt; 어제</button>
+      <button onclick="goToday()">오늘</button>
+      <button onclick="changeDate(1)">내일 &gt;</button>
+      <button onclick="changeDate(7)">다음주 &gt;</button>
+      <span id="current-date-text" style="font-weight:bold; font-size:0.9rem; margin-left:8px;"></span>
+      <button onclick="openSettingsModal()" style="margin-left:10px; background:#f1f5f9;">⚙️ 명단 설정</button>
+    </div>
   </div>
 
-  <!-- 입력 팝오버 및 배경 오버레이 -->
-  <div class="modal-overlay" id="overlay" onclick="closePopover()"></div>
-  <div id="popover">
-    <h4 style="margin: 0 0 10px 0;" id="popover-title">수업/일지 입력</h4>
-    
-    <div class="section-title">우리반 학생 (01~06)</div>
-    <div class="checkbox-group" id="main-student-group"></div>
+  <!-- 메인 뷰 영역 -->
+  <div class="main-container">
+    <div class="content-area" id="view-content"></div>
+  </div>
 
-    <div class="section-title">외부/옆반 학생 (07~14)</div>
-    <div class="checkbox-group" id="extra-student-group"></div>
-
-    <div class="section-title">지원 인력 / 교사</div>
-    <div class="checkbox-group" id="helper-group"></div>
-
-    <div class="section-title">수업 내용 / 특이사항 / 행동 기록</div>
-    <textarea id="memo-input" placeholder="학생 선택 없이 메모만 남길 수도 있습니다."></textarea>
-
-    <div class="btn-group">
-      <button class="btn btn-secondary" onclick="closePopover()">취소</button>
+  <!-- 입력 및 수정 팝오버 모달 -->
+  <div class="modal-overlay" id="overlay" onclick="closeModal()"></div>
+  <div class="modal" id="input-modal">
+    <h3 style="margin-top:0;" id="modal-title">수업 및 지원 기록</h3>
+    <div class="form-group">
+      <label>우리반 학생</label>
+      <div class="checkbox-grid" id="cb-main-students"></div>
+    </div>
+    <div class="form-group">
+      <label>외부/옆반 학생</label>
+      <div class="checkbox-grid" id="cb-extra-students"></div>
+    </div>
+    <div class="form-group">
+      <label>지원인력</label>
+      <div class="checkbox-grid" id="cb-helpers"></div>
+    </div>
+    <div class="form-group">
+      <label>담당 교사</label>
+      <div class="checkbox-grid" id="cb-teachers"></div>
+    </div>
+    <div class="form-group">
+      <label>수업 내용 / 메모 / 행동 기록</label>
+      <textarea id="memo-input" rows="3" placeholder="학생 선택 없이 메모만 남기기 가능"></textarea>
+    </div>
+    <div style="display:flex; justify-direction:flex-end; gap:8px;">
+      <button class="btn btn-secondary" onclick="closeModal()">취소</button>
       <button class="btn btn-primary" onclick="saveData()">저장하기</button>
     </div>
   </div>
 
+  <!-- 학년도 & 명단 설정 모달 -->
+  <div class="modal" id="settings-modal">
+    <h3 style="margin-top:0;">⚙️ 학년도별 명단 설정</h3>
+    <p style="font-size:0.75rem; color:#64748b;">쉼표(,)로 구분하여 입력하세요. (3월~다음해 2월 신학기 기준 자동 세팅)</p>
+    <div class="form-group">
+      <label>우리반 학생 명단</label>
+      <input type="text" id="cfg-main-students">
+    </div>
+    <div class="form-group">
+      <label>외부/옆반 학생 명단 (여분)</label>
+      <input type="text" id="cfg-extra-students">
+    </div>
+    <div class="form-group">
+      <label>지원인력 (사회복무요원/실무사 등)</label>
+      <input type="text" id="cfg-helpers">
+    </div>
+    <div class="form-group">
+      <label>특수교사 명단</label>
+      <input type="text" id="cfg-teachers">
+    </div>
+    <div style="display:flex; justify-direction:flex-end; gap:8px;">
+      <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveSettings()">설정 저장</button>
+    </div>
+  </div>
+
   <script>
+    // 1. 기본 상태 및 데이터 초기화
     let currentDate = new Date();
-    let selectedCellInfo = null;
-    const scheduleData = {}; // 셀 데이터 저장 객체
+    let currentView = 'classWeekly'; // classWeekly, personWeekly, dailyMatrix
+    let selectedPerson = '';
+    let selectedCellId = '';
+    const scheduleData = {}; 
 
     const PERIODS = [
-      { name: '등교', time: '~09:00' },
-      { name: '1교시', time: '09:00~09:40' },
-      { name: '2교시', time: '09:50~10:30' },
-      { name: '3교시', time: '10:40~11:20' },
-      { name: '저점 / 고4', time: '11:20~12:10' },
-      { name: '저4 / 고점', time: '12:10~12:50' },
-      { name: '5교시', time: '13:00~13:40' },
-      { name: '6교시', time: '13:50~14:30' },
-      { name: '방과후', time: '14:30~' }
+      '등교', '1교시', '이동(1-2)', '2교시', '이동(2-3)', '3교시', 
+      '저점/고4', '저4/고점', '5교시', '이동(5-6)', '6교시', '방과후'
     ];
 
-    // 월요일 날짜 구하기
+    // 2. 학년도 계산 (3월 1일 ~ 다음해 2월 28/29일)
+    function getAcademicYear(date) {
+      const y = date.getFullYear();
+      const m = date.getMonth() + 1; 
+      return (m === 1 || m === 2) ? y - 1 : y;
+    }
+
+    // 3. 학년도별 명단 로드 & 저장
+    function getRoster() {
+      const year = getAcademicYear(currentDate);
+      const saved = localStorage.getItem(`roster_${year}`);
+      if(saved) return JSON.parse(saved);
+      
+      // 기본값 세팅
+      return {
+        mainStudents: ['학생01', '학생02', '학생03', '학생04', '학생05', '학생06'],
+        extraStudents: ['학생07', '학생08', '학생09', '학생10', '학생11', '학생12', '학생13', '학생14'],
+        helpers: ['사회복무요원A', '특수교육실무사A'],
+        teachers: ['교사A', '교사B', '교사C']
+      };
+    }
+
+    function saveSettings() {
+      const year = getAcademicYear(currentDate);
+      const roster = {
+        mainStudents: document.getElementById('cfg-main-students').value.split(',').map(s=>s.trim()).filter(Boolean),
+        extraStudents: document.getElementById('cfg-extra-students').value.split(',').map(s=>s.trim()).filter(Boolean),
+        helpers: document.getElementById('cfg-helpers').value.split(',').map(s=>s.trim()).filter(Boolean),
+        teachers: document.getElementById('cfg-teachers').value.split(',').map(s=>s.trim()).filter(Boolean),
+      };
+      localStorage.setItem(`roster_${year}`, JSON.stringify(roster));
+      closeModal();
+      render();
+    }
+
+    // 4. 날짜 및 주차 계산
     function getMonday(d) {
       const date = new Date(d);
       const day = date.getDay();
@@ -131,54 +198,8 @@
       return new Date(date.setDate(diff));
     }
 
-    // 주차 계산 및 화면 렌더링
-    function render() {
-      const monday = getMonday(currentDate);
-      const friday = new Date(monday);
-      friday.setDate(monday.getDate() + 4);
-
-      // 주차 타이틀 업데이트
-      document.getElementById('week-title').innerText = 
-        `${monday.getFullYear()}년 ${monday.getMonth()+1}월 ${monday.getDate()}일 ~ ${friday.getMonth()+1}월 ${friday.getDate()}일`;
-
-      // 시간표 격자 생성
-      const grid = document.getElementById('grid');
-      grid.innerHTML = '<div class="cell header-cell">교시 / 요일</div>';
-
-      const days = ['월', '화', '수', '목', '금'];
-      const weekDates = [];
-
-      days.forEach((day, idx) => {
-        const dayDate = new Date(monday);
-        dayDate.setDate(monday.getDate() + idx);
-        weekDates.push(dayDate);
-        grid.innerHTML += `<div class="cell header-cell">${day}<span class="period-label">(${dayDate.getMonth()+1}/${dayDate.getDate()})</span></div>`;
-      });
-
-      // 교시별 행 생성
-      PERIODS.forEach(period => {
-        grid.innerHTML += `<div class="cell header-cell">${period.name}<span class="period-label">${period.time}</span></div>`;
-        
-        weekDates.forEach((date) => {
-          const dateStr = date.toISOString().split('T')[0];
-          const cellId = `${dateStr}_${period.name}`;
-          const cellData = scheduleData[cellId] || { students: [], helpers: [], memo: '' };
-
-          let contentHtml = '';
-          if(cellData.students.length) contentHtml += cellData.students.map(s => `<span class="tag-student">${s}</span>`).join('');
-          if(cellData.helpers.length) contentHtml += cellData.helpers.map(h => `<span class="tag-helper">${h}</span>`).join('');
-          if(cellData.memo) contentHtml += `<div class="memo-text">📝 ${cellData.memo}</div>`;
-
-          grid.innerHTML += `<div class="cell" onclick="openPopover('${dateStr}', '${period.name}', '${cellId}')">${contentHtml}</div>`;
-        });
-      });
-
-      renderDailyPanel(monday);
-    }
-
-    // 주차 이동
-    function changeWeek(offset) {
-      currentDate.setDate(currentDate.getDate() + (offset * 7));
+    function changeDate(days) {
+      currentDate.setDate(currentDate.getDate() + days);
       render();
     }
     function goToday() {
@@ -186,92 +207,224 @@
       render();
     }
 
-    // 팝오버 열기
-    function openPopover(dateStr, periodName, cellId) {
-      selectedCellInfo = { dateStr, periodName, cellId };
-      const data = scheduleData[cellId] || { students: [], helpers: [], memo: '' };
-
-      document.getElementById('popover-title').innerText = `${dateStr} [${periodName}] 기록`;
-      
-      // 체크박스 생성 함수
-      const makeCheckboxes = (containerId, list, selectedList) => {
-        const container = document.getElementById(containerId);
-        container.innerHTML = list.map(item => `
-          <label><input type="checkbox" value="${item}" ${selectedList.includes(item) ? 'checked' : ''}> ${item}</label>
-        `).join('');
-      };
-
-      makeCheckboxes('main-student-group', MAIN_STUDENTS, data.students);
-      makeCheckboxes('extra-student-group', EXTRA_STUDENTS, data.students);
-      makeCheckboxes('helper-group', HELPERS, data.helpers);
-      document.getElementById('memo-input').value = data.memo;
-
-      document.getElementById('popover').style.display = 'block';
-      document.getElementById('overlay').style.display = 'block';
-    }
-
-    function closePopover() {
-      document.getElementById('popover').style.display = 'none';
-      document.getElementById('overlay').style.display = 'none';
-    }
-
-    // 데이터 저장
-    function saveData() {
-      const getChecked = (containerId) => 
-        Array.from(document.querySelectorAll(`#${containerId} input:checked`)).map(cb => cb.value);
-
-      const students = [...getChecked('main-student-group'), ...getChecked('extra-student-group')];
-      const helpers = getChecked('helper-group');
-      const memo = document.getElementById('memo-input').value;
-
-      scheduleData[selectedCellInfo.cellId] = { students, helpers, memo };
-
-      // 구글 스프레드시트 백엔드 전송
-      if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== '여기에_구글_URL_붙여넣기') {
-        fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          body: JSON.stringify({
-            date: selectedCellInfo.dateStr,
-            period: selectedCellInfo.periodName,
-            students: students.join(', '),
-            helpers: helpers.join(', '),
-            memo: memo
-          })
-        });
-      }
-
-      closePopover();
+    // 5. 뷰 전환 및 메인 렌더링
+    function switchView(viewName) {
+      currentView = viewName;
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
       render();
     }
 
-    // 우측 데일리 패널 목록 갱신
-    function renderDailyPanel(monday) {
-      const memoList = document.getElementById('memo-list');
-      memoList.innerHTML = '';
+    function render() {
+      const acadYear = getAcademicYear(currentDate);
+      document.getElementById('academic-year-badge').innerText = `${acadYear}학년도`;
+      
+      const monday = getMonday(currentDate);
+      const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
+      document.getElementById('current-date-text').innerText = 
+        `${currentDate.getMonth()+1}월 ${currentDate.getDate()}일 (${['일','월','화','수','목','금','토'][currentDate.getDay()]}) | 주차: ${monday.getMonth()+1}/${monday.getDate()} ~ ${friday.getMonth()+1}/${friday.getDate()}`;
 
-      let hasData = false;
-      Object.keys(scheduleData).sort().forEach(cellId => {
-        const data = scheduleData[cellId];
-        if(data.students.length || data.helpers.length || data.memo) {
-          hasData = true;
-          const [date, period] = cellId.split('_');
-          memoList.innerHTML += `
-            <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px; border-radius:6px;">
-              <div style="font-size:0.8rem; font-weight:bold; color:#2563eb;">${date} [${period}]</div>
-              ${data.students.length ? `<div style="margin-top:4px;">학생: ${data.students.join(', ')}</div>` : ''}
-              ${data.helpers.length ? `<div style="margin-top:2px; font-size:0.8rem; color:#475569;">지원: ${data.helpers.join(', ')}</div>` : ''}
-              ${data.memo ? `<div style="margin-top:4px; font-size:0.85rem; color:#1e293b;">📝 ${data.memo}</div>` : ''}
-            </div>
-          `;
-        }
-      });
+      const container = document.getElementById('view-content');
+      container.innerHTML = '';
 
-      if(!hasData) {
-        memoList.innerHTML = '<p style="color: #94a3b8; font-size: 0.85rem;">기록된 내용이 없습니다.</p>';
-      }
+      if(currentView === 'classWeekly') renderClassWeekly(container, monday);
+      else if(currentView === 'personWeekly') renderPersonWeekly(container, monday);
+      else if(currentView === 'dailyMatrix') renderDailyMatrix(container);
     }
 
-    // 초기화 실행
+    // 뷰①: 우리반 주간 시간표
+    function renderClassWeekly(container, monday) {
+      const days = ['월', '화', '수', '목', '금'];
+      let html = `<table><thead><tr><th class="time-col">교시</th>`;
+      days.forEach((d, i) => {
+        const dt = new Date(monday); dt.setDate(monday.getDate() + i);
+        html += `<th>${d} (${dt.getMonth()+1}/${dt.getDate()})</th>`;
+      });
+      html += `</tr></thead><tbody>`;
+
+      PERIODS.forEach(p => {
+        html += `<tr><td class="time-col">${p}</td>`;
+        days.forEach((d, i) => {
+          const dt = new Date(monday); dt.setDate(monday.getDate() + i);
+          const dateStr = dt.toISOString().split('T')[0];
+          const cellId = `${dateStr}_${p}`;
+          const data = scheduleData[cellId] || { students:[], helpers:[], teachers:[], memo:'' };
+
+          html += `<td class="clickable-cell" onclick="openInputModal('${cellId}')">`;
+          data.students.forEach(s => html += `<span class="tag tag-main">${s}</span>`);
+          data.teachers.forEach(t => html += `<span class="tag tag-teacher">${t}</span>`);
+          data.helpers.forEach(h => html += `<span class="tag tag-helper">${h}</span>`);
+          if(data.memo) html += `<div class="memo-text">📝 ${data.memo}</div>`;
+          html += `</td>`;
+        });
+        html += `</tr>`;
+      });
+      container.innerHTML = html + `</tbody></table>`;
+    }
+
+    // 뷰②: 교사/인력/학생 개인별 주간 시간표
+    function renderPersonWeekly(container, monday) {
+      const roster = getRoster();
+      const allPeople = [...roster.teachers, ...roster.helpers, ...roster.mainStudents, ...roster.extraStudents];
+      if(!selectedPerson) selectedPerson = allPeople[0] || '';
+
+      let selectorHtml = `<div style="margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+        <label style="font-weight:bold; font-size:0.85rem;">조회 대상 선택:</label>
+        <select onchange="selectedPerson=this.value; render();" style="padding:4px 8px; font-weight:bold;">`;
+      allPeople.forEach(p => {
+        selectorHtml += `<option value="${p}" ${p===selectedPerson?'selected':''}>${p}</option>`;
+      });
+      selectorHtml += `</select></div>`;
+
+      const days = ['월', '화', '수', '목', '금'];
+      let html = selectorHtml + `<table><thead><tr><th class="time-col">교시</th>`;
+      days.forEach((d, i) => {
+        const dt = new Date(monday); dt.setDate(monday.getDate() + i);
+        html += `<th>${d} (${dt.getMonth()+1}/${dt.getDate()})</th>`;
+      });
+      html += `</tr></thead><tbody>`;
+
+      PERIODS.forEach(p => {
+        html += `<tr><td class="time-col">${p}</td>`;
+        days.forEach((d, i) => {
+          const dt = new Date(monday); dt.setDate(monday.getDate() + i);
+          const dateStr = dt.toISOString().split('T')[0];
+          const cellId = `${dateStr}_${p}`;
+          const data = scheduleData[cellId] || { students:[], helpers:[], teachers:[], memo:'' };
+          
+          const isAssigned = data.students.includes(selectedPerson) || 
+                             data.helpers.includes(selectedPerson) || 
+                             data.teachers.includes(selectedPerson);
+
+          html += `<td class="${isAssigned?'clickable-cell':''}" style="${isAssigned?'background:#f0fdf4;':''}" onclick="openInputModal('${cellId}')">`;
+          if(isAssigned) {
+            html += `<strong>[배정됨]</strong>`;
+            if(data.memo) html += `<div class="memo-text">📝 ${data.memo}</div>`;
+          }
+          html += `</td>`;
+        });
+        html += `</tr>`;
+      });
+      container.innerHTML = html + `</tbody></table>`;
+    }
+
+    // 뷰③: 일일 전체 매트릭스 뷰 (세번째 이미지 스타일)
+    function renderDailyMatrix(container) {
+      const roster = getRoster();
+      const dateStr = currentDate.toISOString().split('T')[0];
+
+      let html = `<table><thead>
+        <tr>
+          <th class="time-col" rowspan="2">교시</th>
+          <th colspan="${roster.mainStudents.length}">우리반 학생 (${roster.mainStudents.length})</th>
+          <th colspan="${roster.helpers.length}">지원인력 (${roster.helpers.length})</th>
+          <th colspan="${roster.teachers.length}">담당 교사 (${roster.teachers.length})</th>
+        </tr><tr>`;
+
+      roster.mainStudents.forEach(s => html += `<th>${s}</th>`);
+      roster.helpers.forEach(h => html += `<th>${h}</th>`);
+      roster.teachers.forEach(t => html += `<th>${t}</th>`);
+      html += `</tr></thead><tbody>`;
+
+      PERIODS.forEach(p => {
+        const cellId = `${dateStr}_${p}`;
+        const data = scheduleData[cellId] || { students:[], helpers:[], teachers:[], memo:'' };
+
+        html += `<tr><td class="time-col">${p}</td>`;
+
+        // 학생 열
+        roster.mainStudents.forEach(s => {
+          const active = data.students.includes(s);
+          html += `<td class="clickable-cell" style="${active?'background:#fff7ed;':''}" onclick="openInputModal('${cellId}')">
+            ${active ? '<span class="tag tag-main">수업입실</span>' : ''}
+          </td>`;
+        });
+
+        // 인력 열
+        roster.helpers.forEach(h => {
+          const active = data.helpers.includes(h);
+          html += `<td class="clickable-cell" style="${active?'background:#e0e7ff;':''}" onclick="openInputModal('${cellId}')">
+            ${active ? `<span class="tag tag-helper">지원중</span>` : ''}
+          </td>`;
+        });
+
+        // 교사 열
+        roster.teachers.forEach(t => {
+          const active = data.teachers.includes(t);
+          html += `<td class="clickable-cell" style="${active?'background:#dcfce7;':''}" onclick="openInputModal('${cellId}')">
+            ${active ? `<span class="tag tag-teacher">수업담당</span>` : ''}
+          </td>`;
+        });
+
+        html += `</tr>`;
+      });
+
+      container.innerHTML = html + `</tbody></table>`;
+    }
+
+    // 6. 모달 및 제어 로직
+    function openInputModal(cellId) {
+      selectedCellId = cellId;
+      const roster = getRoster();
+      const data = scheduleData[cellId] || { students:[], helpers:[], teachers:[], memo:'' };
+
+      const makeCb = (containerId, list, selected) => {
+        document.getElementById(containerId).innerHTML = list.map(item => `
+          <label><input type="checkbox" value="${item}" ${selected.includes(item)?'checked':''}> ${item}</label>
+        `).join('');
+      };
+
+      makeCb('cb-main-students', roster.mainStudents, data.students);
+      makeCb('cb-extra-students', roster.extraStudents, data.students);
+      makeCb('cb-helpers', roster.helpers, data.helpers);
+      makeCb('cb-teachers', roster.teachers, data.teachers);
+      document.getElementById('memo-input').value = data.memo || '';
+
+      document.getElementById('modal-title').innerText = `${cellId.replace('_',' ')} 기록`;
+      document.getElementById('input-modal').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    }
+
+    function openSettingsModal() {
+      const roster = getRoster();
+      document.getElementById('cfg-main-students').value = roster.mainStudents.join(', ');
+      document.getElementById('cfg-extra-students').value = roster.extraStudents.join(', ');
+      document.getElementById('cfg-helpers').value = roster.helpers.join(', ');
+      document.getElementById('cfg-teachers').value = roster.teachers.join(', ');
+
+      document.getElementById('settings-modal').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    }
+
+    function closeModal() {
+      document.getElementById('input-modal').style.display = 'none';
+      document.getElementById('settings-modal').style.display = 'none';
+      document.getElementById('overlay').style.display = 'none';
+    }
+
+    function saveData() {
+      const getChecked = id => Array.from(document.querySelectorAll(`#${id} input:checked`)).map(c => c.value);
+      const students = [...getChecked('cb-main-students'), ...getChecked('cb-extra-students')];
+      const helpers = getChecked('cb-helpers');
+      const teachers = getChecked('cb-teachers');
+      const memo = document.getElementById('memo-input').value;
+
+      scheduleData[selectedCellId] = { students, helpers, teachers, memo };
+
+      // 구글 스프레드시트 백엔드 전송
+      if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== '여기에_구글_URL_붙여넣기') {
+        const [date, period] = selectedCellId.split('_');
+        fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          body: JSON.stringify({ date, period, students: students.join(', '), helpers: helpers.join(', '), teachers: teachers.join(', '), memo })
+        });
+      }
+
+      closeModal();
+      render();
+    }
+
+    // 초기 실행
     render();
   </script>
 </body>
