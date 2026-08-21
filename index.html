@@ -1701,7 +1701,7 @@
         const c = eventTypeColor(ev.type);
         panel.innerHTML += `
           <div class="memo-card-clickable" style="background:${c.bg}; border:1px solid ${c.border}; border-radius:6px; padding:8px;" onclick="openEventModal()" title="눌러서 수정">
-            <div style="font-size:0.75rem; font-weight:bold; color:${c.text};">🗓️ 오늘의 행사 [${ev.type||'행사'}]</div>
+            <div style="font-size:0.75rem; font-weight:bold; color:${c.text};">🗓️ 오늘의 행사</div>
             <div style="font-size:0.78rem; color:${c.text}; margin-top:3px;">${ev.text}</div>
           </div>
         `;
