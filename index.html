@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>특수학급 스마트 시간표 & 일지</title>
   <style>
-    html { font-size: 17px; }
+    html { font-size: 18px; }
     * { box-sizing: border-box; font-family: 'Pretendard', 'Malgun Gothic', sans-serif; }
     body { display: flex; flex-direction: column; height: 100vh; margin: 0; background: #f8fafc; color: #1e293b; }
     
@@ -66,6 +66,7 @@
     tr.is-break-row td:not(.time-col), tr.is-break-row th:not(.time-col) { background: #fafbfc; }
     .group-divider { border-left: 2.5px solid #94a3b8 !important; }
     .time-sub { font-size: 0.7rem; color: #64748b; font-weight: normal; display: block; margin-top: 1px; }
+    .day-name { font-size: 1.15rem; font-weight: 800; }
     .clickable-cell { cursor: pointer; transition: background 0.15s; }
     .clickable-cell:hover { background: #eff6ff !important; }
 
@@ -75,7 +76,7 @@
     .cell-has-behavior { background: #fff1f2 !important; border: 2px solid #fda4af !important; }
 
     /* 태그 및 아이콘 */
-    .tag { display: inline-block; max-width: 100%; padding: 2px 5px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; margin: 1px; white-space: normal; word-break: keep-all; overflow-wrap: break-word; }
+    .tag { display: inline-block; max-width: 100%; padding: 2px 5px; border-radius: 4px; font-size: 0.72rem; font-weight: bold; margin: 1px; white-space: normal; word-break: keep-all; overflow-wrap: break-word; }
     .tag-main { background: #ffedd5; color: #9a3412; }
     .tag-helper { background: #e0e7ff; color: #3730a3; }
     .tag-teacher { background: #dcfce7; color: #166534; }
@@ -1311,12 +1312,12 @@
       days.forEach((d, i) => {
         const dt = new Date(monday); dt.setDate(monday.getDate() + i);
         const dEv = eventData[toDateStr(dt)];
-        let dayLabel = d;
+        let dayLabel = `<span class="day-name">${d}</span>`;
         let evBadge = '';
         if(dEv) {
           const c = eventTypeColor(dEv.type);
           evBadge = `<br><span style="font-size:0.62rem; font-weight:normal; color:${c.text}; background:${c.bg}; border:1px solid ${c.border}; padding:1px 4px; border-radius:3px; display:inline-block; margin-top:2px;">🗓️ ${dEv.text}</span>`;
-          if(dEv.type === '공휴일') dayLabel = `<span style="color:#dc2626;">${d}</span>`;
+          if(dEv.type === '공휴일') dayLabel = `<span class="day-name" style="color:#dc2626;">${d}</span>`;
         }
         html += `<th>${dayLabel} (${dt.getMonth()+1}/${dt.getDate()})${evBadge}</th>`;
       });
@@ -1417,12 +1418,12 @@
         const b = formatAttBadge(rec, isStudentPerson);
         const headerBadge = b ? `<br><span class="${b.cls}">${b.text}</span>` : '';
         const dEv = eventData[dateStr];
-        let dayLabel = d;
+        let dayLabel = `<span class="day-name">${d}</span>`;
         let evBadge = '';
         if(dEv) {
           const c = eventTypeColor(dEv.type);
           evBadge = `<br><span style="font-size:0.62rem; font-weight:normal; color:${c.text}; background:${c.bg}; border:1px solid ${c.border}; padding:1px 4px; border-radius:3px; display:inline-block; margin-top:2px;">🗓️ ${dEv.text}</span>`;
-          if(dEv.type === '공휴일') dayLabel = `<span style="color:#dc2626;">${d}</span>`;
+          if(dEv.type === '공휴일') dayLabel = `<span class="day-name" style="color:#dc2626;">${d}</span>`;
         }
         html += `<th>${dayLabel} (${dt.getMonth()+1}/${dt.getDate()})${evBadge}${headerBadge}</th>`;
       });
