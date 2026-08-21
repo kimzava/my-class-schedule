@@ -540,91 +540,101 @@
 
     // 앱 시작 시 구글 시트의 모든 데이터를 불러와 로컬 상태를 채움 (시트 미연결 시 로컬 데이터로만 동작)
     async function loadFromSheet() {
-      if(!isSheetConnected()) { render(); return; }
-      setSyncStatus('loading');
-      try {
-        const res = await fetch(`${GOOGLE_SCRIPT_URL}?type=all`);
-        const json = await res.json();
+  if (!isSheetConnected()) { render(); return; }
+  setSyncStatus('loading');
+  try {
+    const res = await fetch(`${GOOGLE_SCRIPT_URL}?type=all`);
+    const json = await res.json();
 
-        (json.schedule || []).forEach(row => {
-          if(!row['날짜'] || !row['교시']) return;
-          const cellId = `${row['날짜']}_${row['교시']}`;
-          if(!scheduleData[cellId]) scheduleData[cellId] = [];
-          scheduleData[cellId].push({
-            id: row['ID'],
-            students: splitList(row['학생명단']),
-            helpers: splitList(row['지원인력']),
-            teachers: splitList(row['담당교사']),
-            className: row['학급/장소'] || '',
-            behavior: row['문제행동'] || '',
-            behaviorTime: row['문제행동시간'] || '',
-            positive: row['칭찬'] || '',
-            memo: row['메모'] || ''
-          });
-        });
+    // 1. 기존 로컬 객체 초기화
+    Object.keys(scheduleData).forEach(key => delete scheduleData[key]);
+    Object.keys(attendanceData).forEach(key => delete attendanceData[key]);
+    Object.keys(eventData).forEach(key => delete eventData[key]);
 
-        (json.attendance || []).forEach(row => {
-          const date = row['날짜'], name = row['이름'], status = row['상태'];
-          // PRESENT(출석)는 로컬에서도 별도 기록을 두지 않는 상태이므로 지각/결석만 반영
-          if(!date || !name || (status !== 'TARDY' && status !== 'ABSENT')) return;
-          if(!attendanceData[date]) attendanceData[date] = {};
-          attendanceData[date][name] = { status, time: row['지각시각'] || '' };
-        });
+    // 2. Schedule 데이터 복원
+    (json.schedule || []).forEach(row => {
+      if (!row['날짜'] || !row['교시']) return;
+      const cellId = `${row['날짜']}_${row['교시']}`;
+      if (!scheduleData[cellId]) scheduleData[cellId] = [];
+      scheduleData[cellId].push({
+        id: row['ID'],
+        students: splitList(row['학생명단']),
+        helpers: splitList(row['지원인력']),
+        teachers: splitList(row['담당교사']),
+        className: row['학급/장소'] || '',
+        behavior: row['문제행동'] || '',
+        behaviorTime: row['문제행동시간'] || '',
+        positive: row['칭찬'] || '',
+        memo: row['메모'] || ''
+      });
+    });
 
-        (json.events || []).forEach(row => {
-          if(row['날짜'] && row['행사내용']) eventData[row['날짜']] = row['행사내용'];
-        });
+    // 3. Attendance 데이터 복원
+    (json.attendance || []).forEach(row => {
+      const date = row['날짜'], name = row['이름'], status = row['상태'];
+      if (!date || !name || (status !== 'TARDY' && status !== 'ABSENT')) return;
+      if (!attendanceData[date]) attendanceData[date] = {};
+      attendanceData[date][name] = { status, time: row['지각시각'] || '' };
+    });
 
-        neulbomPrograms.length = 0;
-        (json.neulbom || []).forEach(row => {
-          const schedule = {};
-          WEEKDAY_NAMES.forEach(day => {
-            const start = row[day + '시작'], end = row[day + '종료'];
-            if(start && end) schedule[day] = { start, end };
-          });
-          neulbomPrograms.push({
-            id: row['ID'], category: row['카테고리'], name: row['프로그램명'], location: row['장소'],
-            students: splitList(row['참여학생']),
-            periodType: row['기간방식'], semester: row['학기'],
-            startDate: row['시작일'], endDate: row['종료일'],
-            academicYear: Number(row['학년도']) || getAcademicYear(currentDate),
-            recurrence: row['반복주기'], schedule
-          });
-        });
-        localStorage.setItem('neulbomPrograms', JSON.stringify(neulbomPrograms));
+    // 4. Events 데이터 복원
+    (json.events || []).forEach(row => {
+      if (row['날짜'] && row['행사내용']) eventData[row['날짜']] = row['행사내용'];
+    });
 
-        (json.roster || []).forEach(row => {
-          const year = row['학년도'];
-          if(!year) return;
-          const rosterObj = {
-            mainStudents: splitList(row['우리반학생']),
-            extraStudents: splitList(row['외부반학생']),
-            helpers: splitList(row['지원인력']),
-            teachers: splitList(row['교사']),
-            classTeachers: {
-              '저학년반': row['저학년반담당교사'] || '',
-              '고학년반': row['고학년반담당교사'] || '',
-              '윤슬반': row['윤슬반담당교사'] || ''
-            }
-          };
-          localStorage.setItem(`roster_${year}`, JSON.stringify(rosterObj));
-        });
+    // 5. Neulbom 데이터 복원
+    neulbomPrograms.length = 0;
+    (json.neulbom || []).forEach(row => {
+      const schedule = {};
+      WEEKDAY_NAMES.forEach(day => {
+        const start = row[day + '시작'], end = row[day + '종료'];
+        if (start && end) schedule[day] = { start, end };
+      });
+      neulbomPrograms.push({
+        id: row['ID'], category: row['카테고리'], name: row['프로그램명'], location: row['장소'],
+        students: splitList(row['참여학생']),
+        periodType: row['기간방식'], semester: row['학기'],
+        startDate: row['시작일'], endDate: row['종료일'],
+        academicYear: Number(row['학년도']) || getAcademicYear(currentDate),
+        recurrence: row['반복주기'], schedule
+      });
+    });
+    localStorage.setItem('neulbomPrograms', JSON.stringify(neulbomPrograms));
 
-        (json.settings || []).forEach(row => {
-          if(row['키'] === 'defaultClass' && row['값']) localStorage.setItem('defaultClass', row['값']);
-          if(row['키'] === 'customLocations' && row['값']) localStorage.setItem('customLocations', row['값']);
-        });
+    // 6. Roster 데이터 복원
+    (json.roster || []).forEach(row => {
+      const year = row['학년도'];
+      if (!year) return;
+      const rosterObj = {
+        mainStudents: splitList(row['우리반학생']),
+        extraStudents: splitList(row['외부반학생']),
+        helpers: splitList(row['지원인력']),
+        teachers: splitList(row['교사']),
+        classTeachers: {
+          '저학년반': row['저학년반담당교사'] || '',
+          '고학년반': row['고학년반담당교사'] || '',
+          '윤슬반': row['윤슬반담당교사'] || ''
+        }
+      };
+      localStorage.setItem(`roster_${year}`, JSON.stringify(rosterObj));
+    });
 
-        const savedDefaultClass = localStorage.getItem('defaultClass');
-        if(savedDefaultClass) document.getElementById('class-filter').value = savedDefaultClass;
+    // 7. Settings 데이터 복원
+    (json.settings || []).forEach(row => {
+      if (row['키'] === 'defaultClass' && row['값']) localStorage.setItem('defaultClass', row['값']);
+      if (row['키'] === 'customLocations' && row['값']) localStorage.setItem('customLocations', row['값']);
+    });
 
-        setSyncStatus('synced');
-      } catch(err) {
-        console.error('시트 불러오기 실패:', err);
-        setSyncStatus('error');
-      }
-      render();
-    }
+    const savedDefaultClass = localStorage.getItem('defaultClass');
+    if (savedDefaultClass) document.getElementById('class-filter').value = savedDefaultClass;
+
+    setSyncStatus('synced');
+  } catch (err) {
+    console.error('시트 불러오기 실패:', err);
+    setSyncStatus('error');
+  }
+  render();
+}
 
     // 2. 학년도 계산
     function getAcademicYear(date) {
