@@ -30,10 +30,10 @@
       .main-container { flex-direction: column; overflow-y: auto; }
       .content-area-wrapper { flex: 0 0 auto !important; min-height: 320px; }
       .memo-panel { flex: 0 0 auto !important; max-width: 100% !important; width: 100%; border-left: none; border-top: 1px solid #cbd5e1; }
-      .memo-panel.collapsed { flex: 0 0 40px !important; max-width: 100% !important; }
+      .memo-panel.collapsed { flex: 0 0 48px !important; max-width: 100% !important; padding: 0 !important; overflow: visible !important; }
       .memo-panel.collapsed #mini-cal-widget, .memo-panel.collapsed #daily-memo-list { display: none; }
       .memo-panel.collapsed .memo-collapsed-label { display: none !important; }
-      .memo-panel.collapsed .memo-panel-header { display: flex !important; justify-content: space-between !important; padding: 8px 10px !important; }
+      .memo-panel.collapsed .memo-panel-header { display: flex !important; justify-content: space-between !important; align-items: center !important; height: 48px !important; padding: 0 12px !important; margin: 0 !important; box-sizing: border-box; }
       .memo-panel.collapsed .memo-title { display: block !important; font-size: 0.85rem !important; }
 
       .top-bar { padding: 6px 8px; gap: 5px; }
@@ -1316,7 +1316,7 @@
         let evBadge = '';
         if(dEv) {
           const c = eventTypeColor(dEv.type);
-          evBadge = `<br><span style="font-size:0.62rem; font-weight:normal; color:${c.text}; background:${c.bg}; border:1px solid ${c.border}; padding:1px 4px; border-radius:3px; display:inline-block; margin-top:2px;">🗓️ ${dEv.text}</span>`;
+          evBadge = `<br><span style="font-size:0.62rem; font-weight:normal; color:${c.text}; background:${c.bg}; border:1px solid ${c.border}; padding:1px 4px; border-radius:3px; display:inline-block; max-width:100%; overflow-wrap:break-word; word-break:break-all; white-space:normal; box-sizing:border-box; margin-top:2px;">🗓️ ${dEv.text}</span>`;
           if(dEv.type === '공휴일') dayLabel = `<span class="day-name" style="color:#dc2626;">${d}</span>`;
         }
         html += `<th>${dayLabel} (${dt.getMonth()+1}/${dt.getDate()})${evBadge}</th>`;
@@ -1422,7 +1422,7 @@
         let evBadge = '';
         if(dEv) {
           const c = eventTypeColor(dEv.type);
-          evBadge = `<br><span style="font-size:0.62rem; font-weight:normal; color:${c.text}; background:${c.bg}; border:1px solid ${c.border}; padding:1px 4px; border-radius:3px; display:inline-block; margin-top:2px;">🗓️ ${dEv.text}</span>`;
+          evBadge = `<br><span style="font-size:0.62rem; font-weight:normal; color:${c.text}; background:${c.bg}; border:1px solid ${c.border}; padding:1px 4px; border-radius:3px; display:inline-block; max-width:100%; overflow-wrap:break-word; word-break:break-all; white-space:normal; box-sizing:border-box; margin-top:2px;">🗓️ ${dEv.text}</span>`;
           if(dEv.type === '공휴일') dayLabel = `<span class="day-name" style="color:#dc2626;">${d}</span>`;
         }
         html += `<th>${dayLabel} (${dt.getMonth()+1}/${dt.getDate()})${evBadge}${headerBadge}</th>`;
