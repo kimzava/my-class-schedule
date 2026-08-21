@@ -195,8 +195,8 @@
       <button onclick="changeDate(7)">다음주 &gt;</button>
       <span id="current-date-text" style="font-weight:bold; font-size:0.85rem;"></span>
       <div style="position:relative;">
-        <button onclick="toggleMiniCalDropdown()" id="mini-cal-trigger-btn" title="달력">📅</button>
-        <div id="mini-cal-dropdown" style="display:none; position:absolute; top:calc(100% + 6px); left:0; background:white; border:1px solid #cbd5e1; border-radius:14px; box-shadow:0 10px 28px rgba(0,0,0,0.18); padding:10px; z-index:60; width:200px;">
+        <button onclick="toggleMiniCalDropdown()" id="mini-cal-trigger-btn" class="mini-cal-trigger" title="달력">📅</button>
+        <div id="mini-cal-dropdown" style="display:none; position:absolute; top:calc(100% + 6px); left:0; background:white; border:1px solid #cbd5e1; border-radius:14px; box-shadow:0 10px 28px rgba(0,0,0,0.18); padding:10px; z-index:1100; width:200px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:4px;">
             <button onclick="shiftMiniCalMonth(-1)" style="padding:2px 7px; font-size:0.7rem;">◀</button>
             <input type="month" id="cal-month-picker" onchange="renderMiniCal()" style="font-size:0.7rem; flex:1; min-width:0; padding:2px;">
@@ -335,7 +335,7 @@
       <button class="btn btn-secondary" onclick="navigateAttDate(-1)">◀ 이전날</button>
       <span id="att-modal-date-label" style="font-weight:bold; font-size:0.85rem; color:#1e40af;"></span>
       <div style="display:flex; gap:4px;">
-        <button class="btn btn-secondary" onclick="toggleMiniCalDropdown()">📅</button>
+        <button class="btn btn-secondary mini-cal-trigger" onclick="toggleMiniCalDropdown()">📅</button>
         <button class="btn btn-secondary" onclick="navigateAttDate(1)">다음날 ▶</button>
       </div>
     </div>
@@ -1419,16 +1419,12 @@
                 if(!b && entry.behavior) cls = 'tag-student-behavior'; // 문제행동은 해당 학생 이름표만 붉은색으로 강조
                 html += `<span class="tag ${cls}" ${b ? `title=\"${b.text}\"` : ''}>${s}</span>`;
               });
-              // 담당교사가 그 반의 기본교사와 같으면 평소엔 이름표를 생략하지만, 출결 상태(지각/조퇴 등)가 있으면 상태를 놓치지 않도록 항상 표시
-              const teacherAttStatuses = entry.teachers.map(t => formatAttBadgeForPeriod(todayAtt[t], false, p));
-              const showTeachers = shouldShowTeacherTag(entry, roster, true) || teacherAttStatuses.some(b => b);
-              if(showTeachers) {
-                entry.teachers.forEach((t, ti) => {
-                  const b = teacherAttStatuses[ti];
-                  const cls = b ? b.cls : 'tag-teacher';
-                  html += `<span class="tag ${cls}" ${b ? `title=\"${b.text}\"` : ''}>${t}</span>`;
-                });
-              }
+              // 학생과 동일하게 담당교사도 항상 표시하고, 상태에 따라 색으로만 구분 (출결 상태가 지난 뒤 사라지지 않도록)
+              entry.teachers.forEach(t => {
+                const b = formatAttBadgeForPeriod(todayAtt[t], false, p);
+                const cls = b ? b.cls : 'tag-teacher';
+                html += `<span class="tag ${cls}" ${b ? `title=\"${b.text}\"` : ''}>${t}</span>`;
+              });
               entry.helpers.forEach(h => {
                 const b = formatAttBadgeForPeriod(todayAtt[h], false, p);
                 const cls = b ? b.cls : 'tag-helper';
@@ -2750,11 +2746,10 @@
       if(willShow) syncMiniCal();
     }
 
-    // 드롭다운 바깥을 클릭하면 자동으로 닫기
+    // 드롭다운 바깥을 클릭하면 자동으로 닫기 (달력을 여는 버튼이 여러 개 있어도 전부 인식하도록 클래스로 판별)
     document.addEventListener('click', function(e) {
       const dd = document.getElementById('mini-cal-dropdown');
-      const trigger = document.getElementById('mini-cal-trigger-btn');
-      if(dd.style.display === 'block' && !dd.contains(e.target) && e.target !== trigger) {
+      if(dd.style.display === 'block' && !dd.contains(e.target) && !e.target.closest('.mini-cal-trigger')) {
         dd.style.display = 'none';
       }
     });
