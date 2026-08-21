@@ -48,6 +48,7 @@
       #current-date-text { white-space: nowrap; flex-shrink: 0; }
       .tab-btn { font-size: 0.76rem; padding: 5px 9px; white-space: nowrap; flex-shrink: 0; }
       .nav-tabs { flex-shrink: 0; }
+      #mini-cal-dropdown { position: fixed !important; top: 56px !important; left: 50% !important; transform: translateX(-50%); }
     }
     .content-area { flex: 1 1 auto; min-width: 0; padding: 12px; overflow: auto; }
     .cell-selected { outline: 3px solid #2563eb; outline-offset: -3px; }
@@ -189,6 +190,17 @@
       <button onclick="changeDate(1)">내일 &gt;</button>
       <button onclick="changeDate(7)">다음주 &gt;</button>
       <span id="current-date-text" style="font-weight:bold; font-size:0.85rem;"></span>
+      <div style="position:relative;">
+        <button onclick="toggleMiniCalDropdown()" id="mini-cal-trigger-btn" title="달력">📅</button>
+        <div id="mini-cal-dropdown" style="display:none; position:absolute; top:calc(100% + 6px); left:0; background:white; border:1px solid #cbd5e1; border-radius:14px; box-shadow:0 10px 28px rgba(0,0,0,0.18); padding:10px; z-index:60; width:200px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:4px;">
+            <button onclick="shiftMiniCalMonth(-1)" style="padding:2px 7px; font-size:0.7rem;">◀</button>
+            <input type="month" id="cal-month-picker" onchange="renderMiniCal()" style="font-size:0.7rem; flex:1; min-width:0; padding:2px;">
+            <button onclick="shiftMiniCalMonth(1)" style="padding:2px 7px; font-size:0.7rem;">▶</button>
+          </div>
+          <div id="mini-cal-grid" style="display:grid; grid-template-columns:repeat(7, 1fr); gap:2px; font-size:0.66rem; text-align:center;"></div>
+        </div>
+      </div>
       <button onclick="openEventModal()">🗓️ 행사·기록</button>
       <button onclick="openAttendanceModal()">🏥 출결 관리</button>
       <button onclick="openNeulbomModal()">🌤️ 늘봄학교</button>
@@ -216,15 +228,6 @@
       <div class="content-area" id="view-content" style="flex:1; overflow:auto;"></div>
     </div>
     <div class="memo-panel" id="memo-panel">
-      <!-- 상시 표시 미니 달력: 일일매트릭스는 그날 하루, 주간 뷰는 해당 주(월~금) 전체를 음영 표시 -->
-      <div id="mini-cal-widget" style="border:1px solid #e2e8f0; border-radius:8px; padding:8px; margin-bottom:10px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <button onclick="shiftMiniCalMonth(-1)" style="padding:2px 7px; font-size:0.72rem;">◀</button>
-          <input type="month" id="cal-month-picker" onchange="renderMiniCal()" style="font-size:0.75rem; flex:1;">
-          <button onclick="shiftMiniCalMonth(1)" style="padding:2px 7px; font-size:0.72rem;">▶</button>
-        </div>
-        <div id="mini-cal-grid" style="display:grid; grid-template-columns:repeat(7, 1fr); gap:2px; font-size:0.7rem; text-align:center;"></div>
-      </div>
       <div class="memo-panel-header">
         <h4 class="memo-title" style="margin:0; font-size:0.95rem; color:#0f172a;">📝 오늘의 메모 / 일지</h4>
         <button id="memo-toggle-btn" class="memo-toggle-btn" onclick="toggleMemoPanel()" title="메모 패널 접기">▶</button>
@@ -1278,8 +1281,6 @@
       document.getElementById('academic-year-badge').innerText = `${year}학년도`;
 
       const monday = getMonday(currentDate);
-      document.getElementById('current-date-text').innerText = 
-        `${currentDate.getMonth()+1}월 ${currentDate.getDate()}일 (${['일','월','화','수','목','금','토'][currentDate.getDay()]})`;
 
       // 일일 행사 배너 (등록된 행사가 있을 때만 표시, 없으면 알림 없이 숨김) - 유형에 따라 색상 다르게
       const dateStr = toDateStr(currentDate);
@@ -1305,7 +1306,8 @@
 
       // 우측 메모 패널 갱신
       renderDailyMemoPanel(dateStr);
-      syncMiniCal();
+      if(document.getElementById('mini-cal-dropdown').style.display === 'block') syncMiniCal();
+      updateCurrentDateText();
     }
 
     // 뷰①: 학급 주간 시간표
@@ -2512,7 +2514,41 @@
       render();
     }
 
-    // 7. 미니 달력 로직 (팝업이 아니라 항상 표시됨 - render() 때마다 현재 날짜에 맞춰 갱신)
+    // 7. 미니 달력 로직 (상단바 📅 버튼을 눌러야 뜨는 작은 드롭다운 - 모바일 캘린더 앱 위젯 느낌)
+    // 주간 뷰에서는 "8/17-8/21 주간"을 보여주고, 기준일이 월요일이 아니면 그 날짜도 함께 표시
+    function updateCurrentDateText() {
+      const el = document.getElementById('current-date-text');
+      const weekdayNames = ['일','월','화','수','목','금','토'];
+      if(currentView === 'dailyMatrix') {
+        el.innerText = `${currentDate.getMonth()+1}월 ${currentDate.getDate()}일 (${weekdayNames[currentDate.getDay()]})`;
+        return;
+      }
+      const monday = getMonday(currentDate);
+      const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
+      const rangeStr = `${monday.getMonth()+1}/${monday.getDate()}-${friday.getMonth()+1}/${friday.getDate()}`;
+      if(currentDate.getDay() === 1) {
+        el.innerText = `${rangeStr} 주간`;
+      } else {
+        el.innerText = `${rangeStr} 주간 (기준일 ${currentDate.getMonth()+1}/${currentDate.getDate()} ${weekdayNames[currentDate.getDay()]})`;
+      }
+    }
+
+    function toggleMiniCalDropdown() {
+      const dd = document.getElementById('mini-cal-dropdown');
+      const willShow = dd.style.display === 'none' || !dd.style.display;
+      dd.style.display = willShow ? 'block' : 'none';
+      if(willShow) syncMiniCal();
+    }
+
+    // 드롭다운 바깥을 클릭하면 자동으로 닫기
+    document.addEventListener('click', function(e) {
+      const dd = document.getElementById('mini-cal-dropdown');
+      const trigger = document.getElementById('mini-cal-trigger-btn');
+      if(dd.style.display === 'block' && !dd.contains(e.target) && e.target !== trigger) {
+        dd.style.display = 'none';
+      }
+    });
+
     function syncMiniCal() {
       const picker = document.getElementById('cal-month-picker');
       const ym = toMonthStr(currentDate);
@@ -2560,6 +2596,7 @@
     function selectCalDate(y, m, d) {
       currentDate = new Date(y, m - 1, d);
       render();
+      document.getElementById('mini-cal-dropdown').style.display = 'none'; // 날짜 선택하면 드롭다운 자동으로 닫힘
       // 행사/출결 모달이 열려 있는 상태로 미니달력에서 날짜를 골랐다면 해당 모달 내용도 갱신
       if(document.getElementById('event-modal').style.display === 'block') renderEventModalContent();
       if(document.getElementById('attendance-modal').style.display === 'block') renderAttendanceModalContent();
