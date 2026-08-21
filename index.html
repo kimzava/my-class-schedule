@@ -32,6 +32,7 @@
     .memo-panel.collapsed { flex: 0 0 44px; max-width: 44px; padding: 10px 4px; overflow: hidden; align-items: center; }
     .memo-panel-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; width: 100%; }
     .memo-panel.collapsed .memo-panel-header { border-bottom: none; justify-content: center; padding-bottom: 0; }
+    .memo-panel.collapsed #mini-cal-widget,
     .memo-panel.collapsed .memo-title,
     .memo-panel.collapsed #daily-memo-list { display: none; }
     .memo-collapsed-label { display: none; font-size: 1.1rem; margin-top: 10px; cursor: pointer; }
@@ -127,7 +128,7 @@
     .btn-secondary { background: #94a3b8; color: white; }
 
     /* 미니 달력 팝업 */
-    #mini-cal-popup { display: none; position: absolute; top: 45px; right: 200px; background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1001; width: 220px; }
+
   </style>
 </head>
 <body>
@@ -161,7 +162,6 @@
       <button onclick="changeDate(1)">내일 &gt;</button>
       <button onclick="changeDate(7)">다음주 &gt;</button>
       <span id="current-date-text" style="font-weight:bold; font-size:0.85rem;"></span>
-      <button onclick="toggleMiniCal()">📅 미니달력</button>
       <button onclick="openEventModal()">🗓️ 행사·기록</button>
       <button onclick="openAttendanceModal()">🏥 출결 관리</button>
       <button onclick="openNeulbomModal()">🌤️ 늘봄학교</button>
@@ -174,15 +174,6 @@
   <div class="daily-event-banner" id="event-banner" style="display:none;">
     <span id="event-text"></span>
     <button onclick="openEventModal()" style="font-size: 0.72rem; padding: 2px 6px; cursor: pointer;">행사 수정</button>
-  </div>
-
-  <!-- 미니 달력 팝업 -->
-  <div id="mini-cal-popup">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-      <input type="month" id="cal-month-picker" onchange="renderMiniCal()" style="font-size:0.75rem;">
-      <button onclick="toggleMiniCal()" style="font-size:0.7rem;">X</button>
-    </div>
-    <div id="mini-cal-grid" style="display:grid; grid-template-columns:repeat(7, 1fr); gap:2px; font-size:0.7rem; text-align:center;"></div>
   </div>
 
   <!-- 메인 뷰 영역 (좌 측 7 : 우 측 3 메모 패널) -->
@@ -198,6 +189,13 @@
       <div class="content-area" id="view-content" style="flex:1; overflow:auto;"></div>
     </div>
     <div class="memo-panel" id="memo-panel">
+      <!-- 상시 표시 미니 달력: 일일매트릭스는 그날 하루, 주간 뷰는 해당 주(월~금) 전체를 음영 표시 -->
+      <div id="mini-cal-widget" style="border:1px solid #e2e8f0; border-radius:8px; padding:8px; margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <input type="month" id="cal-month-picker" onchange="renderMiniCal()" style="font-size:0.75rem; flex:1;">
+        </div>
+        <div id="mini-cal-grid" style="display:grid; grid-template-columns:repeat(7, 1fr); gap:2px; font-size:0.7rem; text-align:center;"></div>
+      </div>
       <div class="memo-panel-header">
         <h4 class="memo-title" style="margin:0; font-size:0.95rem; color:#0f172a;">📝 오늘의 메모 / 일지</h4>
         <button id="memo-toggle-btn" class="memo-toggle-btn" onclick="toggleMemoPanel()" title="메모 패널 접기">▶</button>
@@ -327,7 +325,6 @@
       <button class="btn btn-secondary" onclick="navigateEventDate(-1)">◀ 이전날</button>
       <span id="event-modal-date-label" style="font-weight:bold; font-size:0.85rem; color:#1e40af;"></span>
       <div style="display:flex; gap:4px;">
-        <button class="btn btn-secondary" onclick="toggleMiniCal()">📅</button>
         <button class="btn btn-secondary" onclick="navigateEventDate(1)">다음날 ▶</button>
       </div>
     </div>
@@ -339,7 +336,12 @@
 
     <div id="event-tab-content">
       <label style="display:block; font-size:0.72rem; color:#64748b; margin-bottom:3px;">전체 공유되는 짧은 공지 - 상단 배너와 주간 뷰 요일 헤더에 표시됩니다.</label>
-      <input type="text" id="event-input" placeholder="예: 현장체험학습, 체육대회, 개교기념일 등">
+      <input type="text" id="event-input" placeholder="예: 현장체험학습, 체육대회, 대체공휴일(광복절), 여름방학 등" style="margin-bottom:6px;">
+      <select id="event-type-select">
+        <option value="행사">기타 행사 (노란색)</option>
+        <option value="공휴일">공휴일 (빨간색 - 요일도 빨갛게 표시)</option>
+        <option value="휴업일">휴업일 · 방학 (파란색)</option>
+      </select>
     </div>
     <div id="daynote-tab-content" style="display:none;">
       <label style="display:block; font-size:0.72rem; color:#64748b; margin-bottom:3px;">특정 교시에 매이지 않는, 하루 전체에 대한 총평/기록입니다. 오른쪽 메모 패널 맨 위에 표시됩니다.</label>
@@ -798,6 +800,10 @@
       try {
         const ed = localStorage.getItem('eventDataCache');
         if(ed) Object.assign(eventData, JSON.parse(ed));
+        // 이전 버전 캐시 호환: 문자열로 저장돼 있던 옛 데이터를 {text, type} 형태로 변환
+        Object.keys(eventData).forEach(k => {
+          if(typeof eventData[k] === 'string') eventData[k] = { text: eventData[k], type: '행사' };
+        });
       } catch(e) { console.error('eventData 캐시 로드 실패:', e); }
       try {
         const dn = localStorage.getItem('dayNoteDataCache');
@@ -974,7 +980,7 @@
           const content = row['내용'] !== undefined && row['내용'] !== '' ? row['내용'] : row['행사내용']; // 신/구 스키마 모두 지원
           if(!content) return;
           if(kind === '하루기록') dayNoteData[row['날짜']] = content;
-          else eventData[row['날짜']] = content;
+          else eventData[row['날짜']] = { text: content, type: kind };
         });
 
         (json.neulbom || []).forEach(row => {
@@ -1054,6 +1060,13 @@
     // ⚠️ toISOString()은 UTC 기준으로 변환하므로 한국(UTC+9) 등에서는 자정 근처 시각에 하루가 밀리는 버그가 생긴다.
     // (특히 미니달력의 new Date(y,m-1,d)처럼 "로컬 자정" 시각을 갖는 Date 객체에서 100% 발생)
     // 반드시 로컬 시간 기준 getFullYear/getMonth/getDate로만 날짜 문자열을 만들어야 한다.
+    // 행사 유형별 색상 (공휴일=빨강, 휴업일/방학=파랑, 기타=기존 노랑)
+    function eventTypeColor(type) {
+      if(type === '공휴일') return { bg: '#fef2f2', border: '#fca5a5', text: '#dc2626' };
+      if(type === '휴업일') return { bg: '#eff6ff', border: '#93c5fd', text: '#1d4ed8' };
+      return { bg: '#fef3c7', border: '#fde047', text: '#92400e' };
+    }
+
     function toDateStr(date) {
       const y = date.getFullYear();
       const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -1230,13 +1243,17 @@
       document.getElementById('current-date-text').innerText = 
         `${currentDate.getMonth()+1}월 ${currentDate.getDate()}일 (${['일','월','화','수','목','금','토'][currentDate.getDay()]})`;
 
-      // 일일 행사 배너 (등록된 행사가 있을 때만 표시, 없으면 알림 없이 숨김)
+      // 일일 행사 배너 (등록된 행사가 있을 때만 표시, 없으면 알림 없이 숨김) - 유형에 따라 색상 다르게
       const dateStr = toDateStr(currentDate);
       const ev = eventData[dateStr];
       const banner = document.getElementById('event-banner');
       if(ev) {
         banner.style.display = 'flex';
-        document.getElementById('event-text').innerText = `🗓️ 오늘 행사: ${ev}`;
+        const evColor = eventTypeColor(ev.type);
+        banner.style.background = evColor.bg;
+        banner.style.borderBottomColor = evColor.border;
+        document.getElementById('event-text').style.color = evColor.text;
+        document.getElementById('event-text').innerText = `🗓️ 오늘 행사: ${ev.text}`;
       } else {
         banner.style.display = 'none';
       }
@@ -1250,6 +1267,7 @@
 
       // 우측 메모 패널 갱신
       renderDailyMemoPanel(dateStr);
+      syncMiniCal();
     }
 
     // 뷰①: 학급 주간 시간표
@@ -1262,8 +1280,14 @@
       days.forEach((d, i) => {
         const dt = new Date(monday); dt.setDate(monday.getDate() + i);
         const dEv = eventData[toDateStr(dt)];
-        const evBadge = dEv ? `<br><span style="font-size:0.62rem; font-weight:normal; color:#92400e; background:#fef3c7; border:1px solid #fde047; padding:1px 4px; border-radius:3px; display:inline-block; margin-top:2px;">🗓️ ${dEv}</span>` : '';
-        html += `<th>${d} (${dt.getMonth()+1}/${dt.getDate()})${evBadge}</th>`;
+        let dayLabel = d;
+        let evBadge = '';
+        if(dEv) {
+          const c = eventTypeColor(dEv.type);
+          evBadge = `<br><span style="font-size:0.62rem; font-weight:normal; color:${c.text}; background:${c.bg}; border:1px solid ${c.border}; padding:1px 4px; border-radius:3px; display:inline-block; margin-top:2px;">🗓️ ${dEv.text}</span>`;
+          if(dEv.type === '공휴일') dayLabel = `<span style="color:#dc2626;">${d}</span>`;
+        }
+        html += `<th>${dayLabel} (${dt.getMonth()+1}/${dt.getDate()})${evBadge}</th>`;
       });
       html += `</tr></thead><tbody>`;
 
@@ -1358,8 +1382,14 @@
         const b = formatAttBadge(rec, isStudentPerson);
         const headerBadge = b ? `<br><span class="${b.cls}">${b.text}</span>` : '';
         const dEv = eventData[dateStr];
-        const evBadge = dEv ? `<br><span style="font-size:0.62rem; font-weight:normal; color:#92400e; background:#fef3c7; border:1px solid #fde047; padding:1px 4px; border-radius:3px; display:inline-block; margin-top:2px;">🗓️ ${dEv}</span>` : '';
-        html += `<th>${d} (${dt.getMonth()+1}/${dt.getDate()})${evBadge}${headerBadge}</th>`;
+        let dayLabel = d;
+        let evBadge = '';
+        if(dEv) {
+          const c = eventTypeColor(dEv.type);
+          evBadge = `<br><span style="font-size:0.62rem; font-weight:normal; color:${c.text}; background:${c.bg}; border:1px solid ${c.border}; padding:1px 4px; border-radius:3px; display:inline-block; margin-top:2px;">🗓️ ${dEv.text}</span>`;
+          if(dEv.type === '공휴일') dayLabel = `<span style="color:#dc2626;">${d}</span>`;
+        }
+        html += `<th>${dayLabel} (${dt.getMonth()+1}/${dt.getDate()})${evBadge}${headerBadge}</th>`;
       });
       html += `</tr></thead><tbody>`;
 
@@ -1987,7 +2017,9 @@
 
     function renderEventModalContent() {
       const dateStr = toDateStr(currentDate);
-      document.getElementById('event-input').value = eventData[dateStr] || '';
+      const ev = eventData[dateStr];
+      document.getElementById('event-input').value = ev ? ev.text : '';
+      document.getElementById('event-type-select').value = ev ? (ev.type || '행사') : '행사';
       document.getElementById('daynote-input').value = dayNoteData[dateStr] || '';
       document.getElementById('event-modal-date-label').innerText =
         `${currentDate.getFullYear()}. ${currentDate.getMonth()+1}. ${currentDate.getDate()} (${['일','월','화','수','목','금','토'][currentDate.getDay()]}) 기준`;
@@ -2003,8 +2035,9 @@
       const dateStr = toDateStr(currentDate);
 
       const eventVal = document.getElementById('event-input').value.trim();
-      if(eventVal) eventData[dateStr] = eventVal; else delete eventData[dateStr];
-      postToSheet('event', { date: dateStr, kind: '행사', text: eventVal });
+      const eventType = document.getElementById('event-type-select').value;
+      if(eventVal) eventData[dateStr] = { text: eventVal, type: eventType }; else delete eventData[dateStr];
+      postToSheet('event', { date: dateStr, kind: eventType, text: eventVal });
 
       const dayNoteVal = document.getElementById('daynote-input').value.trim();
       if(dayNoteVal) dayNoteData[dateStr] = dayNoteVal; else delete dayNoteData[dateStr];
@@ -2439,15 +2472,12 @@
       render();
     }
 
-    // 7. 미니 달력 로직
-    function toggleMiniCal() {
-      const pop = document.getElementById('mini-cal-popup');
-      pop.style.display = pop.style.display === 'block' ? 'none' : 'block';
-      if(pop.style.display === 'block') {
-        const ym = toMonthStr(currentDate);
-        document.getElementById('cal-month-picker').value = ym;
-        renderMiniCal();
-      }
+    // 7. 미니 달력 로직 (팝업이 아니라 항상 표시됨 - render() 때마다 현재 날짜에 맞춰 갱신)
+    function syncMiniCal() {
+      const picker = document.getElementById('cal-month-picker');
+      const ym = toMonthStr(currentDate);
+      if(picker.value !== ym) picker.value = ym;
+      renderMiniCal();
     }
 
     function renderMiniCal() {
@@ -2460,15 +2490,27 @@
       const grid = document.getElementById('mini-cal-grid');
       grid.innerHTML = ['일','월','화','수','목','금','토'].map(d => `<strong>${d}</strong>`).join('');
 
+      // 강조할 날짜 계산: 일일매트릭스는 그 날 하루만, 학급/개인 주간 뷰는 해당 주(월~금) 전체
+      const highlight = new Set();
+      if(currentView === 'dailyMatrix') {
+        if(currentDate.getFullYear() === y && currentDate.getMonth() + 1 === m) highlight.add(currentDate.getDate());
+      } else {
+        const monday = getMonday(currentDate);
+        for(let i = 0; i < 5; i++) {
+          const d = new Date(monday); d.setDate(monday.getDate() + i);
+          if(d.getFullYear() === y && d.getMonth() + 1 === m) highlight.add(d.getDate());
+        }
+      }
+
       for(let i=0; i<firstDay; i++) grid.innerHTML += `<div></div>`;
       for(let d=1; d<=lastDate; d++) {
-        grid.innerHTML += `<div style="cursor:pointer; padding:2px; border-radius:3px;" onclick="selectCalDate(${y}, ${m}, ${d})">${d}</div>`;
+        const hl = highlight.has(d) ? 'background:#dbeafe; color:#1e40af; font-weight:bold;' : '';
+        grid.innerHTML += `<div style="cursor:pointer; padding:2px; border-radius:3px; ${hl}" onclick="selectCalDate(${y}, ${m}, ${d})">${d}</div>`;
       }
     }
 
     function selectCalDate(y, m, d) {
       currentDate = new Date(y, m - 1, d);
-      toggleMiniCal();
       render();
       // 행사/출결 모달이 열려 있는 상태로 미니달력에서 날짜를 골랐다면 해당 모달 내용도 갱신
       if(document.getElementById('event-modal').style.display === 'block') renderEventModalContent();
