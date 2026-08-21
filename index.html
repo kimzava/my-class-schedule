@@ -1104,11 +1104,14 @@
       return `${y}-${m}`;
     }
 
+    // 한 주의 시작을 일요일로 봄 - 일요일에는 "다음날(월)~금"이 이번 주로 계산됨
     function getMonday(d) {
       const date = new Date(d);
-      const day = date.getDay();
-      const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-      return new Date(date.setDate(diff));
+      const day = date.getDay(); // 0=일,1=월,...,6=토
+      const diff = day === 0 ? 1 : (1 - day);
+      const result = new Date(date);
+      result.setDate(date.getDate() + diff);
+      return result;
     }
     function changeDate(days) { currentDate.setDate(currentDate.getDate() + days); render(); }
     function goToday() { currentDate = new Date(); render(); }
