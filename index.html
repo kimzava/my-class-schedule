@@ -375,6 +375,10 @@
 
     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px; margin-bottom:10px;">
       <label style="font-weight:bold; font-size:0.75rem; color:#1e293b; display:block; margin-bottom:4px;">☁️ 구글 시트 연결 상태</label>
+      <div style="font-size:0.68rem; color:#64748b; margin-bottom:6px;">
+        지금 이 파일에 실제로 저장된 GOOGLE_SCRIPT_URL 값:<br>
+        <span id="current-script-url" style="display:inline-block; margin-top:2px; padding:4px 6px; background:white; border:1px solid #cbd5e1; border-radius:4px; word-break:break-all; font-family:monospace; color:#1e293b;"></span>
+      </div>
       <div style="display:flex; align-items:center; gap:8px;">
         <button class="btn btn-secondary" style="padding:4px 10px;" onclick="testSheetConnection()">🔧 연결 테스트</button>
         <span id="sheet-test-result" style="font-size:0.75rem;"></span>
@@ -545,7 +549,17 @@
 
     // ===== 구글 시트 연동 공통 헬퍼 =====
     function isSheetConnected() {
-      return typeof GOOGLE_SCRIPT_URL === 'string' && GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== 'https://script.google.com/macros/s/AKfycbxN2Zdmlfy8E8kc4_COUyMCoetnw18PSkfI7BK0w2FxkXZEY4n__-1L9yyM57e89_Ddww/exec';
+      if(typeof GOOGLE_SCRIPT_URL !== 'string') return false;
+      const trimmed = GOOGLE_SCRIPT_URL.trim();
+      if(!trimmed) return false;
+      // 플레이스홀더 문구가 (일부라도) 남아있으면 아직 미설정으로 간주
+      if(trimmed.includes('여기에') || trimmed.includes('붙여넣기')) return false;
+      return true;
+    }
+
+    // 실제로 지금 이 파일에 저장돼 있는 URL 값을 화면에 그대로 보여줌 (개발자도구 없이 육안 확인용)
+    function getRawScriptUrlForDisplay() {
+      try { return String(GOOGLE_SCRIPT_URL); } catch(e) { return '(읽을 수 없음)'; }
     }
 
     // 콤마로 구분된 "학생01, 학생04" 형태 문자열을 배열로 변환 (시트에서 불러올 때 사용)
@@ -1440,6 +1454,8 @@
       const year = getAcademicYear(currentDate);
       document.getElementById('cfg-year-select').value = year;
       loadYearConfigToModal();
+      document.getElementById('current-script-url').textContent = getRawScriptUrlForDisplay();
+      document.getElementById('sheet-test-result').textContent = '';
       document.getElementById('settings-modal').style.display = 'block';
       document.getElementById('overlay').style.display = 'block';
     }
