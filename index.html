@@ -31,7 +31,10 @@
       .content-area-wrapper { flex: 0 0 auto !important; min-height: 320px; }
       .memo-panel { flex: 0 0 auto !important; max-width: 100% !important; width: 100%; border-left: none; border-top: 1px solid #cbd5e1; }
       .memo-panel.collapsed { flex: 0 0 40px !important; max-width: 100% !important; }
-      .memo-panel.collapsed #mini-cal-widget, .memo-panel.collapsed .memo-title, .memo-panel.collapsed #daily-memo-list { display: none; }
+      .memo-panel.collapsed #mini-cal-widget, .memo-panel.collapsed #daily-memo-list { display: none; }
+      .memo-panel.collapsed .memo-collapsed-label { display: none !important; }
+      .memo-panel.collapsed .memo-panel-header { display: flex !important; justify-content: space-between !important; padding: 8px 10px !important; }
+      .memo-panel.collapsed .memo-title { display: block !important; font-size: 0.85rem !important; }
 
       .top-bar { padding: 6px 8px; gap: 5px; }
       .nav-group { flex-wrap: nowrap; overflow-x: auto; gap: 5px; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
@@ -72,7 +75,7 @@
     .cell-has-behavior { background: #fff1f2 !important; border: 2px solid #fda4af !important; }
 
     /* 태그 및 아이콘 */
-    .tag { display: inline-block; padding: 2px 5px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; margin: 1px; white-space: normal; word-break: keep-all; }
+    .tag { display: inline-block; max-width: 100%; padding: 2px 5px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; margin: 1px; white-space: normal; word-break: keep-all; overflow-wrap: break-word; }
     .tag-main { background: #ffedd5; color: #9a3412; }
     .tag-helper { background: #e0e7ff; color: #3730a3; }
     .tag-teacher { background: #dcfce7; color: #166534; }
@@ -1666,7 +1669,9 @@
       const btn = document.getElementById('memo-toggle-btn');
       panel.classList.toggle('collapsed', memoPanelCollapsed);
       document.getElementById('daily-memo-list').style.display = memoPanelCollapsed ? 'none' : 'flex';
-      btn.innerText = memoPanelCollapsed ? '◀' : '▶';
+      const isMobile = window.innerWidth <= 768;
+      if(isMobile) btn.innerText = memoPanelCollapsed ? '▼' : '▲';
+      else btn.innerText = memoPanelCollapsed ? '◀' : '▶';
       btn.title = memoPanelCollapsed ? '메모 패널 펼치기' : '메모 패널 접기';
     }
 
