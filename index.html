@@ -1319,7 +1319,7 @@
           evBadge = `<br><span style="font-size:0.62rem; font-weight:normal; color:${c.text}; background:${c.bg}; border:1px solid ${c.border}; padding:1px 4px; border-radius:3px; display:inline-block; max-width:100%; overflow-wrap:break-word; word-break:break-all; white-space:normal; box-sizing:border-box; margin-top:2px;">🗓️ ${dEv.text}</span>`;
           if(dEv.type === '공휴일') dayLabel = `<span class="day-name" style="color:#dc2626;">${d}</span>`;
         }
-        html += `<th>${dayLabel} (${dt.getMonth()+1}/${dt.getDate()})${evBadge}</th>`;
+        html += `<th>${dayLabel}<br>(${dt.getMonth()+1}/${dt.getDate()})${evBadge}</th>`;
       });
       html += `</tr></thead><tbody>`;
 
@@ -1425,7 +1425,7 @@
           evBadge = `<br><span style="font-size:0.62rem; font-weight:normal; color:${c.text}; background:${c.bg}; border:1px solid ${c.border}; padding:1px 4px; border-radius:3px; display:inline-block; max-width:100%; overflow-wrap:break-word; word-break:break-all; white-space:normal; box-sizing:border-box; margin-top:2px;">🗓️ ${dEv.text}</span>`;
           if(dEv.type === '공휴일') dayLabel = `<span class="day-name" style="color:#dc2626;">${d}</span>`;
         }
-        html += `<th>${dayLabel} (${dt.getMonth()+1}/${dt.getDate()})${evBadge}${headerBadge}</th>`;
+        html += `<th>${dayLabel}<br>(${dt.getMonth()+1}/${dt.getDate()})${evBadge}${headerBadge}</th>`;
       });
       html += `</tr></thead><tbody>`;
 
