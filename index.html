@@ -406,6 +406,17 @@
         <option value="공휴일">공휴일 (빨간색 - 요일도 빨갛게 표시)</option>
         <option value="휴업일">휴업일 · 방학 (파란색)</option>
       </select>
+
+      <div style="border-top:1px dashed #e2e8f0; margin-top:10px; padding-top:8px;">
+        <label style="display:block; font-size:0.7rem; color:#64748b; margin-bottom:3px;">📆 기간으로 한 번에 등록 (예: 방학·연휴처럼 여러 날 이어질 때 - 하루씩 안 넘겨도 됨)</label>
+        <div style="display:flex; gap:4px; align-items:center;">
+          <input type="date" id="event-bulk-start" style="flex:1; padding:4px 6px; font-size:0.75rem; border:1px solid #cbd5e1; border-radius:6px;">
+          <span>~</span>
+          <input type="date" id="event-bulk-end" style="flex:1; padding:4px 6px; font-size:0.75rem; border:1px solid #cbd5e1; border-radius:6px;">
+          <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.7rem; flex-shrink:0;" onclick="applyEventBulkRange()">일괄 등록</button>
+        </div>
+        <p style="font-size:0.65rem; color:#94a3b8; margin:4px 0 0 0;">위에 입력한 행사 내용·유형이 그대로 그 기간 모든 날짜(주말 포함)에 등록됩니다.</p>
+      </div>
     </div>
     <div id="daynote-tab-content" style="display:none;">
       <label style="display:block; font-size:0.72rem; color:#64748b; margin-bottom:3px;">특정 교시에 매이지 않는, 하루 전체에 대한 총평/기록입니다. 오른쪽 메모 패널 맨 위에 표시됩니다.</label>
@@ -2403,6 +2414,35 @@
       postToSheet('event', { date: dateStr, kind: '하루기록', text: dayNoteVal });
 
       render(); // 모달은 열어둔 채로 유지 - 날짜를 이동하며 연속으로 등록 가능
+    }
+
+    // 학사일정 기간 일괄 등록 (방학·연휴 등 - 하루씩 넘기지 않고 시작일~종료일로 한 번에)
+    function applyEventBulkRange() {
+      const startVal = document.getElementById('event-bulk-start').value;
+      const endVal = document.getElementById('event-bulk-end').value;
+      const text = document.getElementById('event-input').value.trim();
+      const type = document.getElementById('event-type-select').value;
+
+      if(!startVal || !endVal) { alert('시작일과 종료일을 입력해주세요.'); return; }
+      if(!text) { alert('위에 행사 내용을 먼저 입력해주세요.'); return; }
+
+      const start = new Date(startVal + 'T00:00:00');
+      const end = new Date(endVal + 'T00:00:00');
+      if(start > end) { alert('시작일이 종료일보다 늦을 수 없습니다.'); return; }
+
+      let count = 0;
+      const cur = new Date(start);
+      while(cur <= end) {
+        const dateStr = toDateStr(cur);
+        eventData[dateStr] = { text, type };
+        postToSheet('event', { date: dateStr, kind: type, text });
+        count++;
+        cur.setDate(cur.getDate() + 1);
+      }
+
+      render();
+      renderEventModalContent();
+      alert(`${count}일에 걸쳐 "${text}"(으)로 등록되었습니다.`);
     }
 
     function openSettingsModal() {
