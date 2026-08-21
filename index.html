@@ -213,12 +213,6 @@
     </div>
   </div>
 
-  <!-- 일일 행사 배너 (해당 날짜에 등록된 행사가 있을 때만 표시) -->
-  <div class="daily-event-banner" id="event-banner" style="display:none;">
-    <span id="event-text"></span>
-    <button onclick="openEventModal()" style="font-size: 0.72rem; padding: 2px 6px; cursor: pointer;">행사 수정</button>
-  </div>
-
   <!-- 메인 뷰 영역 (좌 측 7 : 우 측 3 메모 패널) -->
   <div class="main-container">
     <div class="content-area-wrapper" style="flex:7; display:flex; flex-direction:column; min-width:0; overflow:hidden;">
@@ -1365,21 +1359,7 @@
       document.getElementById('academic-year-badge').innerText = `${year}학년도`;
 
       const monday = getMonday(currentDate);
-
-      // 일일 행사 배너 (등록된 행사가 있을 때만 표시, 없으면 알림 없이 숨김) - 유형에 따라 색상 다르게
       const dateStr = toDateStr(currentDate);
-      const ev = eventData[dateStr];
-      const banner = document.getElementById('event-banner');
-      if(ev) {
-        banner.style.display = 'flex';
-        const evColor = eventTypeColor(ev.type);
-        banner.style.background = evColor.bg;
-        banner.style.borderBottomColor = evColor.border;
-        document.getElementById('event-text').style.color = evColor.text;
-        document.getElementById('event-text').innerText = `🗓️ 오늘 행사: ${ev.text}`;
-      } else {
-        banner.style.display = 'none';
-      }
 
       const container = document.getElementById('view-content');
       container.innerHTML = '';
@@ -1717,6 +1697,19 @@
       panel.innerHTML = '';
 
       let count = 0;
+
+      // 오늘의 행사 - 있으면 맨 위에 표시 (더 이상 상단 배너로 다른 요소를 밀어내지 않음)
+      const ev = eventData[dateStr];
+      if(ev) {
+        count++;
+        const c = eventTypeColor(ev.type);
+        panel.innerHTML += `
+          <div class="memo-card-clickable" style="background:${c.bg}; border:1px solid ${c.border}; border-radius:6px; padding:8px;" onclick="openEventModal()" title="눌러서 수정">
+            <div style="font-size:0.75rem; font-weight:bold; color:${c.text};">🗓️ 오늘의 행사 [${ev.type||'행사'}]</div>
+            <div style="font-size:0.78rem; color:${c.text}; margin-top:3px;">${ev.text}</div>
+          </div>
+        `;
+      }
 
       // 오늘 출결 요약 - 상태별 색상 점 개수 + 출결 메모 (색상 위주로 간략히)
       const todayAtt = attendanceData[dateStr] || {};
