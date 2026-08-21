@@ -23,6 +23,8 @@
     .badge { background: #dbeafe; color: #1e40af; padding: 3px 8px; border-radius: 4px; font-size: 0.82rem; font-weight: bold; }
     .badge-absent { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; padding: 2px 4px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
     .badge-tardy { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; padding: 2px 4px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+    .badge-early { background: #ffedd5; color: #9a3412; border: 1px solid #fdba74; padding: 2px 4px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+    .badge-leave { background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; padding: 2px 4px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
 
     /* 일일 행사 배너 */
     .daily-event-banner { background: #fef3c7; border-bottom: 1px solid #fde047; padding: 5px 16px; font-size: 0.82rem; font-weight: bold; color: #92400e; display: flex; align-items: center; justify-content: space-between; }
@@ -135,6 +137,8 @@
     .att-btn.active-present { background: #dcfce7; color: #166534; border-color: #86efac; }
     .att-btn.active-tardy { background: #fef9c3; color: #854d0e; border-color: #fde047; }
     .att-btn.active-absent { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+    .att-btn.active-early { background: #ffedd5; color: #9a3412; border-color: #fdba74; }
+    .att-note-input { width: 100%; padding: 4px 6px; font-size: 0.75rem; border: 1px solid #cbd5e1; border-radius: 4px; }
     .tardy-time-input { width: 150px; align-self: flex-end; padding: 3px 6px; font-size: 0.75rem; border: 1px solid #fde047; border-radius: 4px; }
     .att-date-nav { display: flex; align-items: center; justify-content: space-between; background: #eff6ff; padding: 6px 10px; border-radius: 6px; margin-bottom: 8px; }
     .att-date-nav button { padding: 3px 10px; font-size: 0.78rem; }
@@ -330,26 +334,46 @@
   </div>
 
   <!-- 출결 관리 모달 -->
-  <div class="modal" id="attendance-modal">
+  <div class="modal" id="attendance-modal" style="width:560px;">
     <h4 style="margin-top:0; margin-bottom:8px;">🏥 출결 관리</h4>
 
     <div class="att-date-nav">
       <button class="btn btn-secondary" onclick="navigateAttDate(-1)">◀ 이전날</button>
       <span id="att-modal-date-label" style="font-weight:bold; font-size:0.85rem; color:#1e40af;"></span>
-      <button class="btn btn-secondary" onclick="navigateAttDate(1)">다음날 ▶</button>
+      <div style="display:flex; gap:4px;">
+        <button class="btn btn-secondary" onclick="toggleMiniCalDropdown()">📅</button>
+        <button class="btn btn-secondary" onclick="navigateAttDate(1)">다음날 ▶</button>
+      </div>
     </div>
-    <p style="font-size:0.72rem; color:#64748b; margin-top:0;">위 기준 날짜의 출결 상태를 선택하세요. 날짜를 이동해도 입력한 내용은 즉시 저장됩니다. 지각 선택 시 도착 시각을 입력할 수 있습니다.</p>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+      <p style="font-size:0.72rem; color:#64748b; margin:0;">날짜를 이동해도 입력한 내용은 즉시 저장됩니다.</p>
+      <button class="btn btn-secondary" style="padding:3px 9px; font-size:0.72rem;" onclick="openAttendanceWeeklyModal()">📊 주간 모아보기</button>
+    </div>
 
     <div class="form-group">
-      <label>학생 출결 상태 (결석)</label>
-      <div id="att-students-list" style="max-height:160px; overflow-y:auto;"></div>
+      <label>학생 출결 상태 (출석/지각/결석/조퇴)</label>
+      <div id="att-students-list" style="max-height:220px; overflow-y:auto;"></div>
     </div>
     <div class="form-group">
-      <label>교사 / 지원인력 근태 상태 (결근)</label>
-      <div id="att-staff-list" style="max-height:160px; overflow-y:auto;"></div>
+      <label>교사 / 지원인력 근태 상태</label>
+      <div id="att-staff-list" style="max-height:220px; overflow-y:auto;"></div>
+    </div>
+    <div class="form-group">
+      <label>📝 오늘의 출결 메모 (전체 상황에 대한 메모 - 오른쪽 패널에 색상으로 요약 표시됩니다)</label>
+      <textarea id="att-daily-note-input" rows="2" placeholder="예: 미세먼지로 인한 조기하교 안내 등" onchange="saveAttendanceDailyNote()"></textarea>
     </div>
     <div style="display:flex; justify-content:flex-end; gap:6px;">
       <button class="btn btn-primary" onclick="saveAttendance()">닫기</button>
+    </div>
+  </div>
+
+  <!-- 출결 주간 모아보기 모달 -->
+  <div class="modal" id="attendance-weekly-modal" style="width:700px;">
+    <h4 style="margin-top:0; margin-bottom:4px;">📊 출결 주간 모아보기</h4>
+    <p id="att-weekly-range-label" style="font-size:0.75rem; color:#64748b; margin-top:0;"></p>
+    <div id="attendance-weekly-table-wrap" style="overflow-x:auto;"></div>
+    <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:12px;">
+      <button class="btn btn-secondary" onclick="closeModal()">닫기</button>
     </div>
   </div>
 
@@ -452,6 +476,11 @@
     <div class="form-group">
       <label>🏫 추가 장소 목록 (쉼표 구분) — 반 선택 목록에 함께 나타납니다. 기본 제공: 통합학급, 급식실, 하교</label>
       <input type="text" id="cfg-custom-locations" placeholder="예: 보건실, 운동장, 특별실, 상담실">
+    </div>
+
+    <div class="form-group">
+      <label>📍 학급 주간 뷰 칸에 장소/반 표시</label>
+      <label style="font-weight:normal; display:flex; align-items:center; gap:4px;"><input type="checkbox" id="cfg-show-location-in-cell" style="width:auto;" checked> [저학년반]처럼 학급/장소 이름표를 표시</label>
     </div>
 
     <div class="form-group">
@@ -625,6 +654,7 @@
     const attendanceData = {};
     const eventData = {};
     const dayNoteData = {}; // dayNoteData[dateStr] = 교시 무관 하루 전반 기록
+    const attendanceNoteData = {}; // attendanceNoteData[dateStr] = 그날 출결 전반에 대한 메모
 
     // 늘봄학교 프로그램: { id, category, name, location, students:[], periodType:'semester'|'custom', semester, startDate, endDate, recurrence:'weekly'|'biweekly', schedule: { '월': {start:'HH:MM', end:'HH:MM'}, ... } }
     let neulbomPrograms = JSON.parse(localStorage.getItem('neulbomPrograms') || '[]');
@@ -821,6 +851,7 @@
         localStorage.setItem('attendanceDataCache', JSON.stringify(attendanceData));
         localStorage.setItem('eventDataCache', JSON.stringify(eventData));
         localStorage.setItem('dayNoteDataCache', JSON.stringify(dayNoteData));
+        localStorage.setItem('attendanceNoteDataCache', JSON.stringify(attendanceNoteData));
       } catch(e) {
         console.error('로컬 캐시 저장 실패:', e);
       }
@@ -847,6 +878,10 @@
         const dn = localStorage.getItem('dayNoteDataCache');
         if(dn) Object.assign(dayNoteData, JSON.parse(dn));
       } catch(e) { console.error('dayNoteData 캐시 로드 실패:', e); }
+      try {
+        const an = localStorage.getItem('attendanceNoteDataCache');
+        if(an) Object.assign(attendanceNoteData, JSON.parse(an));
+      } catch(e) { console.error('attendanceNoteData 캐시 로드 실패:', e); }
     }
 
     // ===== 구글 시트 연동 공통 헬퍼 =====
@@ -985,6 +1020,7 @@
         Object.keys(attendanceData).forEach(k => delete attendanceData[k]);
         Object.keys(eventData).forEach(k => delete eventData[k]);
         Object.keys(dayNoteData).forEach(k => delete dayNoteData[k]);
+        Object.keys(attendanceNoteData).forEach(k => delete attendanceNoteData[k]);
         neulbomPrograms.length = 0;
 
         (json.schedule || []).forEach(row => {
@@ -1018,6 +1054,7 @@
           const content = row['내용'] !== undefined && row['내용'] !== '' ? row['내용'] : row['행사내용']; // 신/구 스키마 모두 지원
           if(!content) return;
           if(kind === '하루기록') dayNoteData[row['날짜']] = content;
+          else if(kind === '출결메모') attendanceNoteData[row['날짜']] = content;
           else eventData[row['날짜']] = { text: content, type: kind };
         });
 
@@ -1137,11 +1174,32 @@
     }
 
     // 4-1. 출결 배지 헬퍼 (학생: 결석 / 교사·지원인력: 결근, 지각 시 시각 표기) - 날짜 단위 요약(헤더 등)에 사용
+    // 학생 출결 상태: 출석/지각/결석/조퇴
+    const STUDENT_ATT_LABELS = { PRESENT: '출석', TARDY: '지각', ABSENT: '결석', EARLY: '조퇴' };
+    // 교사/지원인력 출결 상태: 출근/연가/병가/출장·연수/조퇴/병조퇴/지각/병지각/기타
+    const STAFF_ATT_LABELS = { PRESENT: '출근', ANNUAL: '연가', SICK: '병가', BUSINESS: '출장·연수', EARLY: '조퇴', SICK_EARLY: '병조퇴', TARDY: '지각', SICK_TARDY: '병지각', OTHER: '기타' };
+    // 출근/연가/병가는 시간 입력이 필요 없고, 그 외(출장·연수/조퇴/병조퇴/지각/병지각/기타)는 시간 입력 가능
+    const STAFF_NO_TIME_STATUSES = new Set(['PRESENT', 'ANNUAL', 'SICK']);
+
+    function attStatusLabel(status, isStudent) {
+      const map = isStudent ? STUDENT_ATT_LABELS : STAFF_ATT_LABELS;
+      return (map && map[status]) || status;
+    }
+    function attStatusClass(status) {
+      if(status === 'ABSENT') return 'badge-absent';
+      if(status === 'TARDY' || status === 'SICK_TARDY') return 'badge-tardy';
+      if(status === 'EARLY' || status === 'SICK_EARLY') return 'badge-early';
+      if(status === 'PRESENT' || !status) return '';
+      return 'badge-leave'; // 연가/병가/출장연수/기타
+    }
+
     function formatAttBadge(rec, isStudent) {
-      if(!rec) return null;
-      if(rec.status === 'ABSENT') return { cls: 'badge-absent', text: isStudent ? '결석' : '결근' };
-      if(rec.status === 'TARDY') return { cls: 'badge-tardy', text: `지각${rec.time ? ' ' + rec.time : ''}` };
-      return null;
+      if(!rec || !rec.status || rec.status === 'PRESENT') return null;
+      const label = attStatusLabel(rec.status, isStudent);
+      const cls = attStatusClass(rec.status);
+      let text = label + (rec.time ? ` ${rec.time}` : '');
+      if(rec.status === 'OTHER' && rec.note) text += `(${rec.note})`;
+      return { cls, text };
     }
 
     // "HH:MM" 형태 문자열을 분 단위 숫자로 변환
@@ -1152,18 +1210,35 @@
       return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
     }
 
-    // 4-1b. 교시별 출결 배지 헬퍼 - 지각 도착시간을 반영해 "도착 이전 교시까지만" 지각으로 표시
+    // 4-1b. 교시별 출결 배지 헬퍼 - 지각(도착 전까지)/조퇴(하교 이후부터)만 교시별로 계산, 나머지는 하루 종일 동일하게 표시
     function formatAttBadgeForPeriod(rec, isStudent, period) {
-      if(!rec) return null;
-      if(rec.status === 'ABSENT') return { cls: 'badge-absent', text: isStudent ? '결석' : '결근' };
-      if(rec.status === 'TARDY') {
+      if(!rec || !rec.status || rec.status === 'PRESENT') return null;
+      const label = attStatusLabel(rec.status, isStudent);
+      const cls = attStatusClass(rec.status);
+
+      if(rec.status === 'ABSENT') return { cls, text: label };
+
+      if(rec.status === 'TARDY' || rec.status === 'SICK_TARDY') {
         const arrivalMin = timeToMinutes(rec.time);
-        // 도착 시각 미입력 시: 기존처럼 하루 종일 지각으로 표시
-        if(arrivalMin === null) return { cls: 'badge-tardy', text: '지각' };
-        // 이 교시 시작 시각이 도착 시각보다 이전이면(=도착 전에 이미 시작된 교시) 지각으로 표시
-        if(arrivalMin > period.startMin) return { cls: 'badge-tardy', text: `지각 ${rec.time}` };
-        // 도착 이후 시작하는 교시는 정상 출석으로 처리
-        return null;
+        if(arrivalMin === null) return { cls, text: label }; // 시각 미입력 시 하루 종일 표시
+        if(arrivalMin > period.startMin) return { cls, text: `${label} ${rec.time}` }; // 도착 전 교시만 표시
+        return null; // 도착 이후는 정상
+      }
+
+      if(rec.status === 'EARLY' || rec.status === 'SICK_EARLY') {
+        const leaveMin = timeToMinutes(rec.time);
+        if(leaveMin === null) return { cls, text: label }; // 시각 미입력 시 하루 종일 표시
+        if(leaveMin < period.endMin) return { cls, text: `${label} ${rec.time}` }; // 하교 이후 교시만 표시
+        return null; // 하교 전은 정상
+      }
+
+      // 연가/병가/출장·연수/기타: 시간 입력이 있으면 그 시간부터 반영, 없으면 하루 종일
+      const t = timeToMinutes(rec.time);
+      if(t !== null && t > period.startMin) return { cls, text: `${label} ${rec.time}` };
+      if(t === null) {
+        let text = label;
+        if(rec.status === 'OTHER' && rec.note) text += `(${rec.note})`;
+        return { cls, text };
       }
       return null;
     }
@@ -1348,7 +1423,7 @@
           } else {
             visibleEntries.forEach(entry => {
               html += `<div class="matrix-entry-block" onclick="openInputModal('${cellId}', '${entry.id}', null)">`;
-              if(entry.className) html += `<div style=\"font-size:0.72rem; color:#2563eb; font-weight:bold; white-space:normal; overflow-wrap:break-word;\">[${entry.className}]</div>`;
+              if(entry.className && shouldShowLocationInCell()) html += `<div style=\"font-size:0.72rem; color:#2563eb; font-weight:bold; white-space:normal; overflow-wrap:break-word;\">[${entry.className}]</div>`;
               entry.students.forEach(s => {
                 const b = formatAttBadgeForPeriod(todayAtt[s], true, p);
                 let cls = b ? b.cls : 'tag-main';
@@ -1634,7 +1709,24 @@
 
       let count = 0;
 
-      // 하루 전반 기록(교시 무관) - 있으면 맨 위에 표시
+      // 오늘 출결 요약 - 상태별 색상 점 개수 + 출결 메모 (색상 위주로 간략히)
+      const todayAtt = attendanceData[dateStr] || {};
+      const attEntries = Object.entries(todayAtt).filter(([, rec]) => rec && rec.status && rec.status !== 'PRESENT');
+      if(attEntries.length > 0 || attendanceNoteData[dateStr]) {
+        count++;
+        const counts = {};
+        attEntries.forEach(([, rec]) => { const c = attStatusClass(rec.status) || 'badge-leave'; counts[c] = (counts[c]||0) + 1; });
+        const dotsHtml = Object.keys(counts).map(cls => `<span class="tag ${cls}" style="margin-right:3px;">● ${counts[cls]}</span>`).join('');
+        panel.innerHTML += `
+          <div class="memo-card-clickable" style="background:#fff7ed; border:1px solid #fdba74; border-radius:6px; padding:8px;" onclick="openAttendanceModal()" title="눌러서 출결 관리 열기">
+            <div style="font-size:0.75rem; font-weight:bold; color:#9a3412;">🏥 오늘의 출결 (${attEntries.length}명)</div>
+            <div style="margin-top:3px;">${dotsHtml || '·'}</div>
+            ${attendanceNoteData[dateStr] ? `<div style="font-size:0.72rem; color:#334155; margin-top:3px; white-space:pre-line;">📝 ${attendanceNoteData[dateStr]}</div>` : ''}
+          </div>
+        `;
+      }
+
+      // 하루 전반 기록(교시 무관) - 있으면 위에 표시
       if(dayNoteData[dateStr]) {
         count++;
         panel.innerHTML += `
@@ -1686,6 +1778,10 @@
 
     // 6. 모달 관련 로직
     // 시간표 셀에 메모 직접 표시할지/잘라서 표시할지 설정 (오른쪽 메모 패널은 이 설정과 무관하게 항상 전체 표시)
+    function shouldShowLocationInCell() {
+      const v = localStorage.getItem('showLocationInCell');
+      return v === null ? true : v === 'true'; // 기본값: 표시함
+    }
     function getMemoDisplayMode() {
       return localStorage.getItem('memoDisplayMode') || 'full'; // 기본값: 전체 표시
     }
@@ -1965,77 +2061,186 @@
 
       document.getElementById('att-modal-date-label').innerText =
         `${currentDate.getFullYear()}. ${currentDate.getMonth()+1}. ${currentDate.getDate()} (${['일','월','화','수','목','금','토'][currentDate.getDay()]}) 기준`;
+      document.getElementById('att-daily-note-input').value = attendanceNoteData[dateStr] || '';
 
-      const renderAttList = (containerId, list, absentLabel, isStudent) => {
-        document.getElementById(containerId).innerHTML = list.map(person => {
-          const rec = todayAtt[person] || { status: 'PRESENT' };
-          const status = rec.status || 'PRESENT';
-          const time = rec.time || '';
-          return `
-            <div class="att-row">
-              <div class="att-row-top">
-                <span style="font-size:0.78rem; font-weight:bold;">${person}</span>
-                <div class="att-btn-group" data-person="${person}" data-is-student="${isStudent}">
-                  <button type="button" class="att-btn ${status==='PRESENT'?'active-present':''}" onclick="setAttState('${person}', 'PRESENT', this)">출석</button>
-                  <button type="button" class="att-btn ${status==='TARDY'?'active-tardy':''}" onclick="setAttState('${person}', 'TARDY', this)">지각</button>
-                  <button type="button" class="att-btn ${status==='ABSENT'?'active-absent':''}" onclick="setAttState('${person}', 'ABSENT', this)">${absentLabel}</button>
-                </div>
+      // 학생: 출석/지각/결석/조퇴 4단계 버튼
+      document.getElementById('att-students-list').innerHTML = [...roster.mainStudents, ...roster.extraStudents].map(person => {
+        const rec = todayAtt[person] || { status: 'PRESENT' };
+        const status = rec.status || 'PRESENT';
+        const needsTime = status === 'TARDY' || status === 'EARLY';
+        return `
+          <div class="att-row">
+            <div class="att-row-top">
+              <span style="font-size:0.78rem; font-weight:bold;">${person}</span>
+              <div class="att-btn-group" data-person="${person}">
+                <button type="button" class="att-btn ${status==='PRESENT'?'active-present':''}" onclick="setStudentAttState('${person}', 'PRESENT', this)">출석</button>
+                <button type="button" class="att-btn ${status==='TARDY'?'active-tardy':''}" onclick="setStudentAttState('${person}', 'TARDY', this)">지각</button>
+                <button type="button" class="att-btn ${status==='ABSENT'?'active-absent':''}" onclick="setStudentAttState('${person}', 'ABSENT', this)">결석</button>
+                <button type="button" class="att-btn ${status==='EARLY'?'active-early':''}" onclick="setStudentAttState('${person}', 'EARLY', this)">조퇴</button>
               </div>
-              <input type="time" lang="en-GB" class="tardy-time-input" data-person="${person}" value="${time}"
-                onchange="commitAttTime('${person}', this.value)"
-                style="display:${status==='TARDY'?'block':'none'};" placeholder="도착 시각">
             </div>
-          `;
-        }).join('');
-      };
+            <input type="time" lang="en-GB" class="tardy-time-input" value="${rec.time||''}"
+              onchange="commitPersonAttTime('${person}', this.value)"
+              style="display:${needsTime?'block':'none'};" placeholder="${status==='EARLY'?'조퇴 시각':'도착 시각'}">
+          </div>
+        `;
+      }).join('');
 
-      renderAttList('att-students-list', [...roster.mainStudents, ...roster.extraStudents], '결석', true);
-      renderAttList('att-staff-list', [...roster.helpers, ...roster.teachers], '결근', false);
+      // 교사/지원인력: 출근/연가/병가/출장·연수/조퇴/병조퇴/지각/병지각/기타 드롭다운
+      document.getElementById('att-staff-list').innerHTML = [...roster.helpers, ...roster.teachers].map(person => {
+        const rec = todayAtt[person] || { status: 'PRESENT' };
+        const status = rec.status || 'PRESENT';
+        const needsTime = !STAFF_NO_TIME_STATUSES.has(status);
+        const options = Object.keys(STAFF_ATT_LABELS).map(code =>
+          `<option value="${code}" ${status===code?'selected':''}>${STAFF_ATT_LABELS[code]}</option>`).join('');
+        return `
+          <div class="att-row">
+            <div class="att-row-top">
+              <span style="font-size:0.78rem; font-weight:bold;">${person}</span>
+              <select style="width:auto; font-size:0.75rem; padding:3px 6px;" onchange="setStaffAttState('${person}', this.value)">${options}</select>
+            </div>
+            <input type="time" lang="en-GB" class="tardy-time-input" value="${rec.time||''}"
+              onchange="commitPersonAttTime('${person}', this.value)"
+              style="display:${needsTime?'block':'none'};" placeholder="시각(선택)">
+            <input type="text" class="att-note-input" value="${rec.note||''}" placeholder="기타 내용 직접 입력"
+              onchange="commitPersonAttNote('${person}', this.value)"
+              style="display:${status==='OTHER'?'block':'none'}; margin-top:4px;">
+          </div>
+        `;
+      }).join('');
     }
 
-    function setAttState(person, state, btn) {
+    function ensureAttRecord(dateStr, person) {
+      if(!attendanceData[dateStr]) attendanceData[dateStr] = {};
+      return attendanceData[dateStr];
+    }
+
+    function pushAttToSheet(dateStr, person, rec) {
+      postToSheet('attendance', { date: dateStr, name: person, status: rec.status, time: rec.time || '', note: rec.note || '' });
+    }
+
+    function setStudentAttState(person, state, btn) {
       const parent = btn.parentElement;
       parent.querySelectorAll('.att-btn').forEach(b => b.className = 'att-btn');
-      if(state === 'PRESENT') btn.classList.add('active-present');
-      else if(state === 'TARDY') btn.classList.add('active-tardy');
-      else if(state === 'ABSENT') btn.classList.add('active-absent');
+      const activeClassMap = { PRESENT:'active-present', TARDY:'active-tardy', ABSENT:'active-absent', EARLY:'active-early' };
+      btn.classList.add(activeClassMap[state]);
 
       const row = parent.closest('.att-row');
       const timeInput = row.querySelector('.tardy-time-input');
+      const needsTime = state === 'TARDY' || state === 'EARLY';
+      if(timeInput) timeInput.style.display = needsTime ? 'block' : 'none';
 
       const dateStr = toDateStr(currentDate);
-      if(!attendanceData[dateStr]) attendanceData[dateStr] = {};
-
+      const dayRec = ensureAttRecord(dateStr, person);
       if(state === 'PRESENT') {
-        delete attendanceData[dateStr][person];
-        if(timeInput) timeInput.style.display = 'none';
+        delete dayRec[person];
         postToSheet('attendance', { date: dateStr, name: person, status: 'PRESENT', time: '' });
-      } else if(state === 'TARDY') {
-        const time = timeInput ? timeInput.value : '';
-        attendanceData[dateStr][person] = { status: 'TARDY', time };
-        if(timeInput) timeInput.style.display = 'block';
-        postToSheet('attendance', { date: dateStr, name: person, status: 'TARDY', time });
-      } else if(state === 'ABSENT') {
-        attendanceData[dateStr][person] = { status: 'ABSENT' };
-        if(timeInput) timeInput.style.display = 'none';
-        postToSheet('attendance', { date: dateStr, name: person, status: 'ABSENT', time: '' });
+      } else {
+        dayRec[person] = { status: state, time: needsTime && timeInput ? timeInput.value : '' };
+        pushAttToSheet(dateStr, person, dayRec[person]);
       }
-      render(); // 배경 시간표/매트릭스에 즉시 반영
+      render();
     }
 
-    function commitAttTime(person, value) {
+    function setStaffAttState(person, status) {
       const dateStr = toDateStr(currentDate);
-      if(!attendanceData[dateStr]) attendanceData[dateStr] = {};
-      if(attendanceData[dateStr][person] && attendanceData[dateStr][person].status === 'TARDY') {
-        attendanceData[dateStr][person].time = value;
-        postToSheet('attendance', { date: dateStr, name: person, status: 'TARDY', time: value });
+      const dayRec = ensureAttRecord(dateStr, person);
+      const needsTime = !STAFF_NO_TIME_STATUSES.has(status);
+      if(status === 'PRESENT') {
+        delete dayRec[person];
+        postToSheet('attendance', { date: dateStr, name: person, status: 'PRESENT', time: '' });
+      } else {
+        const prevTime = (dayRec[person] && dayRec[person].time) || '';
+        const prevNote = (dayRec[person] && dayRec[person].note) || '';
+        dayRec[person] = { status, time: needsTime ? prevTime : '', note: status === 'OTHER' ? prevNote : '' };
+        pushAttToSheet(dateStr, person, dayRec[person]);
+      }
+      renderAttendanceModalContent();
+      render();
+    }
+
+    function commitPersonAttTime(person, value) {
+      const dateStr = toDateStr(currentDate);
+      const dayRec = ensureAttRecord(dateStr, person);
+      if(dayRec[person]) {
+        dayRec[person].time = value;
+        pushAttToSheet(dateStr, person, dayRec[person]);
         render();
       }
+    }
+
+    function commitPersonAttNote(person, value) {
+      const dateStr = toDateStr(currentDate);
+      const dayRec = ensureAttRecord(dateStr, person);
+      if(dayRec[person]) {
+        dayRec[person].note = value;
+        pushAttToSheet(dateStr, person, dayRec[person]);
+        render();
+      }
+    }
+
+    function saveAttendanceDailyNote() {
+      const dateStr = toDateStr(currentDate);
+      const val = document.getElementById('att-daily-note-input').value.trim();
+      if(val) attendanceNoteData[dateStr] = val; else delete attendanceNoteData[dateStr];
+      postToSheet('event', { date: dateStr, kind: '출결메모', text: val });
+      render();
     }
 
     function saveAttendance() {
       closeModal();
       render();
+    }
+
+    // ===== 출결 주간 모아보기: 열=월~금, 행=사람, 셀=그 날 입력된 출결 값 =====
+    function openAttendanceWeeklyModal() {
+      renderAttendanceWeeklyTable();
+      document.getElementById('attendance-weekly-modal').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    }
+
+    function renderAttendanceWeeklyTable() {
+      const roster = getRoster(getAcademicYear(currentDate));
+      const monday = getMonday(currentDate);
+      const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
+      document.getElementById('att-weekly-range-label').innerText =
+        `${monday.getMonth()+1}/${monday.getDate()} ~ ${friday.getMonth()+1}/${friday.getDate()}`;
+
+      const days = [];
+      for(let i = 0; i < 5; i++) { const d = new Date(monday); d.setDate(monday.getDate() + i); days.push(d); }
+
+      const people = [
+        { label: '학생', list: [...roster.mainStudents, ...roster.extraStudents], isStudent: true },
+        { label: '지원인력·교사', list: [...roster.helpers, ...roster.teachers], isStudent: false }
+      ];
+
+      let html = `<table style="min-width:600px;"><thead><tr><th style="width:110px;">이름</th>`;
+      days.forEach(d => { html += `<th>${['일','월','화','수','목','금','토'][d.getDay()]} (${d.getMonth()+1}/${d.getDate()})</th>`; });
+      html += `</tr></thead><tbody>`;
+
+      people.forEach(group => {
+        html += `<tr><td colspan="6" style="background:#f1f5f9; font-weight:bold; text-align:left; padding-left:10px;">${group.label}</td></tr>`;
+        group.list.forEach(person => {
+          html += `<tr><td style="font-weight:bold;">${person}</td>`;
+          days.forEach(d => {
+            const dateStr = toDateStr(d);
+            const rec = (attendanceData[dateStr] || {})[person];
+            const b = formatAttBadge(rec, group.isStudent);
+            html += `<td class="clickable-cell" onclick="jumpToAttendanceDate('${dateStr}')">${b ? `<span class="tag ${b.cls}">${b.text}</span>` : ''}</td>`;
+          });
+          html += `</tr>`;
+        });
+      });
+
+      html += `</tbody></table>`;
+      document.getElementById('attendance-weekly-table-wrap').innerHTML = html;
+    }
+
+    function jumpToAttendanceDate(dateStr) {
+      currentDate = new Date(dateStr + 'T00:00:00');
+      closeModal();
+      render();
+      openAttendanceModal();
     }
 
     function openEventModal() {
@@ -2133,6 +2338,7 @@
 
       // 시간표 셀 메모 표시 설정
       document.getElementById('cfg-memo-display-mode').value = getMemoDisplayMode();
+      document.getElementById('cfg-show-location-in-cell').checked = shouldShowLocationInCell();
     }
 
     function saveSettings() {
@@ -2172,6 +2378,7 @@
 
       // 시간표 셀 메모 표시 설정 저장 (로컬 전용)
       localStorage.setItem('memoDisplayMode', document.getElementById('cfg-memo-display-mode').value);
+      localStorage.setItem('showLocationInCell', document.getElementById('cfg-show-location-in-cell').checked);
 
       closeModal();
       render();
