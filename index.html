@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>특수학급 스마트 시간표 & 일지</title>
   <style>
+    html { font-size: 24px; } /* 기본 16px의 1.5배 - rem 단위를 쓰는 모든 글씨가 함께 커짐 */
     * { box-sizing: border-box; font-family: 'Pretendard', 'Malgun Gothic', sans-serif; }
     body { display: flex; flex-direction: column; height: 100vh; margin: 0; background: #f8fafc; color: #1e293b; }
     
@@ -33,15 +34,15 @@
     .memo-panel.collapsed .memo-panel-header { border-bottom: none; justify-content: center; padding-bottom: 0; }
     .memo-panel.collapsed .memo-title,
     .memo-panel.collapsed #daily-memo-list { display: none; }
-    .memo-collapsed-label { display: none; writing-mode: vertical-rl; text-orientation: mixed; font-size: 0.75rem; font-weight: bold; color: #475569; letter-spacing: 1px; margin-top: 10px; cursor: pointer; }
+    .memo-collapsed-label { display: none; font-size: 1.1rem; margin-top: 10px; cursor: pointer; }
     .memo-panel.collapsed .memo-collapsed-label { display: block; }
     .memo-toggle-btn { border: none; background: #f1f5f9; border-radius: 4px; cursor: pointer; font-size: 0.75rem; padding: 3px 8px; color: #475569; font-weight: bold; flex-shrink: 0; }
 
     /* 테이블 공통 */
-    table { width: 100%; border-collapse: collapse; background: white; font-size: 0.78rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); table-layout: fixed; }
-    th, td { border: 1px solid #e2e8f0; padding: 5px 6px; text-align: center; vertical-align: top; overflow-wrap: break-word; }
+    table { width: 100%; min-width: max-content; border-collapse: collapse; background: white; font-size: 0.78rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    th, td { border: 1px solid #e2e8f0; padding: 5px 6px; text-align: center; vertical-align: top; overflow-wrap: break-word; min-width: 145px; }
     th { background: #f1f5f9; font-weight: bold; color: #334155; }
-    .time-col { background: #f8fafc; font-weight: bold; width: 68px; color: #475569; position: sticky; left: 0; z-index: 2; }
+    .time-col { background: #f8fafc; font-weight: bold; width: 95px; min-width: 95px; color: #475569; position: sticky; left: 0; z-index: 2; }
     .time-col.is-break { background: #f1f5f9; color: #94a3b8; font-weight: normal; font-size: 0.68rem; }
     tr.is-break-row td:not(.time-col), tr.is-break-row th:not(.time-col) { background: #fafbfc; }
     .group-divider { border-left: 2.5px solid #94a3b8 !important; }
@@ -199,7 +200,7 @@
         <h4 class="memo-title" style="margin:0; font-size:0.95rem; color:#0f172a;">📝 오늘의 메모 / 일지</h4>
         <button id="memo-toggle-btn" class="memo-toggle-btn" onclick="toggleMemoPanel()" title="메모 패널 접기">▶</button>
       </div>
-      <div class="memo-collapsed-label" onclick="toggleMemoPanel()">📝 메모</div>
+      <div class="memo-collapsed-label" onclick="toggleMemoPanel()" title="메모 펼치기">📝</div>
       <div id="daily-memo-list" style="display:flex; flex-direction:column; gap:8px;">
         <p style="color:#94a3b8; font-size:0.78rem;">수업 시간표에 작성한 특이사항이 표시됩니다.</p>
       </div>
@@ -1600,6 +1601,7 @@
       const panel = document.getElementById('memo-panel');
       const btn = document.getElementById('memo-toggle-btn');
       panel.classList.toggle('collapsed', memoPanelCollapsed);
+      document.getElementById('daily-memo-list').style.display = memoPanelCollapsed ? 'none' : 'flex';
       btn.innerText = memoPanelCollapsed ? '◀' : '▶';
       btn.title = memoPanelCollapsed ? '메모 패널 펼치기' : '메모 패널 접기';
     }
