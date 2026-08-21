@@ -413,6 +413,15 @@
       <input type="text" id="cfg-custom-locations" placeholder="예: 보건실, 운동장, 특별실, 상담실">
     </div>
 
+    <div class="form-group">
+      <label>🗒️ 시간표 셀에 메모 표시</label>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-weight:normal; display:flex; align-items:center; gap:4px;"><input type="checkbox" id="cfg-show-memo-in-cell" style="width:auto;"> 학급 주간 뷰의 칸에 메모 내용을 직접 표시</label>
+        <label style="font-weight:normal; display:flex; align-items:center; gap:4px;"><input type="checkbox" id="cfg-truncate-memo" style="width:auto;"> 길면 잘라서 표시 (전체 내용은 마우스를 올리거나 클릭하면 확인 가능)</label>
+      </div>
+      <p style="font-size:0.68rem; color:#94a3b8; margin:4px 0 0 0;">오른쪽 "오늘의 메모/일지" 패널은 이 설정과 무관하게 항상 전체 내용을 보여줍니다.</p>
+    </div>
+
     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px; margin-bottom:10px;">
       <label style="font-weight:bold; font-size:0.75rem; color:#1e293b; display:block; margin-bottom:4px;">☁️ 구글 시트 연결 상태</label>
       <div style="font-size:0.68rem; color:#64748b; margin-bottom:6px;">
@@ -487,9 +496,9 @@
       </div>
 
       <div class="form-group">
-        <label>제외 기간 (방학, 공휴일 등 — 이 기간엔 운영하지 않음. 필요한 만큼 추가 가능)</label>
-        <div id="nb-excluded-ranges" style="display:flex; flex-direction:column; gap:4px; margin-bottom:6px;"></div>
-        <div class="add-entry-btn" onclick="addNbExcludedRange()">+ 제외 기간 추가</div>
+        <label>특별 기간 (방학·공휴일 휴강 또는 단축수업 등 시간 변경 — 필요한 만큼 추가 가능)</label>
+        <div id="nb-excluded-ranges" style="display:flex; flex-direction:column; gap:6px; margin-bottom:6px;"></div>
+        <div class="add-entry-btn" onclick="addNbExcludedRange()">+ 특별 기간 추가</div>
       </div>
 
       <div class="form-group">
@@ -1125,23 +1134,32 @@
       return { start: new Date(ay, 8, 1), end: new Date(ay + 1, 1, 28, 23, 59, 59) };
     }
 
+    // 특정 날짜에 적용되는 특별 기간(휴강/시간변경) 항목을 찾아 반환 (없으면 null)
+    function getNeulbomOverrideForDate(program, date) {
+      if(!program.excludedRanges || !program.excludedRanges.length) return null;
+      const d = stripTime(date);
+      return program.excludedRanges.find(ex => {
+        if(!ex.start || !ex.end) return false;
+        const exStart = stripTime(new Date(ex.start + 'T00:00:00'));
+        const exEnd = stripTime(new Date(ex.end + 'T23:59:59'));
+        return d >= exStart && d <= exEnd;
+      }) || null;
+    }
+
     function isNeulbomActiveOnDate(program, date) {
       const dayName = WEEKDAY_NAMES[date.getDay() - 1]; // getDay(): 0=일,1=월... / 주말(0,6)은 대상 아님
-      if(!dayName || !program.schedule || !program.schedule[dayName]) return false;
+      if(!dayName) return false;
 
       const range = getNeulbomDateRange(program);
       if(date < range.start || date > range.end) return false;
 
-      // 제외 기간(방학, 공휴일 등)에 해당하면 비활성 - 명절/방학 등으로 잠시 쉬는 경우를 프로그램을 쪼개지 않고 표현
-      if(program.excludedRanges && program.excludedRanges.length) {
-        const d = stripTime(date);
-        const isExcluded = program.excludedRanges.some(ex => {
-          if(!ex.start || !ex.end) return false;
-          const exStart = stripTime(new Date(ex.start + 'T00:00:00'));
-          const exEnd = stripTime(new Date(ex.end + 'T23:59:59'));
-          return d >= exStart && d <= exEnd;
-        });
-        if(isExcluded) return false;
+      // 특별 기간(방학·공휴일 휴강 또는 단축수업 등 시간변경)에 해당하면 그에 맞춰 처리
+      const override = getNeulbomOverrideForDate(program, date);
+      if(override) {
+        if(override.mode === 'off') return false; // 휴강
+        if(override.mode === 'override') return !!(override.schedule && override.schedule[dayName]); // 이 기간엔 override.schedule 기준으로 운영
+      } else if(!program.schedule || !program.schedule[dayName]) {
+        return false;
       }
 
       if(program.recurrence === 'biweekly') {
@@ -1160,7 +1178,9 @@
         if(!program.students.includes(studentName)) return;
         if(!isNeulbomActiveOnDate(program, date)) return;
         const dayName = WEEKDAY_NAMES[date.getDay() - 1];
-        const sched = program.schedule[dayName];
+        const override = getNeulbomOverrideForDate(program, date);
+        // 시간변경 기간이면 변경된 시각을, 아니면 평소 시각을 사용
+        const sched = (override && override.mode === 'override') ? override.schedule[dayName] : (program.schedule && program.schedule[dayName]);
         if(!sched) return;
         const s = timeToMinutes(sched.start), e = timeToMinutes(sched.end);
         if(s === null || e === null) return;
@@ -1285,7 +1305,10 @@
               });
               if(entry.behavior) html += `<div class="tag tag-behavior">↕ ${entry.behavior} (${entry.behaviorTime||'시작-종료'})</div>`;
               if(entry.positive) html += `<div class="tag tag-positive">${entry.positive}</div>`;
-              if(entry.memo) html += `<div style="font-size:0.72rem; color:#475569; margin-top:2px;">📝 ${entry.memo}</div>`;
+              if(entry.memo && shouldShowMemoInCell()) {
+                const memoDisplay = shouldTruncateMemoInCell() ? truncateMemoText(entry.memo, 20) : entry.memo;
+                html += `<div style="font-size:0.72rem; color:#475569; margin-top:2px;" title="${entry.memo.replace(/"/g,'&quot;')}">📝 ${memoDisplay}</div>`;
+              }
               html += `</div>`;
             });
             html += `<div class="add-entry-btn" onclick="openInputModal('${cellId}', null, null)">+ 기록 추가</div>`;
@@ -1582,6 +1605,18 @@
     }
 
     // 6. 모달 관련 로직
+    // 시간표 셀에 메모 직접 표시할지/잘라서 표시할지 설정 (오른쪽 메모 패널은 이 설정과 무관하게 항상 전체 표시)
+    function shouldShowMemoInCell() {
+      const v = localStorage.getItem('showMemoInCell');
+      return v === null ? true : v === 'true'; // 기본값: 표시함
+    }
+    function shouldTruncateMemoInCell() {
+      return localStorage.getItem('truncateMemoInCell') === 'true'; // 기본값: 자르지 않음
+    }
+    function truncateMemoText(text, len) {
+      return text.length > len ? text.slice(0, len) + '…' : text;
+    }
+
     // 설정에 저장된 추가 장소 목록 (기본 제공: 통합학급, 급식실, 하교 + 사용자 추가분, 중복 제거)
     function getCustomLocations() {
       const saved = localStorage.getItem('customLocations');
@@ -2015,6 +2050,10 @@
 
       // 추가 장소 목록(연도 무관, 전역 설정)
       document.getElementById('cfg-custom-locations').value = getCustomLocations().join(', ');
+
+      // 시간표 셀 메모 표시 설정
+      document.getElementById('cfg-show-memo-in-cell').checked = shouldShowMemoInCell();
+      document.getElementById('cfg-truncate-memo').checked = shouldTruncateMemoInCell();
     }
 
     function saveSettings() {
@@ -2052,6 +2091,10 @@
       localStorage.setItem('customLocations', JSON.stringify(customLocations));
       postToSheet('settings', { key: 'customLocations', value: JSON.stringify(customLocations) });
 
+      // 시간표 셀 메모 표시 설정 저장 (로컬 전용)
+      localStorage.setItem('showMemoInCell', document.getElementById('cfg-show-memo-in-cell').checked);
+      localStorage.setItem('truncateMemoInCell', document.getElementById('cfg-truncate-memo').checked);
+
       closeModal();
       render();
     }
@@ -2075,24 +2118,67 @@
       document.getElementById('nb-custom-period').style.display = type === 'custom' ? 'flex' : 'none';
     }
 
-    // 늘봄 프로그램 제외 기간(방학, 공휴일 등) - 필요한 만큼 행 추가 가능
-    function addNbExcludedRange(start, end) {
+    // 늘봄 프로그램 특별 기간(방학·공휴일 휴강 또는 단축수업 등 시간 변경) - 필요한 만큼 행 추가 가능
+    function addNbExcludedRange(start, end, mode, overrideSchedule) {
       const container = document.getElementById('nb-excluded-ranges');
       const row = document.createElement('div');
       row.className = 'nb-excluded-row';
-      row.style.cssText = 'display:flex; gap:4px; align-items:center;';
+      row.style.cssText = 'display:flex; flex-direction:column; gap:4px; border:1px solid #e2e8f0; border-radius:6px; padding:6px;';
       row.innerHTML = `
-        <input type="date" class="nb-excl-start" value="${start || ''}" style="flex:1;">
-        <span>~</span>
-        <input type="date" class="nb-excl-end" value="${end || ''}" style="flex:1;">
-        <button type="button" class="btn" style="padding:2px 8px; background:#fee2e2; color:#dc2626; font-size:0.7rem; flex-shrink:0;" onclick="this.parentElement.remove()">삭제</button>
+        <div style="display:flex; gap:4px; align-items:center;">
+          <input type="date" class="nb-excl-start" value="${start || ''}" style="flex:1;">
+          <span>~</span>
+          <input type="date" class="nb-excl-end" value="${end || ''}" style="flex:1;">
+          <select class="nb-excl-mode" onchange="toggleNbExclMode(this)" style="flex:1;">
+            <option value="off" ${mode !== 'override' ? 'selected' : ''}>휴강</option>
+            <option value="override" ${mode === 'override' ? 'selected' : ''}>시간 변경(단축수업 등)</option>
+          </select>
+          <button type="button" class="btn" style="padding:2px 8px; background:#fee2e2; color:#dc2626; font-size:0.7rem; flex-shrink:0;" onclick="this.closest('.nb-excluded-row').remove()">삭제</button>
+        </div>
+        <div class="nb-excl-override-days" style="display:${mode === 'override' ? 'flex' : 'none'}; flex-direction:column; gap:3px; padding-top:4px; border-top:1px dashed #e2e8f0;"></div>
       `;
       container.appendChild(row);
+
+      const daysContainer = row.querySelector('.nb-excl-override-days');
+      daysContainer.innerHTML = WEEKDAY_NAMES.map(day => {
+        const has = overrideSchedule && overrideSchedule[day];
+        return `
+          <div class="nb-day-row" data-day="${day}" style="padding:3px 6px;">
+            <label><input type="checkbox" class="nb-day-check" ${has ? 'checked' : ''} onchange="toggleNbDayRow(this)"> ${day}요일</label>
+            <input type="time" lang="en-GB" class="nb-day-start" value="${has ? overrideSchedule[day].start : ''}" style="display:${has ? 'block' : 'none'};">
+            <span>~</span>
+            <input type="time" lang="en-GB" class="nb-day-end" value="${has ? overrideSchedule[day].end : ''}" style="display:${has ? 'block' : 'none'};">
+          </div>
+        `;
+      }).join('');
     }
+
+    function toggleNbExclMode(select) {
+      const container = select.closest('.nb-excluded-row').querySelector('.nb-excl-override-days');
+      container.style.display = select.value === 'override' ? 'flex' : 'none';
+    }
+
     function getNbExcludedRanges() {
-      return Array.from(document.querySelectorAll('#nb-excluded-ranges .nb-excluded-row'))
-        .map(row => ({ start: row.querySelector('.nb-excl-start').value, end: row.querySelector('.nb-excl-end').value }))
-        .filter(r => r.start && r.end);
+      return Array.from(document.querySelectorAll('#nb-excluded-ranges .nb-excluded-row')).map(row => {
+        const start = row.querySelector('.nb-excl-start').value;
+        const end = row.querySelector('.nb-excl-end').value;
+        const mode = row.querySelector('.nb-excl-mode').value;
+        const result = { start, end, mode };
+        if(mode === 'override') {
+          const schedule = {};
+          row.querySelectorAll('.nb-day-row').forEach(dayRow => {
+            const check = dayRow.querySelector('.nb-day-check');
+            if(check.checked) {
+              const day = dayRow.dataset.day;
+              const s = dayRow.querySelector('.nb-day-start').value;
+              const e = dayRow.querySelector('.nb-day-end').value;
+              if(s && e) schedule[day] = { start: s, end: e };
+            }
+          });
+          result.schedule = schedule;
+        }
+        return result;
+      }).filter(r => r.start && r.end);
     }
     function clearNbExcludedRanges() {
       document.getElementById('nb-excluded-ranges').innerHTML = '';
@@ -2206,7 +2292,7 @@
       renderNeulbomDayConfig(p.schedule);
 
       clearNbExcludedRanges();
-      (p.excludedRanges || []).forEach(r => addNbExcludedRange(r.start, r.end));
+      (p.excludedRanges || []).forEach(r => addNbExcludedRange(r.start, r.end, r.mode, r.schedule));
 
       const roster = getRoster();
       document.getElementById('nb-students').innerHTML = [...roster.mainStudents, ...roster.extraStudents].map(s => `
