@@ -209,6 +209,7 @@
       <button onclick="openAttendanceModal()">🏥 출결 관리</button>
       <button onclick="openNeulbomModal()">🌤️ 늘봄학교</button>
       <button onclick="openTemplateModal()">📋 템플릿</button>
+      <button onclick="saveCurrentWeekAsTemplate()">📅 이번주 템플릿저장</button>
       <button onclick="openSettingsModal()">⚙️ 설정</button>
     </div>
   </div>
@@ -638,6 +639,12 @@
       </div>
     </div>
 
+    <div style="border-top:1px solid #e2e8f0; margin-top:16px; padding-top:14px;">
+      <h5 style="margin:0 0 6px 0; font-size:0.85rem;">📅 주간 템플릿 (학급/개인 주간 뷰의 한 주 전체)</h5>
+      <p style="font-size:0.7rem; color:#64748b; margin-top:0;">학급 주간 또는 개인 주간 뷰에서 "📅 이번주 템플릿저장" 버튼으로 만들 수 있습니다. 적용하면 현재 화면에 보이는 주에 통째로 추가됩니다.</p>
+      <div id="week-template-list"></div>
+    </div>
+
     <div style="display:flex; justify-content:flex-end; margin-top:12px;">
       <button class="btn btn-secondary" onclick="closeModal()">닫기</button>
     </div>
@@ -663,6 +670,8 @@
     let neulbomPrograms = JSON.parse(localStorage.getItem('neulbomPrograms') || '[]');
     // 시간표 템플릿: { id, name, className, students, helpers, teachers } - 반복되는 수업 패턴을 저장해두고 재사용/기간별 일괄 적용
     let scheduleTemplates = JSON.parse(localStorage.getItem('scheduleTemplates') || '[]');
+    // 주간 템플릿: 학급/개인 주간 뷰의 한 주(월~금) 전체를 통째로 저장
+    let weekTemplates = JSON.parse(localStorage.getItem('weekTemplates') || '[]');
     const NEULBOM_CATEGORIES = ['맞춤형교실', '돌봄', '특수선택형교육', '선택형교육'];
     const WEEKDAY_NAMES = ['월', '화', '수', '목', '금'];
 
@@ -1950,8 +1959,111 @@
       populateBulkPeriodSelect();
       document.getElementById('bulk-apply-result').textContent = '';
       document.querySelectorAll('.bulk-day-check').forEach(cb => cb.checked = false);
+      renderWeekTemplateList();
       document.getElementById('template-modal').style.display = 'block';
       document.getElementById('overlay').style.display = 'block';
+    }
+
+    // ===== 주간 템플릿: 저장/목록/적용/삭제 =====
+    function saveCurrentWeekAsTemplate() {
+      if(currentView !== 'classWeekly' && currentView !== 'personWeekly') {
+        alert('학급 주간 또는 개인 주간 뷰에서만 저장할 수 있습니다.');
+        return;
+      }
+      const name = prompt('이번 주 템플릿 이름을 입력하세요 (예: 1학기 정규 시간표)');
+      if(!name) return;
+
+      const monday = getMonday(currentDate);
+      const dayNames = ['월','화','수','목','금'];
+      const weekData = {};
+
+      if(currentView === 'classWeekly') {
+        const classFilter = document.getElementById('class-filter').value;
+        dayNames.forEach((dayName, i) => {
+          const dt = new Date(monday); dt.setDate(monday.getDate() + i);
+          const dateStr = toDateStr(dt);
+          weekData[dayName] = {};
+          PERIODS.forEach(p => {
+            const entries = getEntries(`${dateStr}_${p.name}`).filter(e => classFilter === 'ALL' || e.className === classFilter);
+            if(entries.length) weekData[dayName][p.name] = entries.map(e => ({ students: e.students, helpers: e.helpers, teachers: e.teachers, className: e.className }));
+          });
+        });
+        weekTemplates.push({ id: generateEntryId(), name, view: 'classWeekly', classFilter, days: weekData });
+      } else {
+        const person = selectedPerson;
+        if(!person) { alert('개인 주간 뷰에서 조회 대상을 먼저 선택해주세요.'); return; }
+        dayNames.forEach((dayName, i) => {
+          const dt = new Date(monday); dt.setDate(monday.getDate() + i);
+          const dateStr = toDateStr(dt);
+          weekData[dayName] = {};
+          PERIODS.forEach(p => {
+            const entry = findEntryForPerson(`${dateStr}_${p.name}`, person);
+            if(entry) weekData[dayName][p.name] = { students: entry.students, helpers: entry.helpers, teachers: entry.teachers, className: entry.className };
+          });
+        });
+        weekTemplates.push({ id: generateEntryId(), name, view: 'personWeekly', person, days: weekData });
+      }
+
+      localStorage.setItem('weekTemplates', JSON.stringify(weekTemplates));
+      alert(`"${name}" 주간 템플릿으로 저장되었습니다. 📋 템플릿 화면에서 다른 주에 적용할 수 있습니다.`);
+    }
+
+    function renderWeekTemplateList() {
+      const container = document.getElementById('week-template-list');
+      if(weekTemplates.length === 0) {
+        container.innerHTML = '<p style="color:#94a3b8; font-size:0.78rem;">저장된 주간 템플릿이 없습니다.</p>';
+        return;
+      }
+      container.innerHTML = weekTemplates.map(t => `
+        <div class="nb-program-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+            <div>
+              <strong style="font-size:0.82rem;">${t.name}</strong>
+              <div style="font-size:0.7rem; color:#64748b;">${t.view === 'classWeekly' ? `학급 주간 · ${t.classFilter}` : `개인 주간 · ${t.person}`}</div>
+            </div>
+            <div style="display:flex; gap:4px; flex-shrink:0;">
+              <button class="btn btn-primary" style="padding:3px 8px; font-size:0.7rem;" onclick="applyWeekTemplateToCurrentWeek('${t.id}')">현재 보이는 주에 적용</button>
+              <button class="btn" style="padding:3px 8px; font-size:0.7rem; background:#fee2e2; color:#dc2626;" onclick="deleteWeekTemplate('${t.id}')">삭제</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function deleteWeekTemplate(id) {
+      weekTemplates = weekTemplates.filter(t => t.id !== id);
+      localStorage.setItem('weekTemplates', JSON.stringify(weekTemplates));
+      renderWeekTemplateList();
+    }
+
+    function applyWeekTemplateToCurrentWeek(id) {
+      const t = weekTemplates.find(w => w.id === id);
+      if(!t) return;
+      const monday = getMonday(currentDate);
+      const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
+      if(!confirm(`"${t.name}" 템플릿을 지금 보고 있는 주(${monday.getMonth()+1}/${monday.getDate()}~${friday.getMonth()+1}/${friday.getDate()})에 적용할까요? 기존 기록에 새 기록으로 추가됩니다.`)) return;
+
+      const dayNames = ['월','화','수','목','금'];
+      let count = 0;
+      dayNames.forEach((dayName, i) => {
+        const dayData = t.days[dayName];
+        if(!dayData) return;
+        const dt = new Date(monday); dt.setDate(monday.getDate() + i);
+        const dateStr = toDateStr(dt);
+        Object.keys(dayData).forEach(periodName => {
+          const cellId = `${dateStr}_${periodName}`;
+          if(!scheduleData[cellId]) scheduleData[cellId] = [];
+          const items = t.view === 'classWeekly' ? dayData[periodName] : [dayData[periodName]];
+          items.forEach(item => {
+            const newEntry = { id: generateEntryId(), students: [...item.students], helpers: [...item.helpers], teachers: [...item.teachers], className: item.className, behavior: '', behaviorTime: '', positive: '', memo: '' };
+            scheduleData[cellId].push(newEntry);
+            postToSheet('schedule', { id: newEntry.id, date: dateStr, period: periodName, className: newEntry.className, students: newEntry.students.join(', '), helpers: newEntry.helpers.join(', '), teachers: newEntry.teachers.join(', '), behavior: '', behaviorTime: '', positive: '', memo: '' });
+            count++;
+          });
+        });
+      });
+      alert(`${count}건 적용되었습니다.`);
+      render();
     }
 
     function renderTemplateList() {
