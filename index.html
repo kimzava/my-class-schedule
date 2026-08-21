@@ -126,7 +126,7 @@
 <body>
 
   <script>
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxN2Zdmlfy8E8kc4_COUyMCoetnw18PSkfI7BK0w2FxkXZEY4n__-1L9yyM57e89_Ddww/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyn15XMU2ELilXykdvIO0wQzF-DlabIIMehK_Zkly78xy0XLiO4ndWJCoR5M4YVUidxeQ/exec기';
   </script>
 
   <!-- 상단 제어바 -->
@@ -607,8 +607,22 @@
           resultEl.textContent = '❌ 응답이 JSON이 아닙니다 (배포 시 "액세스 권한: 모든 사용자"로 설정했는지, URL이 .../exec로 끝나는지 확인하세요). 응답 시작 부분: ' + text.slice(0, 100);
           return;
         }
+        console.log('[연결 테스트] 원본 응답 전체:', json);
+
+        const counts = `Schedule ${(json.schedule||[]).length}건, Attendance ${(json.attendance||[]).length}건, Events ${(json.events||[]).length}건, Neulbom ${(json.neulbom||[]).length}건, Roster ${(json.roster||[]).length}건, Settings ${(json.settings||[]).length}건`;
+
+        // Schedule에 실제 행이 있다면 첫 행의 "키 이름"을 그대로 보여줌 -> 시트 헤더 표기가 앱이 기대하는 것과 정확히 일치하는지 육안 확인 가능
+        let sampleInfo = '';
+        if((json.schedule||[]).length > 0) {
+          const sampleKeys = Object.keys(json.schedule[0]);
+          const expectedKeys = ['ID','날짜','교시','학급/장소','학생명단','지원인력','담당교사','문제행동','문제행동시간','칭찬','메모','최종수정일시'];
+          const missing = expectedKeys.filter(k => !sampleKeys.includes(k));
+          sampleInfo = `<br>Schedule 시트의 실제 열 이름: ${sampleKeys.join(', ')}` +
+            (missing.length ? `<br><span style="color:#dc2626;">⚠️ 앱이 찾는 열 이름 중 시트에 없는 것: ${missing.join(', ')} (시트 헤더 철자·공백을 확인하세요)</span>` : '<br>✅ 열 이름이 모두 일치합니다.');
+        }
+
         resultEl.style.color = '#166534';
-        resultEl.textContent = `✅ 연결 성공! Schedule ${(json.schedule||[]).length}건, Roster ${(json.roster||[]).length}건, Neulbom ${(json.neulbom||[]).length}건 확인됨`;
+        resultEl.innerHTML = `✅ 연결 성공! ${counts}${sampleInfo}`;
       } catch(err) {
         resultEl.style.color = '#dc2626';
         resultEl.textContent = '❌ 요청 자체가 실패했습니다 (URL 오타이거나 배포가 안 된 상태일 수 있습니다): ' + err.message;
@@ -622,16 +636,14 @@
       try {
         const res = await fetch(`${GOOGLE_SCRIPT_URL}?type=all&_=${Date.now()}`, { cache: 'no-store' });
         const json = await res.json();
+        console.log('[시트에서 불러온 원본 데이터]', json); // 개발자도구 콘솔에서 직접 확인 가능
 
-        const totalFetched = (json.schedule||[]).length + (json.attendance||[]).length + (json.events||[]).length +
-                              (json.neulbom||[]).length + (json.roster||[]).length + (json.settings||[]).length;
-        const hadLocalData = Object.keys(scheduleData).length > 0 || Object.keys(attendanceData).length > 0 ||
-                              Object.keys(eventData).length > 0 || neulbomPrograms.length > 0;
+        // 응답 "구조" 자체가 정상인지만 확인 (배열이 다 비어있는 건 정상일 수 있음 - 예: 마지막 행을 지운 경우)
+        const hasValidStructure = json && Array.isArray(json.schedule) && Array.isArray(json.attendance) &&
+          Array.isArray(json.events) && Array.isArray(json.neulbom) && Array.isArray(json.roster) && Array.isArray(json.settings);
 
-        if(totalFetched === 0 && hadLocalData) {
-          // 시트가 완전히 빈 응답을 줬는데 로컬엔 데이터가 있다면 - 비정상 상황(헤더 불일치 등)일 수 있으므로
-          // 함부로 지우지 않고 로컬 데이터를 그대로 유지한다
-          console.warn('시트 응답이 비어 있어 기존 로컬 데이터를 유지합니다. Apps Script의 시트 이름/헤더가 올바른지 확인해 보세요.');
+        if(!hasValidStructure) {
+          console.warn('시트 응답 구조가 예상과 다릅니다(배포 설정 문제일 수 있음) - 기존 로컬 데이터를 유지합니다.', json);
           setSyncStatus('error');
           render();
           return;
