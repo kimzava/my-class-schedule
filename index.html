@@ -597,7 +597,7 @@
       resultEl.style.color = '#64748b';
       resultEl.textContent = '확인 중...';
       try {
-        const res = await fetch(`${GOOGLE_SCRIPT_URL}?type=all`);
+        const res = await fetch(`${GOOGLE_SCRIPT_URL}?type=all&_=${Date.now()}`, { cache: 'no-store' });
         const text = await res.text();
         let json;
         try {
@@ -620,8 +620,22 @@
       if(!isSheetConnected()) { render(); return; }
       setSyncStatus('loading');
       try {
-        const res = await fetch(`${GOOGLE_SCRIPT_URL}?type=all`);
+        const res = await fetch(`${GOOGLE_SCRIPT_URL}?type=all&_=${Date.now()}`, { cache: 'no-store' });
         const json = await res.json();
+
+        const totalFetched = (json.schedule||[]).length + (json.attendance||[]).length + (json.events||[]).length +
+                              (json.neulbom||[]).length + (json.roster||[]).length + (json.settings||[]).length;
+        const hadLocalData = Object.keys(scheduleData).length > 0 || Object.keys(attendanceData).length > 0 ||
+                              Object.keys(eventData).length > 0 || neulbomPrograms.length > 0;
+
+        if(totalFetched === 0 && hadLocalData) {
+          // 시트가 완전히 빈 응답을 줬는데 로컬엔 데이터가 있다면 - 비정상 상황(헤더 불일치 등)일 수 있으므로
+          // 함부로 지우지 않고 로컬 데이터를 그대로 유지한다
+          console.warn('시트 응답이 비어 있어 기존 로컬 데이터를 유지합니다. Apps Script의 시트 이름/헤더가 올바른지 확인해 보세요.');
+          setSyncStatus('error');
+          render();
+          return;
+        }
 
         // 시트 연결 시에는 시트를 기준(authoritative)으로 삼음 - 로컬 캐시와 중복 저장되지 않도록 먼저 비움
         Object.keys(scheduleData).forEach(k => delete scheduleData[k]);
