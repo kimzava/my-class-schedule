@@ -126,7 +126,7 @@
 <body>
 
   <script>
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyn15XMU2ELilXykdvIO0wQzF-DlabIIMehK_Zkly78xy0XLiO4ndWJCoR5M4YVUidxeQ/exec기';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyn15XMU2ELilXykdvIO0wQzF-DlabIIMehK_Zkly78xy0XLiO4ndWJCoR5M4YVUidxeQ/exec';
   </script>
 
   <!-- 상단 제어바 -->
@@ -568,13 +568,21 @@
       return String(str).split(',').map(s => s.trim()).filter(Boolean);
     }
 
-    function setSyncStatus(state) {
+    function setSyncStatus(state, detail) {
       const el = document.getElementById('sync-status');
       if(!isSheetConnected()) { el.style.display = 'none'; return; }
       el.style.display = 'inline-block';
-      if(state === 'loading') { el.textContent = '☁️ 불러오는 중...'; el.style.background = '#e0e7ff'; el.style.color = '#3730a3'; }
-      else if(state === 'synced') { el.textContent = '☁️ 동기화됨'; el.style.background = '#dcfce7'; el.style.color = '#166534'; }
-      else if(state === 'error') { el.textContent = '⚠️ 동기화 오류'; el.style.background = '#fef2f2'; el.style.color = '#dc2626'; }
+      if(state === 'loading') {
+        el.textContent = '☁️ 불러오는 중...'; el.style.background = '#e0e7ff'; el.style.color = '#3730a3';
+        el.style.cursor = 'default'; el.onclick = null;
+      } else if(state === 'synced') {
+        el.textContent = '☁️ 동기화됨'; el.style.background = '#dcfce7'; el.style.color = '#166534';
+        el.style.cursor = 'default'; el.onclick = null;
+      } else if(state === 'error') {
+        el.textContent = '⚠️ 동기화 오류 (눌러서 자세히 보기)'; el.style.background = '#fef2f2'; el.style.color = '#dc2626';
+        el.style.cursor = 'pointer';
+        el.onclick = () => alert('동기화 오류 상세 정보\n\n' + (detail || '(자세한 정보가 없습니다)'));
+      }
     }
 
     // 구글 시트로 저장/삭제 요청 전송 (Content-Type을 지정하지 않아야 CORS 사전요청 없이 바로 전송됨)
@@ -582,8 +590,15 @@
       if(!isSheetConnected()) return;
       fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ type, data }) })
         .then(res => res.json())
-        .then(json => setSyncStatus(json && json.ok ? 'synced' : 'error'))
-        .catch(err => { console.error('시트 저장 오류:', err); setSyncStatus('error'); });
+        .then(json => {
+          if(json && json.ok) { setSyncStatus('synced'); return; }
+          setSyncStatus('error', `[${type}] 저장 요청은 갔지만 시트가 실패로 응답했습니다.\n\n서버 응답: ` + JSON.stringify(json));
+        })
+        .catch(err => {
+          const detail = `[${type}] 저장 요청 전송 실패: ` + err.message + '\n\n전송하려던 데이터:\n' + JSON.stringify(data, null, 2).slice(0, 1000);
+          console.error('시트 저장 오류:', detail);
+          setSyncStatus('error', detail);
+        });
     }
 
     // 설정 화면의 "🔧 연결 테스트" 버튼 - 실제 응답을 확인해 어디서 막혔는지 알려줌
@@ -633,22 +648,36 @@
     async function loadFromSheet() {
       if(!isSheetConnected()) { render(); return; }
       setSyncStatus('loading');
+
+      let rawText = '';
+      let json = null;
       try {
         const res = await fetch(`${GOOGLE_SCRIPT_URL}?type=all&_=${Date.now()}`, { cache: 'no-store' });
-        const json = await res.json();
-        console.log('[시트에서 불러온 원본 데이터]', json); // 개발자도구 콘솔에서 직접 확인 가능
+        rawText = await res.text();
+        json = JSON.parse(rawText);
+      } catch(err) {
+        const detail = '요청 또는 JSON 파싱 실패: ' + err.message + '\n\n실제 응답 원문(앞부분):\n' + rawText.slice(0, 1000);
+        console.error('시트 불러오기 실패:', detail);
+        setSyncStatus('error', detail);
+        render();
+        return;
+      }
 
-        // 응답 "구조" 자체가 정상인지만 확인 (배열이 다 비어있는 건 정상일 수 있음 - 예: 마지막 행을 지운 경우)
-        const hasValidStructure = json && Array.isArray(json.schedule) && Array.isArray(json.attendance) &&
-          Array.isArray(json.events) && Array.isArray(json.neulbom) && Array.isArray(json.roster) && Array.isArray(json.settings);
+      console.log('[시트에서 불러온 원본 데이터]', json); // 개발자도구 콘솔에서 직접 확인 가능
 
-        if(!hasValidStructure) {
-          console.warn('시트 응답 구조가 예상과 다릅니다(배포 설정 문제일 수 있음) - 기존 로컬 데이터를 유지합니다.', json);
-          setSyncStatus('error');
-          render();
-          return;
-        }
+      // 응답 "구조" 자체가 정상인지만 확인 (배열이 다 비어있는 건 정상일 수 있음 - 예: 마지막 행을 지운 경우)
+      const hasValidStructure = json && Array.isArray(json.schedule) && Array.isArray(json.attendance) &&
+        Array.isArray(json.events) && Array.isArray(json.neulbom) && Array.isArray(json.roster) && Array.isArray(json.settings);
 
+      if(!hasValidStructure) {
+        const detail = '시트 응답 구조가 예상과 다릅니다.\n\n실제 받은 값:\n' + JSON.stringify(json, null, 2).slice(0, 1500);
+        console.warn(detail);
+        setSyncStatus('error', detail);
+        render();
+        return;
+      }
+
+      try {
         // 시트 연결 시에는 시트를 기준(authoritative)으로 삼음 - 로컬 캐시와 중복 저장되지 않도록 먼저 비움
         Object.keys(scheduleData).forEach(k => delete scheduleData[k]);
         Object.keys(attendanceData).forEach(k => delete attendanceData[k]);
@@ -728,8 +757,9 @@
 
         setSyncStatus('synced');
       } catch(err) {
-        console.error('시트 불러오기 실패:', err);
-        setSyncStatus('error');
+        const detail = '시트 데이터를 화면에 반영하는 중 오류 발생: ' + err.message + '\n\n원본 응답:\n' + JSON.stringify(json, null, 2).slice(0, 1500);
+        console.error('시트 불러오기 실패:', detail);
+        setSyncStatus('error', detail);
       }
       render();
     }
