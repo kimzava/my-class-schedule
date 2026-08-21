@@ -25,6 +25,8 @@
     /* 메인 뷰 레이아웃 (우측 메모 패널 포함 7:3 비율) */
     .main-container { display: flex; flex: 1; overflow: hidden; }
     .content-area { flex: 1 1 auto; min-width: 0; padding: 12px; overflow: auto; }
+    .cell-selected { outline: 3px solid #2563eb; outline-offset: -3px; }
+    .selectable-cell { user-select: none; }
     .memo-panel { flex: 0 0 30%; max-width: 30%; background: white; border-left: 1px solid #cbd5e1; padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; transition: flex-basis 0.2s ease, max-width 0.2s ease, padding 0.2s ease; }
     .memo-panel.collapsed { flex: 0 0 44px; max-width: 44px; padding: 10px 4px; overflow: hidden; align-items: center; }
     .memo-panel-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; width: 100%; }
@@ -40,7 +42,7 @@
     th, td { border: 1px solid #e2e8f0; padding: 5px 6px; text-align: center; min-width: 85px; vertical-align: top; }
     th { background: #f1f5f9; font-weight: bold; color: #334155; }
     .time-col { background: #f8fafc; font-weight: bold; width: 110px; color: #475569; }
-    .time-col.is-break { background: #f1f5f9; color: #94a3b8; font-weight: normal; font-size: 0.78rem; }
+    .time-col.is-break { background: #f1f5f9; color: #94a3b8; font-weight: normal; font-size: 0.72rem; white-space: nowrap; }
     .time-sub { font-size: 0.7rem; color: #64748b; font-weight: normal; display: block; margin-top: 1px; }
     .clickable-cell { cursor: pointer; transition: background 0.15s; }
     .clickable-cell:hover { background: #eff6ff !important; }
@@ -126,7 +128,7 @@
 <body>
 
   <script>
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwnm5tP0DzfiecgSGEmTrYJmZ6VCkf4txG-_jGgomZGIZGCOQY1myLnW1Bdc-6F3cwYiw/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyBRjvaZe_GyCXS7aBMTOuOHZoS3awWY2__X9gUTC_y0bFkVXJJJzBM8XsvBMX5Qgc9Bg/exec';
   </script>
 
   <!-- 상단 제어바 -->
@@ -155,9 +157,10 @@
       <button onclick="changeDate(7)">다음주 &gt;</button>
       <span id="current-date-text" style="font-weight:bold; font-size:0.85rem;"></span>
       <button onclick="toggleMiniCal()">📅 미니달력</button>
-      <button onclick="openEventModal()">🗓️ 행사</button>
+      <button onclick="openEventModal()">🗓️ 행사·기록</button>
       <button onclick="openAttendanceModal()">🏥 출결 관리</button>
       <button onclick="openNeulbomModal()">🌤️ 늘봄학교</button>
+      <button onclick="openTemplateModal()">📋 템플릿</button>
       <button onclick="openSettingsModal()">⚙️ 설정</button>
     </div>
   </div>
@@ -179,7 +182,16 @@
 
   <!-- 메인 뷰 영역 (좌 측 7 : 우 측 3 메모 패널) -->
   <div class="main-container">
-    <div class="content-area" id="view-content"></div>
+    <div class="content-area-wrapper" style="flex:7; display:flex; flex-direction:column; min-width:0; overflow:hidden;">
+      <div id="selection-toolbar" style="display:none; align-items:center; gap:8px; background:#eff6ff; border:1px solid #93c5fd; border-radius:6px; padding:6px 10px; margin:8px 12px 0 12px; font-size:0.78rem; flex-shrink:0;">
+        <span id="selection-count-label"></span>
+        <button class="btn btn-secondary" style="padding:3px 10px;" onclick="copySelectedCells()">📋 복사</button>
+        <button class="btn btn-primary" style="padding:3px 10px;" onclick="pasteToSelectedCells()">📥 붙여넣기</button>
+        <button class="btn btn-secondary" style="padding:3px 10px;" onclick="clearCellSelection()">✕ 선택 해제</button>
+        <span style="color:#64748b; font-size:0.7rem; margin-left:auto;">Shift+클릭/드래그로 셀 선택</span>
+      </div>
+      <div class="content-area" id="view-content" style="flex:1; overflow:auto;"></div>
+    </div>
     <div class="memo-panel" id="memo-panel">
       <div class="memo-panel-header">
         <h4 class="memo-title" style="margin:0; font-size:0.95rem; color:#0f172a;">📝 오늘의 메모 / 일지</h4>
@@ -197,6 +209,17 @@
   <div class="modal" id="input-modal">
     <h4 style="margin-top:0; margin-bottom:4px;" id="modal-title">수업 및 지원 기록</h4>
     <p id="modal-target-info" style="margin:0 0 8px 0; font-size:0.72rem; color:#2563eb; font-weight:bold;"></p>
+
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px; margin-bottom:10px;">
+      <label style="font-weight:bold; font-size:0.75rem; color:#1e293b; display:block; margin-bottom:4px;">📋 템플릿</label>
+      <div style="display:flex; gap:6px; align-items:center;">
+        <select id="template-select" style="flex:1;" onchange="applyTemplateToForm()">
+          <option value="">-- 템플릿 불러오기 --</option>
+        </select>
+        <button type="button" class="btn btn-secondary" style="padding:4px 8px; font-size:0.72rem; flex-shrink:0;" onclick="saveCurrentAsTemplate()">현재 내용 저장</button>
+      </div>
+    </div>
+
     <div class="form-group">
       <label>해당 학급 / 장소 선택</label>
       <select id="input-class" onchange="handleClassSelectChange()">
@@ -228,7 +251,7 @@
     </div>
     <div class="form-group">
       <label>🚨 돌발/문제행동 기록 (수직 화살표 ↕ 및 색상 강조)</label>
-      <div style="display:flex; gap:4px; margin-bottom:4px;">
+      <div style="display:flex; gap:4px; margin-bottom:4px; align-items:center;">
         <select id="behavior-preset" style="flex:2;">
           <option value="">-- 행동 선택 --</option>
           <option value="소리지름">소리지름</option>
@@ -238,7 +261,9 @@
           <option value="물건던짐">물건던짐</option>
           <option value="자해행동">자해행동</option>
         </select>
-        <input type="text" id="behavior-time" placeholder="시간 (예: 09:10-09:25 또는 09:10~09:25)" style="flex:1;">
+        <input type="time" lang="en-GB" id="behavior-time-start" style="flex:1;">
+        <span>~</span>
+        <input type="time" lang="en-GB" id="behavior-time-end" style="flex:1;">
       </div>
     </div>
     <div class="form-group">
@@ -291,7 +316,7 @@
 
   <!-- 행사 입력 모달 -->
   <div class="modal" id="event-modal">
-    <h4 style="margin-top:0; margin-bottom:8px;">🗓️ 일일 행사/일정 등록</h4>
+    <h4 style="margin-top:0; margin-bottom:8px;">🗓️ 일일 행사 & 하루 기록</h4>
 
     <div class="att-date-nav">
       <button class="btn btn-secondary" onclick="navigateEventDate(-1)">◀ 이전날</button>
@@ -302,10 +327,23 @@
       </div>
     </div>
 
-    <input type="text" id="event-input" placeholder="예: 현장체험학습, 체육대회, 개교기념일 등">
+    <div class="nav-tabs" style="margin-bottom:10px; width:fit-content;">
+      <button class="tab-btn active" id="event-tab-btn" onclick="switchEventModalTab('event')">🗓️ 행사 공지</button>
+      <button class="tab-btn" id="daynote-tab-btn" onclick="switchEventModalTab('daynote')">📓 하루 전반 기록</button>
+    </div>
+
+    <div id="event-tab-content">
+      <label style="display:block; font-size:0.72rem; color:#64748b; margin-bottom:3px;">전체 공유되는 짧은 공지 - 상단 배너와 주간 뷰 요일 헤더에 표시됩니다.</label>
+      <input type="text" id="event-input" placeholder="예: 현장체험학습, 체육대회, 개교기념일 등">
+    </div>
+    <div id="daynote-tab-content" style="display:none;">
+      <label style="display:block; font-size:0.72rem; color:#64748b; margin-bottom:3px;">특정 교시에 매이지 않는, 하루 전체에 대한 총평/기록입니다. 오른쪽 메모 패널 맨 위에 표시됩니다.</label>
+      <textarea id="daynote-input" rows="5" placeholder="예: 오늘 전반적으로 컨디션이 좋았음, 급식 시간에 소란이 있었음 등"></textarea>
+    </div>
+
     <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:12px;">
       <button class="btn btn-secondary" onclick="closeModal()">닫기</button>
-      <button class="btn btn-primary" onclick="saveEvent()">저장</button>
+      <button class="btn btn-primary" onclick="saveEventOrDayNote()">저장</button>
     </div>
   </div>
 
@@ -447,6 +485,12 @@
       </div>
 
       <div class="form-group">
+        <label>제외 기간 (방학, 공휴일 등 — 이 기간엔 운영하지 않음. 필요한 만큼 추가 가능)</label>
+        <div id="nb-excluded-ranges" style="display:flex; flex-direction:column; gap:4px; margin-bottom:6px;"></div>
+        <div class="add-entry-btn" onclick="addNbExcludedRange()">+ 제외 기간 추가</div>
+      </div>
+
+      <div class="form-group">
         <label>요일별 시작 · 종료 시각</label>
         <div id="neulbom-days-config" style="display:flex; flex-direction:column; gap:4px;"></div>
       </div>
@@ -467,6 +511,52 @@
     </div>
   </div>
 
+  <!-- 템플릿 관리 & 기간별 일괄 적용 모달 -->
+  <div class="modal" id="template-modal" style="width:620px;">
+    <h4 style="margin-top:0; margin-bottom:4px;">📋 템플릿 관리 & 기간별 일괄 적용</h4>
+    <p style="font-size:0.72rem; color:#64748b; margin-top:0;">시간표 입력 모달에서 "현재 내용 저장"으로 템플릿을 만들 수 있습니다. 여기서는 저장된 템플릿을 관리하고, 원하는 기간·요일·교시에 한 번에 적용할 수 있습니다.</p>
+
+    <div id="template-list" style="margin-bottom:14px;"></div>
+
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px;">
+      <h5 style="margin:0 0 8px 0; font-size:0.85rem;">🗓️ 기간 지정해서 일괄 적용</h5>
+      <div class="form-group">
+        <label>적용할 템플릿</label>
+        <select id="bulk-template-select"></select>
+      </div>
+      <div class="form-group">
+        <label>적용할 교시</label>
+        <select id="bulk-period-select"></select>
+      </div>
+      <div class="form-group">
+        <label>적용할 요일</label>
+        <div style="display:flex; gap:10px;">
+          <label style="font-weight:normal;"><input type="checkbox" class="bulk-day-check" value="월" style="width:auto;"> 월</label>
+          <label style="font-weight:normal;"><input type="checkbox" class="bulk-day-check" value="화" style="width:auto;"> 화</label>
+          <label style="font-weight:normal;"><input type="checkbox" class="bulk-day-check" value="수" style="width:auto;"> 수</label>
+          <label style="font-weight:normal;"><input type="checkbox" class="bulk-day-check" value="목" style="width:auto;"> 목</label>
+          <label style="font-weight:normal;"><input type="checkbox" class="bulk-day-check" value="금" style="width:auto;"> 금</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>적용 기간</label>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <input type="date" id="bulk-start-date" style="flex:1;">
+          <span>~</span>
+          <input type="date" id="bulk-end-date" style="flex:1;">
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button class="btn btn-primary" onclick="applyTemplateBulk()">일괄 적용</button>
+        <span id="bulk-apply-result" style="font-size:0.75rem;"></span>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+      <button class="btn btn-secondary" onclick="closeModal()">닫기</button>
+    </div>
+  </div>
+
   <script>
     let currentDate = new Date();
     let currentView = 'classWeekly';
@@ -479,10 +569,13 @@
     const scheduleData = {};
     // attendanceData[dateStr][person] = { status: 'TARDY'|'ABSENT', time: 'HH:MM'(지각인 경우) }
     const attendanceData = {};
-    const eventData = {}; 
+    const eventData = {};
+    const dayNoteData = {}; // dayNoteData[dateStr] = 교시 무관 하루 전반 기록
 
     // 늘봄학교 프로그램: { id, category, name, location, students:[], periodType:'semester'|'custom', semester, startDate, endDate, recurrence:'weekly'|'biweekly', schedule: { '월': {start:'HH:MM', end:'HH:MM'}, ... } }
     let neulbomPrograms = JSON.parse(localStorage.getItem('neulbomPrograms') || '[]');
+    // 시간표 템플릿: { id, name, className, students, helpers, teachers } - 반복되는 수업 패턴을 저장해두고 재사용/기간별 일괄 적용
+    let scheduleTemplates = JSON.parse(localStorage.getItem('scheduleTemplates') || '[]');
     const NEULBOM_CATEGORIES = ['맞춤형교실', '돌봄', '특수선택형교육', '선택형교육'];
     const WEEKDAY_NAMES = ['월', '화', '수', '목', '금'];
 
@@ -490,14 +583,14 @@
     const PERIODS = [
       { name: '등교', time: '~ 09:00', startMin: 0, endMin: 540 },
       { name: '1교시', time: '09:00 - 09:40', startMin: 540, endMin: 580 },
-      { name: '쉬는시간(1-2교시)', time: '09:40 - 09:50', startMin: 580, endMin: 590, isBreak: true },
+      { name: '쉬는시간(1-2교시)', shortLabel: '쉬는(1-2)', time: '09:40 - 09:50', startMin: 580, endMin: 590, isBreak: true },
       { name: '2교시', time: '09:50 - 10:30', startMin: 590, endMin: 630 },
-      { name: '쉬는시간(2-3교시)', time: '10:30 - 10:40', startMin: 630, endMin: 640, isBreak: true },
+      { name: '쉬는시간(2-3교시)', shortLabel: '쉬는(2-3)', time: '10:30 - 10:40', startMin: 630, endMin: 640, isBreak: true },
       { name: '3교시', time: '10:40 - 11:20', startMin: 640, endMin: 680 },
       { name: '저점/고4', time: '11:20 - 12:10', startMin: 680, endMin: 730 },
       { name: '고점/저4', time: '12:10 - 13:00', startMin: 730, endMin: 780 },
       { name: '5교시', time: '13:00 - 13:40', startMin: 780, endMin: 820 },
-      { name: '쉬는시간(5-6교시)', time: '13:40 - 13:50', startMin: 820, endMin: 830, isBreak: true },
+      { name: '쉬는시간(5-6교시)', shortLabel: '쉬는(5-6)', time: '13:40 - 13:50', startMin: 820, endMin: 830, isBreak: true },
       { name: '6교시', time: '13:50 - 14:30', startMin: 830, endMin: 870 },
       { name: '방과후', time: '14:30 ~', startMin: 870, endMin: 1440 }
     ];
@@ -521,12 +614,159 @@
       return entries.find(e => e.students.includes(personName) || e.helpers.includes(personName) || e.teachers.includes(personName)) || null;
     }
 
-    // ===== 브라우저 로컬 캐시 (구글시트 연결 여부와 무관하게, 새로고침해도 데이터가 사라지지 않도록 함) =====
+    // ===== 셀 드래그 선택 + 복사/붙여넣기 (Shift+클릭/드래그로 선택, 기존 클릭=모달 열기는 그대로 유지) =====
+    let isDragSelecting = false;
+    let suppressNextClick = false;
+    const selectedCellEls = new Set();
+    let cellClipboard = null; // { mode:'cell', entries:[...] } 또는 { mode:'person', entry:{...} }
+
+    function parseCellKey(key) {
+      const idx = key.indexOf('|');
+      if(idx === -1) return { cellId: key, person: null };
+      return { cellId: key.slice(0, idx), person: key.slice(idx + 1) };
+    }
+
+    function applySelectionVisual() {
+      document.querySelectorAll('.cell-selected').forEach(el => el.classList.remove('cell-selected'));
+      selectedCellEls.forEach(el => el.classList.add('cell-selected'));
+    }
+
+    function updateSelectionToolbar() {
+      const toolbar = document.getElementById('selection-toolbar');
+      const label = document.getElementById('selection-count-label');
+      if(selectedCellEls.size === 0) { toolbar.style.display = 'none'; return; }
+      toolbar.style.display = 'flex';
+      label.textContent = `${selectedCellEls.size}개 셀 선택됨` + (cellClipboard ? ' · 클립보드에 복사된 내용 있음' : '');
+    }
+
+    function clearCellSelection() {
+      selectedCellEls.clear();
+      document.querySelectorAll('.cell-selected').forEach(el => el.classList.remove('cell-selected'));
+      updateSelectionToolbar();
+    }
+
+    // Shift+클릭/드래그로 셀 선택 시작 (Shift 없이 클릭하면 기존처럼 그대로 입력 모달이 열림)
+    document.getElementById('view-content').addEventListener('mousedown', function(e) {
+      if(!e.shiftKey) return;
+      const el = e.target.closest('[data-cellkey]');
+      if(!el) return;
+      e.preventDefault();
+      suppressNextClick = true;
+      isDragSelecting = true;
+      if(e.ctrlKey || e.metaKey) {
+        if(selectedCellEls.has(el)) selectedCellEls.delete(el); else selectedCellEls.add(el);
+      } else {
+        selectedCellEls.clear();
+        selectedCellEls.add(el);
+      }
+      applySelectionVisual();
+      updateSelectionToolbar();
+    }, true);
+
+    // Shift 드래그 중 지나가는 셀들을 선택에 추가
+    document.getElementById('view-content').addEventListener('mouseover', function(e) {
+      if(!isDragSelecting) return;
+      const el = e.target.closest('[data-cellkey]');
+      if(!el) return;
+      selectedCellEls.add(el);
+      applySelectionVisual();
+      updateSelectionToolbar();
+    });
+
+    document.addEventListener('mouseup', function() { isDragSelecting = false; });
+
+    // Shift+클릭으로 셀을 선택할 때, 뒤이어 발생하는 click 이벤트(=모달 열기)를 막음
+    document.getElementById('view-content').addEventListener('click', function(e) {
+      if(suppressNextClick) {
+        e.preventDefault();
+        e.stopPropagation();
+        suppressNextClick = false;
+      }
+    }, true);
+
+    // 선택된 셀 중 첫 번째(앵커) 셀의 내용을 클립보드에 복사
+    function copySelectedCells() {
+      if(selectedCellEls.size === 0) return;
+      const anchorEl = selectedCellEls.values().next().value;
+      const { cellId, person } = parseCellKey(anchorEl.dataset.cellkey);
+
+      if(person) {
+        const entry = findEntryForPerson(cellId, person);
+        if(!entry) { alert('복사할 내용이 없는 셀입니다.'); return; }
+        cellClipboard = { mode: 'person', entry: JSON.parse(JSON.stringify(entry)) };
+      } else {
+        const entries = getEntries(cellId);
+        if(entries.length === 0) { alert('복사할 내용이 없는 셀입니다.'); return; }
+        cellClipboard = { mode: 'cell', entries: JSON.parse(JSON.stringify(entries)) };
+      }
+      updateSelectionToolbar();
+    }
+
+    // 클립보드 내용을 선택된 모든 셀에 붙여넣기 (단일/복수 셀 모두 지원)
+    function pasteToSelectedCells() {
+      if(!cellClipboard) { alert('먼저 복사할 셀을 Shift+클릭으로 선택하고 "복사"를 눌러주세요.'); return; }
+      if(selectedCellEls.size === 0) { alert('붙여넣을 셀을 Shift+클릭/드래그로 선택해주세요.'); return; }
+
+      selectedCellEls.forEach(el => {
+        const { cellId, person } = parseCellKey(el.dataset.cellkey);
+        pasteClipboardToCell(cellId, person);
+      });
+      clearCellSelection();
+      render();
+    }
+
+    function pasteClipboardToCell(cellId, person) {
+      const sepIdx = cellId.indexOf('_');
+      const date = cellId.slice(0, sepIdx);
+      const period = cellId.slice(sepIdx + 1);
+      if(!scheduleData[cellId]) scheduleData[cellId] = [];
+      const entries = scheduleData[cellId];
+
+      const pushToSheet = (entry) => postToSheet('schedule', {
+        id: entry.id, date, period, className: entry.className,
+        students: entry.students.join(', '), helpers: entry.helpers.join(', '), teachers: entry.teachers.join(', '),
+        behavior: entry.behavior, behaviorTime: entry.behaviorTime, positive: entry.positive, memo: entry.memo
+      });
+
+      if(person) {
+        // 개인 기준(개인주간/매트릭스) 붙여넣기: 대상 인물이 학생/지원인력/교사 중 알맞은 목록에 포함되도록 보정
+        const roster = getRoster();
+        const source = cellClipboard.mode === 'person' ? cellClipboard.entry : cellClipboard.entries[0];
+        const cloned = JSON.parse(JSON.stringify(source));
+        ['students', 'helpers', 'teachers'].forEach(k => { cloned[k] = cloned[k].filter(x => x !== person); });
+        if(roster.mainStudents.includes(person) || roster.extraStudents.includes(person)) cloned.students.push(person);
+        else if(roster.helpers.includes(person)) cloned.helpers.push(person);
+        else if(roster.teachers.includes(person)) cloned.teachers.push(person);
+
+        const existing = findEntryForPerson(cellId, person);
+        if(existing) {
+          cloned.id = existing.id;
+          const idx = entries.findIndex(e => e.id === existing.id);
+          entries[idx] = cloned;
+        } else {
+          cloned.id = generateEntryId();
+          entries.push(cloned);
+        }
+        pushToSheet(cloned);
+      } else {
+        // 학급 기준(학급주간) 붙여넣기: 복사했던 셀의 기록 전체를 그대로 복제
+        const sourceEntries = cellClipboard.mode === 'cell' ? cellClipboard.entries : [cellClipboard.entry];
+        sourceEntries.forEach(src => {
+          const cloned = JSON.parse(JSON.stringify(src));
+          cloned.id = generateEntryId();
+          entries.push(cloned);
+          pushToSheet(cloned);
+        });
+      }
+    }
+
+
     function saveLocalCache() {
       try {
         localStorage.setItem('scheduleDataCache', JSON.stringify(scheduleData));
         localStorage.setItem('attendanceDataCache', JSON.stringify(attendanceData));
         localStorage.setItem('eventDataCache', JSON.stringify(eventData));
+        localStorage.setItem('dayNoteDataCache', JSON.stringify(dayNoteData));
       } catch(e) {
         console.error('로컬 캐시 저장 실패:', e);
       }
@@ -545,6 +785,10 @@
         const ed = localStorage.getItem('eventDataCache');
         if(ed) Object.assign(eventData, JSON.parse(ed));
       } catch(e) { console.error('eventData 캐시 로드 실패:', e); }
+      try {
+        const dn = localStorage.getItem('dayNoteDataCache');
+        if(dn) Object.assign(dayNoteData, JSON.parse(dn));
+      } catch(e) { console.error('dayNoteData 캐시 로드 실패:', e); }
     }
 
     // ===== 구글 시트 연동 공통 헬퍼 =====
@@ -682,6 +926,7 @@
         Object.keys(scheduleData).forEach(k => delete scheduleData[k]);
         Object.keys(attendanceData).forEach(k => delete attendanceData[k]);
         Object.keys(eventData).forEach(k => delete eventData[k]);
+        Object.keys(dayNoteData).forEach(k => delete dayNoteData[k]);
         neulbomPrograms.length = 0;
 
         (json.schedule || []).forEach(row => {
@@ -710,7 +955,12 @@
         });
 
         (json.events || []).forEach(row => {
-          if(row['날짜'] && row['행사내용']) eventData[row['날짜']] = row['행사내용'];
+          if(!row['날짜']) return;
+          const kind = row['구분'] || '행사'; // 이전 스키마(구분 열 없음) 호환: 기본값은 행사로 처리
+          const content = row['내용'] !== undefined && row['내용'] !== '' ? row['내용'] : row['행사내용']; // 신/구 스키마 모두 지원
+          if(!content) return;
+          if(kind === '하루기록') dayNoteData[row['날짜']] = content;
+          else eventData[row['날짜']] = content;
         });
 
         (json.neulbom || []).forEach(row => {
@@ -787,6 +1037,21 @@
     }
 
     // 4. 날짜 제어
+    // ⚠️ toISOString()은 UTC 기준으로 변환하므로 한국(UTC+9) 등에서는 자정 근처 시각에 하루가 밀리는 버그가 생긴다.
+    // (특히 미니달력의 new Date(y,m-1,d)처럼 "로컬 자정" 시각을 갖는 Date 객체에서 100% 발생)
+    // 반드시 로컬 시간 기준 getFullYear/getMonth/getDate로만 날짜 문자열을 만들어야 한다.
+    function toDateStr(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    function toMonthStr(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      return `${y}-${m}`;
+    }
+
     function getMonday(d) {
       const date = new Date(d);
       const day = date.getDay();
@@ -865,6 +1130,18 @@
       const range = getNeulbomDateRange(program);
       if(date < range.start || date > range.end) return false;
 
+      // 제외 기간(방학, 공휴일 등)에 해당하면 비활성 - 명절/방학 등으로 잠시 쉬는 경우를 프로그램을 쪼개지 않고 표현
+      if(program.excludedRanges && program.excludedRanges.length) {
+        const d = stripTime(date);
+        const isExcluded = program.excludedRanges.some(ex => {
+          if(!ex.start || !ex.end) return false;
+          const exStart = stripTime(new Date(ex.start + 'T00:00:00'));
+          const exEnd = stripTime(new Date(ex.end + 'T23:59:59'));
+          return d >= exStart && d <= exEnd;
+        });
+        if(isExcluded) return false;
+      }
+
       if(program.recurrence === 'biweekly') {
         const diffDays = Math.floor((stripTime(date) - stripTime(range.start)) / 86400000);
         const weekNum = Math.floor(diffDays / 7);
@@ -918,6 +1195,8 @@
     // 5. 메인 렌더링
     function render() {
       saveLocalCache(); // 새로고침해도 사라지지 않도록 매 렌더링 시 브라우저에 자동 저장 (구글시트 연결 여부와 무관하게 동작)
+      selectedCellEls.clear(); // 재렌더링으로 이전 DOM이 사라지므로 셀 선택 상태도 함께 초기화 (클립보드 내용은 유지)
+      document.getElementById('selection-toolbar').style.display = 'none';
 
       const year = getAcademicYear(currentDate);
       document.getElementById('academic-year-badge').innerText = `${year}학년도`;
@@ -927,7 +1206,7 @@
         `${currentDate.getMonth()+1}월 ${currentDate.getDate()}일 (${['일','월','화','수','목','금','토'][currentDate.getDay()]})`;
 
       // 일일 행사 배너 (등록된 행사가 있을 때만 표시, 없으면 알림 없이 숨김)
-      const dateStr = currentDate.toISOString().split('T')[0];
+      const dateStr = toDateStr(currentDate);
       const ev = eventData[dateStr];
       const banner = document.getElementById('event-banner');
       if(ev) {
@@ -957,24 +1236,24 @@
       let html = `<table><thead><tr><th class="time-col">교시 / 시간</th>`;
       days.forEach((d, i) => {
         const dt = new Date(monday); dt.setDate(monday.getDate() + i);
-        const dEv = eventData[dt.toISOString().split('T')[0]];
+        const dEv = eventData[toDateStr(dt)];
         const evBadge = dEv ? `<br><span style="font-size:0.62rem; font-weight:normal; color:#92400e; background:#fef3c7; border:1px solid #fde047; padding:1px 4px; border-radius:3px; display:inline-block; margin-top:2px;">🗓️ ${dEv}</span>` : '';
         html += `<th>${d} (${dt.getMonth()+1}/${dt.getDate()})${evBadge}</th>`;
       });
       html += `</tr></thead><tbody>`;
 
       PERIODS.forEach(p => {
-        html += `<tr><td class="time-col ${p.isBreak ? 'is-break' : ''}">${p.name}<span class="time-sub">${p.time}</span></td>`;
+        html += `<tr><td class="time-col ${p.isBreak ? 'is-break' : ''}">${p.shortLabel || p.name}<span class="time-sub">${p.time}</span></td>`;
         days.forEach((d, i) => {
           const dt = new Date(monday); dt.setDate(monday.getDate() + i);
-          const dateStr = dt.toISOString().split('T')[0];
+          const dateStr = toDateStr(dt);
           const todayAtt = attendanceData[dateStr] || {};
           const cellId = `${dateStr}_${p.name}`;
           const entries = getEntries(cellId);
           // 학급 필터 적용: 특정 반 선택 시 해당 반 기록만, 전체 선택 시 모든 기록 표시
           const visibleEntries = classFilter === 'ALL' ? entries : entries.filter(en => en.className === classFilter);
 
-          html += `<td class="matrix-cell-relative">`;
+          html += `<td class="matrix-cell-relative selectable-cell" data-cellkey="${cellId}">`;
           if(visibleEntries.length === 0) {
             html += `<div class="clickable-cell empty-cell-add" onclick="openInputModal('${cellId}', null, null)">&nbsp;</div>`;
           } else {
@@ -1046,7 +1325,7 @@
       
       days.forEach((d, i) => {
         const dt = new Date(monday); dt.setDate(monday.getDate() + i);
-        const dateStr = dt.toISOString().split('T')[0];
+        const dateStr = toDateStr(dt);
         const rec = (attendanceData[dateStr] || {})[selectedPerson];
         const b = formatAttBadge(rec, isStudentPerson);
         const headerBadge = b ? `<br><span class="${b.cls}">${b.text}</span>` : '';
@@ -1057,10 +1336,10 @@
       html += `</tr></thead><tbody>`;
 
       PERIODS.forEach(p => {
-        html += `<tr><td class="time-col ${p.isBreak ? 'is-break' : ''}">${p.name}<span class="time-sub">${p.time}</span></td>`;
+        html += `<tr><td class="time-col ${p.isBreak ? 'is-break' : ''}">${p.shortLabel || p.name}<span class="time-sub">${p.time}</span></td>`;
         days.forEach((d, i) => {
           const dt = new Date(monday); dt.setDate(monday.getDate() + i);
-          const dateStr = dt.toISOString().split('T')[0];
+          const dateStr = toDateStr(dt);
           const todayAtt = attendanceData[dateStr] || {};
           const rec = todayAtt[selectedPerson];
           const b = formatAttBadgeForPeriod(rec, isStudentPerson, p);
@@ -1077,8 +1356,8 @@
           else if (b && b.cls === 'badge-tardy') cellStyle = 'background:#fef9c3;';
           else if (isAssigned) cellStyle = 'background:#f0fdf4;';
 
-          const cellClass = `clickable-cell matrix-cell-relative${neulbomOverlaps.length ? ' has-neulbom' : ''}`;
-          html += `<td class="${cellClass}" style="${cellStyle}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${selectedPerson}')">`;
+          const cellClass = `clickable-cell matrix-cell-relative selectable-cell${neulbomOverlaps.length ? ' has-neulbom' : ''}`;
+          html += `<td class="${cellClass}" style="${cellStyle}" data-cellkey="${cellId}|${selectedPerson}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${selectedPerson}')">`;
           
           // 결석/지각 여부는 요일 헤더에 1회만 표기하고, 셀 안에서는 반복 텍스트 없이 배경색으로만 표시
           if(!(rec && rec.status === 'ABSENT')) {
@@ -1127,7 +1406,7 @@
     // 뷰③: 일일 전체 매트릭스 뷰 (학생/지원인력/교사 각 열은 반드시 그 사람이 포함된 기록만 표시·편집)
     function renderDailyMatrix(container) {
       const roster = getRoster();
-      const dateStr = currentDate.toISOString().split('T')[0];
+      const dateStr = toDateStr(currentDate);
       const todayAtt = attendanceData[dateStr] || {};
 
       // 학생 컬럼 그룹: 우리반 학생 + 외부/옆반 학생
@@ -1166,7 +1445,7 @@
       PERIODS.forEach(p => {
         const cellId = `${dateStr}_${p.name}`;
 
-        html += `<tr><td class="time-col ${p.isBreak ? 'is-break' : ''}">${p.name}<span class="time-sub">${p.time}</span></td>`;
+        html += `<tr><td class="time-col ${p.isBreak ? 'is-break' : ''}">${p.shortLabel || p.name}<span class="time-sub">${p.time}</span></td>`;
 
         // 학생 열(우리반+외부/옆반): 그 학생이 포함된 기록을 찾아 장소 + 지원인력 + (필요 시) 교사 표기
         // + 문제행동/늘봄학교 시간대를 셀 높이에 비례한 수직 화살표(↕)로 오버레이 표시 (늘봄: 왼쪽 화살표 + 오른쪽에 참여 수업명 텍스트)
@@ -1179,8 +1458,8 @@
             let bg = entry ? '#fff7ed' : '';
             if(rec && rec.status === 'ABSENT') bg = '#fef2f2';
             else if(b && b.cls === 'badge-tardy') bg = '#fef9c3';
-            const cellClass = `clickable-cell matrix-cell-relative${neulbomOverlaps.length ? ' has-neulbom' : ''}`;
-            html += `<td class="${cellClass}" style="${bg ? `background:${bg};` : ''}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${s}')">`;
+            const cellClass = `clickable-cell matrix-cell-relative selectable-cell${neulbomOverlaps.length ? ' has-neulbom' : ''}`;
+            html += `<td class="${cellClass}" style="${bg ? `background:${bg};` : ''}" data-cellkey="${cellId}|${s}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${s}')">`;
             if(entry) {
               const showTeacher = shouldShowTeacherTag(entry, roster, false);
               html += `<span class="tag tag-main">${entry.className||'입실'}</span>`;
@@ -1213,7 +1492,7 @@
           let bg = entry ? '#e0e7ff' : '';
           if(rec && rec.status === 'ABSENT') bg = '#fef2f2';
           else if(b && b.cls === 'badge-tardy') bg = '#fef9c3';
-          html += `<td class="clickable-cell" style="${bg ? `background:${bg};` : ''}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${h}')">`;
+          html += `<td class="clickable-cell selectable-cell" style="${bg ? `background:${bg};` : ''}" data-cellkey="${cellId}|${h}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${h}')">`;
           if(entry) {
             const showTeacher = shouldShowTeacherTag(entry, roster, false);
             html += `<div class="tag tag-helper">[${entry.className||'지원'}]</div>`;
@@ -1231,7 +1510,7 @@
           let bg = entry ? '#dcfce7' : '';
           if(rec && rec.status === 'ABSENT') bg = '#fef2f2';
           else if(b && b.cls === 'badge-tardy') bg = '#fef9c3';
-          html += `<td class="clickable-cell" style="${bg ? `background:${bg};` : ''}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${t}')">
+          html += `<td class="clickable-cell selectable-cell" style="${bg ? `background:${bg};` : ''}" data-cellkey="${cellId}|${t}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${t}')">
             ${entry ? `<span class="tag tag-teacher">[${entry.className||'수업'}]</span>` : ''}
           </td>`;
         });
@@ -1248,22 +1527,36 @@
       panel.innerHTML = '';
 
       let count = 0;
+
+      // 하루 전반 기록(교시 무관) - 있으면 맨 위에 표시
+      if(dayNoteData[dateStr]) {
+        count++;
+        panel.innerHTML += `
+          <div class="memo-card-clickable" style="background:#eff6ff; border:1px solid #93c5fd; border-radius:6px; padding:8px;" onclick="openEventModalToDayNoteTab()" title="눌러서 수정">
+            <div style="font-size:0.75rem; font-weight:bold; color:#1e40af;">📓 하루 전반 기록</div>
+            <div style="font-size:0.75rem; color:#334155; margin-top:3px; white-space:pre-line;">${dayNoteData[dateStr]}</div>
+          </div>
+        `;
+      }
+
       PERIODS.forEach(p => {
         const cellId = `${dateStr}_${p.name}`;
         const entries = getEntries(cellId);
         entries.forEach(entry => {
-          if(entry.memo || entry.behavior || entry.positive || entry.students.length) {
-            count++;
-            panel.innerHTML += `
-              <div class="memo-card-clickable" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px;" onclick="openInputModal('${cellId}', '${entry.id}', null)" title="눌러서 수정">
-                <div style="font-size:0.75rem; font-weight:bold; color:#2563eb;">${p.name} (${p.time}) [${entry.className||'학급'}]</div>
-                ${entry.students.length ? `<div style="font-size:0.72rem; margin-top:2px;">학생: ${entry.students.join(', ')}</div>` : ''}
-                ${entry.behavior ? `<div class="tag tag-behavior">↕ ${entry.behavior} (${entry.behaviorTime||''})</div>` : ''}
-                ${entry.positive ? `<div class="tag tag-positive">${entry.positive}</div>` : ''}
-                ${entry.memo ? `<div style="font-size:0.75rem; color:#334155; margin-top:3px; white-space:pre-line;">📝 ${entry.memo}</div>` : ''}
-              </div>
-            `;
-          }
+          // scheduleData에는 애초에 완전히 빈 기록이 저장되지 않으므로(저장 시 이미 걸러짐),
+          // 여기서 다시 memo/behavior 등으로 필터링하면 "지원인력만 체크된" 기록 등이 누락된다 - 모두 표시
+          count++;
+          panel.innerHTML += `
+            <div class="memo-card-clickable" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px;" onclick="openInputModal('${cellId}', '${entry.id}', null)" title="눌러서 수정">
+              <div style="font-size:0.75rem; font-weight:bold; color:#2563eb;">${p.name} (${p.time}) [${entry.className||'학급'}]</div>
+              ${entry.students.length ? `<div style="font-size:0.72rem; margin-top:2px;">학생: ${entry.students.join(', ')}</div>` : ''}
+              ${entry.helpers.length ? `<div style="font-size:0.72rem; color:#3730a3; margin-top:2px;">지원인력: ${entry.helpers.join(', ')}</div>` : ''}
+              ${entry.teachers.length ? `<div style="font-size:0.72rem; color:#166534; margin-top:2px;">교사: ${entry.teachers.join(', ')}</div>` : ''}
+              ${entry.behavior ? `<div class="tag tag-behavior">↕ ${entry.behavior} (${entry.behaviorTime||''})</div>` : ''}
+              ${entry.positive ? `<div class="tag tag-positive">${entry.positive}</div>` : ''}
+              ${entry.memo ? `<div style="font-size:0.75rem; color:#334155; margin-top:3px; white-space:pre-line;">📝 ${entry.memo}</div>` : ''}
+            </div>
+          `;
         });
       });
 
@@ -1357,7 +1650,9 @@
       }
 
       document.getElementById('behavior-preset').value = data.behavior || '';
-      document.getElementById('behavior-time').value = data.behaviorTime || '';
+      const btMatch = (data.behaviorTime || '').match(/(\d{1,2}:\d{2})\s*[-~〜～]\s*(\d{1,2}:\d{2})/);
+      document.getElementById('behavior-time-start').value = btMatch ? btMatch[1] : '';
+      document.getElementById('behavior-time-end').value = btMatch ? btMatch[2] : '';
       document.getElementById('positive-preset').value = data.positive || '';
       document.getElementById('memo-input').value = data.memo || '';
 
@@ -1373,6 +1668,7 @@
       // 기존 기록을 편집하는 경우에만 삭제 버튼 노출
       document.getElementById('delete-entry-btn').style.display = existing ? 'inline-block' : 'none';
 
+      populateTemplateSelect();
       document.getElementById('input-modal').style.display = 'block';
       document.getElementById('overlay').style.display = 'block';
     }
@@ -1385,6 +1681,150 @@
       if(idx >= 0) entries.splice(idx, 1);
       postToSheet('deleteSchedule', { id: selectedEntryId });
       closeModal();
+      render();
+    }
+
+    // ===== 시간표 템플릿: 저장/불러오기/관리/기간별 일괄 적용 =====
+    function populateTemplateSelect() {
+      const select = document.getElementById('template-select');
+      select.innerHTML = '<option value="">-- 템플릿 불러오기 --</option>' +
+        scheduleTemplates.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    }
+
+    // 저장된 템플릿의 내용(장소/학생/지원인력/교사)을 현재 입력 폼에 채워넣기 (기본으로 자동 채워지는 것이 아니라, 직접 선택했을 때만 반영됨)
+    function applyTemplateToForm() {
+      const id = document.getElementById('template-select').value;
+      if(!id) return;
+      const t = scheduleTemplates.find(tp => tp.id === id);
+      if(!t) return;
+
+      document.querySelectorAll('#cb-main-students input, #cb-extra-students input').forEach(cb => { cb.checked = t.students.includes(cb.value); });
+      document.querySelectorAll('#cb-helpers input').forEach(cb => { cb.checked = t.helpers.includes(cb.value); });
+      document.querySelectorAll('#cb-teachers input').forEach(cb => { cb.checked = t.teachers.includes(cb.value); });
+
+      const presets = buildClassSelectOptions();
+      const classSelect = document.getElementById('input-class');
+      const customInput = document.getElementById('input-class-custom');
+      if(presets.includes(t.className)) {
+        classSelect.value = t.className; customInput.style.display = 'none'; customInput.value = '';
+      } else {
+        classSelect.value = '기타'; customInput.style.display = 'block'; customInput.value = t.className;
+      }
+    }
+
+    // 현재 입력 폼(장소/학생/지원인력/교사)을 이름 붙여 템플릿으로 저장 (문제행동/메모 등 일회성 내용은 저장하지 않음)
+    function saveCurrentAsTemplate() {
+      const name = prompt('템플릿 이름을 입력하세요 (예: 화요일 미술수업)');
+      if(!name) return;
+
+      const getChecked = id => Array.from(document.querySelectorAll(`#${id} input:checked`)).map(c => c.value);
+      const students = [...getChecked('cb-main-students'), ...getChecked('cb-extra-students')];
+      const helpers = getChecked('cb-helpers');
+      const teachers = getChecked('cb-teachers');
+      const classSelectVal = document.getElementById('input-class').value;
+      const className = classSelectVal === '기타'
+        ? (document.getElementById('input-class-custom').value.trim() || '기타')
+        : classSelectVal;
+
+      scheduleTemplates.push({ id: generateEntryId(), name, className, students, helpers, teachers });
+      localStorage.setItem('scheduleTemplates', JSON.stringify(scheduleTemplates));
+      populateTemplateSelect();
+      alert(`템플릿으로 저장되었습니다: ${name}`);
+    }
+
+    function openTemplateModal() {
+      renderTemplateList();
+      populateBulkTemplateSelect();
+      populateBulkPeriodSelect();
+      document.getElementById('bulk-apply-result').textContent = '';
+      document.querySelectorAll('.bulk-day-check').forEach(cb => cb.checked = false);
+      document.getElementById('template-modal').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    }
+
+    function renderTemplateList() {
+      const container = document.getElementById('template-list');
+      if(scheduleTemplates.length === 0) {
+        container.innerHTML = '<p style="color:#94a3b8; font-size:0.78rem;">저장된 템플릿이 없습니다. 시간표 입력 화면에서 "현재 내용 저장"으로 만들 수 있습니다.</p>';
+        return;
+      }
+      container.innerHTML = scheduleTemplates.map(t => `
+        <div class="nb-program-card">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
+            <div>
+              <strong style="font-size:0.82rem;">${t.name}</strong>
+              <div style="font-size:0.7rem; color:#64748b; margin-top:2px;">📍 ${t.className}</div>
+              <div style="font-size:0.7rem; color:#64748b;">👥 학생: ${t.students.join(', ') || '없음'}</div>
+              <div style="font-size:0.7rem; color:#64748b;">🙋 지원인력: ${t.helpers.join(', ') || '없음'} · 교사: ${t.teachers.join(', ') || '없음'}</div>
+            </div>
+            <button class="btn" style="padding:3px 8px; font-size:0.7rem; background:#fee2e2; color:#dc2626; flex-shrink:0;" onclick="deleteTemplate('${t.id}')">삭제</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function deleteTemplate(id) {
+      scheduleTemplates = scheduleTemplates.filter(t => t.id !== id);
+      localStorage.setItem('scheduleTemplates', JSON.stringify(scheduleTemplates));
+      renderTemplateList();
+      populateBulkTemplateSelect();
+    }
+
+    function populateBulkTemplateSelect() {
+      const select = document.getElementById('bulk-template-select');
+      select.innerHTML = scheduleTemplates.length
+        ? scheduleTemplates.map(t => `<option value="${t.id}">${t.name}</option>`).join('')
+        : '<option value="">저장된 템플릿 없음</option>';
+    }
+
+    function populateBulkPeriodSelect() {
+      const select = document.getElementById('bulk-period-select');
+      select.innerHTML = PERIODS.map(p => `<option value="${p.name}">${p.shortLabel || p.name} (${p.time})</option>`).join('');
+    }
+
+    // 선택한 템플릿을, 지정한 기간·요일·교시에 맞춰 한 번에 새 기록으로 생성
+    function applyTemplateBulk() {
+      const templateId = document.getElementById('bulk-template-select').value;
+      const template = scheduleTemplates.find(t => t.id === templateId);
+      if(!template) { alert('적용할 템플릿을 선택해주세요.'); return; }
+
+      const period = document.getElementById('bulk-period-select').value;
+      const selectedDays = Array.from(document.querySelectorAll('.bulk-day-check:checked')).map(cb => cb.value);
+      if(selectedDays.length === 0) { alert('적용할 요일을 최소 하나 선택해주세요.'); return; }
+
+      const startDateVal = document.getElementById('bulk-start-date').value;
+      const endDateVal = document.getElementById('bulk-end-date').value;
+      if(!startDateVal || !endDateVal) { alert('적용 기간(시작일~종료일)을 입력해주세요.'); return; }
+
+      const start = new Date(startDateVal + 'T00:00:00');
+      const end = new Date(endDateVal + 'T00:00:00');
+      if(start > end) { alert('시작일이 종료일보다 늦을 수 없습니다.'); return; }
+
+      let count = 0;
+      const cur = new Date(start);
+      while(cur <= end) {
+        const dayName = WEEKDAY_NAMES[cur.getDay() - 1]; // 월~금만 유효(주말은 undefined)
+        if(dayName && selectedDays.includes(dayName)) {
+          const dateStr = toDateStr(cur);
+          const cellId = `${dateStr}_${period}`;
+          if(!scheduleData[cellId]) scheduleData[cellId] = [];
+          const newEntry = {
+            id: generateEntryId(),
+            students: [...template.students], helpers: [...template.helpers], teachers: [...template.teachers],
+            className: template.className, behavior: '', behaviorTime: '', positive: '', memo: ''
+          };
+          scheduleData[cellId].push(newEntry);
+          postToSheet('schedule', {
+            id: newEntry.id, date: dateStr, period, className: newEntry.className,
+            students: newEntry.students.join(', '), helpers: newEntry.helpers.join(', '), teachers: newEntry.teachers.join(', '),
+            behavior: '', behaviorTime: '', positive: '', memo: ''
+          });
+          count++;
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+
+      document.getElementById('bulk-apply-result').textContent = `✅ ${count}건 적용되었습니다.`;
       render();
     }
 
@@ -1401,7 +1841,7 @@
     }
 
     function renderAttendanceModalContent() {
-      const dateStr = currentDate.toISOString().split('T')[0];
+      const dateStr = toDateStr(currentDate);
       const roster = getRoster(getAcademicYear(currentDate));
       const todayAtt = attendanceData[dateStr] || {};
 
@@ -1423,7 +1863,7 @@
                   <button type="button" class="att-btn ${status==='ABSENT'?'active-absent':''}" onclick="setAttState('${person}', 'ABSENT', this)">${absentLabel}</button>
                 </div>
               </div>
-              <input type="time" class="tardy-time-input" data-person="${person}" value="${time}"
+              <input type="time" lang="en-GB" class="tardy-time-input" data-person="${person}" value="${time}"
                 onchange="commitAttTime('${person}', this.value)"
                 style="display:${status==='TARDY'?'block':'none'};" placeholder="도착 시각">
             </div>
@@ -1445,7 +1885,7 @@
       const row = parent.closest('.att-row');
       const timeInput = row.querySelector('.tardy-time-input');
 
-      const dateStr = currentDate.toISOString().split('T')[0];
+      const dateStr = toDateStr(currentDate);
       if(!attendanceData[dateStr]) attendanceData[dateStr] = {};
 
       if(state === 'PRESENT') {
@@ -1466,7 +1906,7 @@
     }
 
     function commitAttTime(person, value) {
-      const dateStr = currentDate.toISOString().split('T')[0];
+      const dateStr = toDateStr(currentDate);
       if(!attendanceData[dateStr]) attendanceData[dateStr] = {};
       if(attendanceData[dateStr][person] && attendanceData[dateStr][person].status === 'TARDY') {
         attendanceData[dateStr][person].time = value;
@@ -1481,14 +1921,29 @@
     }
 
     function openEventModal() {
+      switchEventModalTab('event');
       renderEventModalContent();
       document.getElementById('event-modal').style.display = 'block';
       document.getElementById('overlay').style.display = 'block';
     }
 
+    // 오른쪽 메모 패널의 "📓 하루 전반 기록" 카드를 눌렀을 때, 하루기록 탭이 바로 보이도록 열기
+    function openEventModalToDayNoteTab() {
+      openEventModal();
+      switchEventModalTab('daynote');
+    }
+
+    function switchEventModalTab(tab) {
+      document.getElementById('event-tab-btn').classList.toggle('active', tab === 'event');
+      document.getElementById('daynote-tab-btn').classList.toggle('active', tab === 'daynote');
+      document.getElementById('event-tab-content').style.display = tab === 'event' ? 'block' : 'none';
+      document.getElementById('daynote-tab-content').style.display = tab === 'daynote' ? 'block' : 'none';
+    }
+
     function renderEventModalContent() {
-      const dateStr = currentDate.toISOString().split('T')[0];
+      const dateStr = toDateStr(currentDate);
       document.getElementById('event-input').value = eventData[dateStr] || '';
+      document.getElementById('daynote-input').value = dayNoteData[dateStr] || '';
       document.getElementById('event-modal-date-label').innerText =
         `${currentDate.getFullYear()}. ${currentDate.getMonth()+1}. ${currentDate.getDate()} (${['일','월','화','수','목','금','토'][currentDate.getDay()]}) 기준`;
     }
@@ -1498,11 +1953,18 @@
       renderEventModalContent();
     }
 
-    function saveEvent() {
-      const dateStr = currentDate.toISOString().split('T')[0];
-      const val = document.getElementById('event-input').value.trim();
-      if(val) eventData[dateStr] = val; else delete eventData[dateStr];
-      postToSheet('event', { date: dateStr, text: val });
+    // 행사 공지 + 하루 전반 기록을 함께 저장 (두 탭 다 열어둔 값 그대로 반영되므로 한 번에 저장해도 안전)
+    function saveEventOrDayNote() {
+      const dateStr = toDateStr(currentDate);
+
+      const eventVal = document.getElementById('event-input').value.trim();
+      if(eventVal) eventData[dateStr] = eventVal; else delete eventData[dateStr];
+      postToSheet('event', { date: dateStr, kind: '행사', text: eventVal });
+
+      const dayNoteVal = document.getElementById('daynote-input').value.trim();
+      if(dayNoteVal) dayNoteData[dateStr] = dayNoteVal; else delete dayNoteData[dateStr];
+      postToSheet('event', { date: dateStr, kind: '하루기록', text: dayNoteVal });
+
       render(); // 모달은 열어둔 채로 유지 - 날짜를 이동하며 연속으로 등록 가능
     }
 
@@ -1607,6 +2069,29 @@
       document.getElementById('nb-custom-period').style.display = type === 'custom' ? 'flex' : 'none';
     }
 
+    // 늘봄 프로그램 제외 기간(방학, 공휴일 등) - 필요한 만큼 행 추가 가능
+    function addNbExcludedRange(start, end) {
+      const container = document.getElementById('nb-excluded-ranges');
+      const row = document.createElement('div');
+      row.className = 'nb-excluded-row';
+      row.style.cssText = 'display:flex; gap:4px; align-items:center;';
+      row.innerHTML = `
+        <input type="date" class="nb-excl-start" value="${start || ''}" style="flex:1;">
+        <span>~</span>
+        <input type="date" class="nb-excl-end" value="${end || ''}" style="flex:1;">
+        <button type="button" class="btn" style="padding:2px 8px; background:#fee2e2; color:#dc2626; font-size:0.7rem; flex-shrink:0;" onclick="this.parentElement.remove()">삭제</button>
+      `;
+      container.appendChild(row);
+    }
+    function getNbExcludedRanges() {
+      return Array.from(document.querySelectorAll('#nb-excluded-ranges .nb-excluded-row'))
+        .map(row => ({ start: row.querySelector('.nb-excl-start').value, end: row.querySelector('.nb-excl-end').value }))
+        .filter(r => r.start && r.end);
+    }
+    function clearNbExcludedRanges() {
+      document.getElementById('nb-excluded-ranges').innerHTML = '';
+    }
+
     function toggleNbLocationCustom() {
       const sel = document.getElementById('nb-location').value;
       document.getElementById('nb-location-custom').style.display = sel === '기타' ? 'block' : 'none';
@@ -1643,9 +2128,9 @@
         return `
           <div class="nb-day-row" data-day="${day}">
             <label><input type="checkbox" class="nb-day-check" ${has ? 'checked' : ''} onchange="toggleNbDayRow(this)"> ${day}요일</label>
-            <input type="time" class="nb-day-start" value="${has ? sched[day].start : ''}" style="display:${has ? 'block' : 'none'};">
+            <input type="time" lang="en-GB" class="nb-day-start" value="${has ? sched[day].start : ''}" style="display:${has ? 'block' : 'none'};">
             <span style="align-self:center;">~</span>
-            <input type="time" class="nb-day-end" value="${has ? sched[day].end : ''}" style="display:${has ? 'block' : 'none'};">
+            <input type="time" lang="en-GB" class="nb-day-end" value="${has ? sched[day].end : ''}" style="display:${has ? 'block' : 'none'};">
           </div>
         `;
       }).join('');
@@ -1714,6 +2199,9 @@
       document.getElementById('nb-recurrence').value = p.recurrence;
       renderNeulbomDayConfig(p.schedule);
 
+      clearNbExcludedRanges();
+      (p.excludedRanges || []).forEach(r => addNbExcludedRange(r.start, r.end));
+
       const roster = getRoster();
       document.getElementById('nb-students').innerHTML = [...roster.mainStudents, ...roster.extraStudents].map(s => `
         <label><input type="checkbox" value="${s}" ${p.students.includes(s) ? 'checked' : ''}> ${s}</label>
@@ -1743,6 +2231,7 @@
       document.getElementById('nb-end-date').value = '';
       document.getElementById('nb-recurrence').value = 'weekly';
       renderNeulbomDayConfig(null);
+      clearNbExcludedRanges();
       const roster = getRoster();
       document.getElementById('nb-students').innerHTML = [...roster.mainStudents, ...roster.extraStudents].map(s => `
         <label><input type="checkbox" value="${s}"> ${s}</label>
@@ -1783,13 +2272,14 @@
       if(Object.keys(schedule).length === 0) { alert('요일별 시작·종료 시각을 최소 하나 이상 설정해 주세요.'); return; }
 
       const students = Array.from(document.querySelectorAll('#nb-students input:checked')).map(c => c.value);
+      const excludedRanges = getNbExcludedRanges();
 
       const program = {
         id: editId || generateEntryId(),
         category, name, location, students,
         periodType, semester, startDate, endDate,
         academicYear: getAcademicYear(currentDate),
-        recurrence, schedule
+        recurrence, schedule, excludedRanges
       };
 
       if(editId) {
@@ -1818,7 +2308,9 @@
         : classSelectVal;
 
       const behavior = document.getElementById('behavior-preset').value;
-      const behaviorTime = document.getElementById('behavior-time').value;
+      const btStart = document.getElementById('behavior-time-start').value;
+      const btEnd = document.getElementById('behavior-time-end').value;
+      const behaviorTime = (btStart && btEnd) ? `${btStart}-${btEnd}` : '';
       const positive = document.getElementById('positive-preset').value;
       const memo = document.getElementById('memo-input').value;
 
@@ -1856,7 +2348,7 @@
       const pop = document.getElementById('mini-cal-popup');
       pop.style.display = pop.style.display === 'block' ? 'none' : 'block';
       if(pop.style.display === 'block') {
-        const ym = currentDate.toISOString().slice(0, 7);
+        const ym = toMonthStr(currentDate);
         document.getElementById('cal-month-picker').value = ym;
         renderMiniCal();
       }
