@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>특수학급 스마트 시간표 & 일지</title>
   <style>
+    html { font-size: 17px; }
     * { box-sizing: border-box; font-family: 'Pretendard', 'Malgun Gothic', sans-serif; }
     body { display: flex; flex-direction: column; height: 100vh; margin: 0; background: #f8fafc; color: #1e293b; }
     
@@ -31,6 +32,13 @@
       .memo-panel { flex: 0 0 auto !important; max-width: 100% !important; width: 100%; border-left: none; border-top: 1px solid #cbd5e1; }
       .memo-panel.collapsed { flex: 0 0 40px !important; max-width: 100% !important; }
       .memo-panel.collapsed #mini-cal-widget, .memo-panel.collapsed .memo-title, .memo-panel.collapsed #daily-memo-list { display: none; }
+
+      .top-bar { padding: 6px 8px; gap: 5px; }
+      .nav-group { flex-wrap: nowrap; overflow-x: auto; gap: 5px; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+      .nav-group::-webkit-scrollbar { height: 4px; }
+      .nav-group button { font-size: 0.72rem !important; padding: 5px 7px !important; white-space: nowrap; flex-shrink: 0; }
+      #current-date-text { white-space: nowrap; flex-shrink: 0; }
+      .tab-btn { font-size: 0.76rem; padding: 5px 9px; }
     }
     .content-area { flex: 1 1 auto; min-width: 0; padding: 12px; overflow: auto; }
     .cell-selected { outline: 3px solid #2563eb; outline-offset: -3px; }
@@ -201,7 +209,9 @@
       <!-- 상시 표시 미니 달력: 일일매트릭스는 그날 하루, 주간 뷰는 해당 주(월~금) 전체를 음영 표시 -->
       <div id="mini-cal-widget" style="border:1px solid #e2e8f0; border-radius:8px; padding:8px; margin-bottom:10px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <button onclick="shiftMiniCalMonth(-1)" style="padding:2px 7px; font-size:0.72rem;">◀</button>
           <input type="month" id="cal-month-picker" onchange="renderMiniCal()" style="font-size:0.75rem; flex:1;">
+          <button onclick="shiftMiniCalMonth(1)" style="padding:2px 7px; font-size:0.72rem;">▶</button>
         </div>
         <div id="mini-cal-grid" style="display:grid; grid-template-columns:repeat(7, 1fr); gap:2px; font-size:0.7rem; text-align:center;"></div>
       </div>
@@ -292,6 +302,10 @@
     <div class="form-group">
       <label>수업 내용 / 특이사항 메모</label>
       <textarea id="memo-input" rows="4" placeholder="메모 남기기"></textarea>
+    </div>
+    <div class="form-group">
+      <label>한 줄 요약 (선택 — 설정에서 "요약만 표시" 선택 시 시간표 칸에 이 내용이 우선 표시됩니다)</label>
+      <input type="text" id="summary-input" placeholder="예: 미술수업, 소란 있었음 등 짧게">
     </div>
     <div style="display:flex; justify-content:space-between; gap:6px;">
       <button class="btn" id="delete-entry-btn" style="background:#fee2e2; color:#dc2626; display:none;" onclick="deleteEntry()">이 기록 삭제</button>
@@ -428,13 +442,14 @@
     </div>
 
     <div class="form-group">
-      <label>🗒️ 시간표 셀에 메모 표시</label>
-      <div style="display:flex; flex-direction:column; gap:4px;">
-        <label style="font-weight:normal; display:flex; align-items:center; gap:4px;"><input type="checkbox" id="cfg-show-memo-in-cell" style="width:auto;"> 학급 주간 뷰의 칸에 메모 내용을 직접 표시</label>
-        <label style="font-weight:normal; display:flex; align-items:center; gap:4px;"><input type="checkbox" id="cfg-truncate-memo" style="width:auto;"> 길면 잘라서 표시 (전체 내용은 마우스를 올리거나 클릭하면 확인 가능)</label>
-        <label style="font-weight:normal; display:flex; align-items:center; gap:4px;"><input type="checkbox" id="cfg-memo-panel-summary" style="width:auto;"> 오른쪽 "오늘의 메모/일지" 패널을 한 줄 요약(⭐↕📝 아이콘)으로 간략히 표시</label>
-      </div>
-      <p style="font-size:0.68rem; color:#94a3b8; margin:4px 0 0 0;">패널 항목을 눌러 수정하면 전체 내용을 볼 수 있습니다.</p>
+      <label>🗒️ 학급 주간 뷰 칸에 메모 표시</label>
+      <select id="cfg-memo-display-mode">
+        <option value="full">전체 표시</option>
+        <option value="truncate">잘라서 표시 (전체는 클릭하면 확인)</option>
+        <option value="summary">한 줄 요약만 표시 (입력 시 "요약" 칸이 있으면 그걸 우선 사용)</option>
+        <option value="hide">표시 안 함</option>
+      </select>
+      <p style="font-size:0.68rem; color:#94a3b8; margin:4px 0 0 0;">오른쪽 "오늘의 메모/일지" 패널은 이 설정과 무관하게 항상 전체 내용을 보여줍니다.</p>
     </div>
 
     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px; margin-bottom:10px;">
@@ -1342,9 +1357,13 @@
               });
               if(entry.behavior) html += `<div class="tag tag-behavior">↕ ${entry.behavior} (${entry.behaviorTime||'시작-종료'})</div>`;
               if(entry.positive) html += `<div class="tag tag-positive">${entry.positive}</div>`;
-              if(entry.memo && shouldShowMemoInCell()) {
-                const memoDisplay = shouldTruncateMemoInCell() ? truncateMemoText(entry.memo, 20) : entry.memo;
-                html += `<div style="font-size:0.72rem; color:#475569; margin-top:2px;" title="${entry.memo.replace(/"/g,'&quot;')}">📝 ${memoDisplay}</div>`;
+              const memoMode = getMemoDisplayMode();
+              if(memoMode !== 'hide' && (entry.memo || entry.summary)) {
+                const fullTitle = (entry.memo || '').replace(/"/g,'&quot;');
+                let memoDisplay = entry.memo || '';
+                if(memoMode === 'summary') memoDisplay = entry.summary ? entry.summary : truncateMemoText(entry.memo || '', 12);
+                else if(memoMode === 'truncate') memoDisplay = truncateMemoText(entry.memo || '', 20);
+                if(memoDisplay) html += `<div style="font-size:0.72rem; color:#475569; margin-top:2px;" title="${fullTitle}">📝 ${memoDisplay}</div>`;
               }
               html += `</div>`;
             });
@@ -1618,16 +1637,6 @@
           // scheduleData에는 애초에 완전히 빈 기록이 저장되지 않으므로(저장 시 이미 걸러짐),
           // 여기서 다시 memo/behavior 등으로 필터링하면 "지원인력만 체크된" 기록 등이 누락된다 - 모두 표시
           count++;
-          if(isMemoPanelSummaryMode()) {
-            const flags = `${entry.positive ? '⭐' : ''}${entry.behavior ? '↕' : ''}${entry.memo ? '📝' : ''}`;
-            panel.innerHTML += `
-              <div class="memo-card-clickable" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:5px 8px; display:flex; justify-content:space-between; align-items:center; gap:6px;" onclick="openInputModal('${cellId}', '${entry.id}', null)" title="눌러서 수정">
-                <span style="font-size:0.75rem;"><b style="color:#2563eb;">${p.shortLabel||p.name}</b> [${entry.className||'학급'}]</span>
-                <span style="font-size:0.85rem;">${flags || '·'}</span>
-              </div>
-            `;
-            return;
-          }
           panel.innerHTML += `
             <div class="memo-card-clickable" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px;" onclick="openInputModal('${cellId}', '${entry.id}', null)" title="눌러서 수정">
               <div style="font-size:0.75rem; font-weight:bold; color:#2563eb;">${p.name} (${p.time}) [${entry.className||'학급'}]</div>
@@ -1660,15 +1669,8 @@
 
     // 6. 모달 관련 로직
     // 시간표 셀에 메모 직접 표시할지/잘라서 표시할지 설정 (오른쪽 메모 패널은 이 설정과 무관하게 항상 전체 표시)
-    function isMemoPanelSummaryMode() {
-      return localStorage.getItem('memoPanelSummaryMode') === 'true';
-    }
-    function shouldShowMemoInCell() {
-      const v = localStorage.getItem('showMemoInCell');
-      return v === null ? true : v === 'true'; // 기본값: 표시함
-    }
-    function shouldTruncateMemoInCell() {
-      return localStorage.getItem('truncateMemoInCell') === 'true'; // 기본값: 자르지 않음
+    function getMemoDisplayMode() {
+      return localStorage.getItem('memoDisplayMode') || 'full'; // 기본값: 전체 표시
     }
     function truncateMemoText(text, len) {
       return text.length > len ? text.slice(0, len) + '…' : text;
@@ -1753,6 +1755,7 @@
       document.getElementById('behavior-time-end').value = btMatch ? btMatch[2] : '';
       document.getElementById('positive-preset').value = data.positive || '';
       document.getElementById('memo-input').value = data.memo || '';
+      document.getElementById('summary-input').value = data.summary || '';
 
       // 모달 제목/안내: 어떤 기록을 편집하는지, 어떤 인물 때문에 열렸는지 명확히 표시
       document.getElementById('modal-title').innerText = `${cellId.replace('_',' ')} 기록`;
@@ -2112,9 +2115,7 @@
       document.getElementById('cfg-custom-locations').value = getCustomLocations().join(', ');
 
       // 시간표 셀 메모 표시 설정
-      document.getElementById('cfg-show-memo-in-cell').checked = shouldShowMemoInCell();
-      document.getElementById('cfg-truncate-memo').checked = shouldTruncateMemoInCell();
-      document.getElementById('cfg-memo-panel-summary').checked = isMemoPanelSummaryMode();
+      document.getElementById('cfg-memo-display-mode').value = getMemoDisplayMode();
     }
 
     function saveSettings() {
@@ -2153,9 +2154,7 @@
       postToSheet('settings', { key: 'customLocations', value: JSON.stringify(customLocations) });
 
       // 시간표 셀 메모 표시 설정 저장 (로컬 전용)
-      localStorage.setItem('showMemoInCell', document.getElementById('cfg-show-memo-in-cell').checked);
-      localStorage.setItem('truncateMemoInCell', document.getElementById('cfg-truncate-memo').checked);
-      localStorage.setItem('memoPanelSummaryMode', document.getElementById('cfg-memo-panel-summary').checked);
+      localStorage.setItem('memoDisplayMode', document.getElementById('cfg-memo-display-mode').value);
 
       closeModal();
       render();
@@ -2467,6 +2466,7 @@
       const behaviorTime = (btStart && btEnd) ? `${btStart}-${btEnd}` : '';
       const positive = document.getElementById('positive-preset').value;
       const memo = document.getElementById('memo-input').value;
+      const summary = document.getElementById('summary-input').value;
 
       const isEmpty = students.length === 0 && helpers.length === 0 && teachers.length === 0 && !behavior && !positive && !memo;
       const [date, period] = selectedCellId.split('_');
@@ -2482,14 +2482,14 @@
           if(idx >= 0) entries.splice(idx, 1);
           postToSheet('deleteSchedule', { id: selectedEntryId });
         } else {
-          const updated = { id: selectedEntryId, students, helpers, teachers, className, behavior, behaviorTime, positive, memo };
+          const updated = { id: selectedEntryId, students, helpers, teachers, className, behavior, behaviorTime, positive, memo, summary };
           if(idx >= 0) entries[idx] = updated; else entries.push(updated);
           postToSheet('schedule', { id: selectedEntryId, date, period, className, students: students.join(', '), helpers: helpers.join(', '), teachers: teachers.join(', '), behavior, behaviorTime, positive, memo });
         }
       } else if(!isEmpty) {
         // 신규 기록 생성 (내용이 있을 때만 저장)
         const newId = generateEntryId();
-        entries.push({ id: newId, students, helpers, teachers, className, behavior, behaviorTime, positive, memo });
+        entries.push({ id: newId, students, helpers, teachers, className, behavior, behaviorTime, positive, memo, summary });
         postToSheet('schedule', { id: newId, date, period, className, students: students.join(', '), helpers: helpers.join(', '), teachers: teachers.join(', '), behavior, behaviorTime, positive, memo });
       }
 
@@ -2502,6 +2502,14 @@
       const picker = document.getElementById('cal-month-picker');
       const ym = toMonthStr(currentDate);
       if(picker.value !== ym) picker.value = ym;
+      renderMiniCal();
+    }
+
+    function shiftMiniCalMonth(delta) {
+      const picker = document.getElementById('cal-month-picker');
+      const [y, m] = picker.value.split('-').map(Number);
+      const d = new Date(y, m - 1 + delta, 1);
+      picker.value = toMonthStr(d);
       renderMiniCal();
     }
 
