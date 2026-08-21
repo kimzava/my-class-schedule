@@ -38,11 +38,13 @@
     .memo-toggle-btn { border: none; background: #f1f5f9; border-radius: 4px; cursor: pointer; font-size: 0.75rem; padding: 3px 8px; color: #475569; font-weight: bold; flex-shrink: 0; }
 
     /* 테이블 공통 */
-    table { width: 100%; border-collapse: collapse; background: white; font-size: 0.78rem; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-    th, td { border: 1px solid #e2e8f0; padding: 5px 6px; text-align: center; min-width: 85px; vertical-align: top; }
+    table { width: 100%; border-collapse: collapse; background: white; font-size: 0.78rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); table-layout: fixed; }
+    th, td { border: 1px solid #e2e8f0; padding: 5px 6px; text-align: center; vertical-align: top; overflow-wrap: break-word; }
     th { background: #f1f5f9; font-weight: bold; color: #334155; }
-    .time-col { background: #f8fafc; font-weight: bold; width: 110px; color: #475569; }
-    .time-col.is-break { background: #f1f5f9; color: #94a3b8; font-weight: normal; font-size: 0.72rem; white-space: nowrap; }
+    .time-col { background: #f8fafc; font-weight: bold; width: 68px; color: #475569; position: sticky; left: 0; z-index: 2; }
+    .time-col.is-break { background: #f1f5f9; color: #94a3b8; font-weight: normal; font-size: 0.68rem; }
+    tr.is-break-row td:not(.time-col), tr.is-break-row th:not(.time-col) { background: #fafbfc; }
+    .group-divider { border-left: 2.5px solid #94a3b8 !important; }
     .time-sub { font-size: 0.7rem; color: #64748b; font-weight: normal; display: block; margin-top: 1px; }
     .clickable-cell { cursor: pointer; transition: background 0.15s; }
     .clickable-cell:hover { background: #eff6ff !important; }
@@ -195,9 +197,9 @@
     <div class="memo-panel" id="memo-panel">
       <div class="memo-panel-header">
         <h4 class="memo-title" style="margin:0; font-size:0.95rem; color:#0f172a;">📝 오늘의 메모 / 일지</h4>
-        <button id="memo-toggle-btn" class="memo-toggle-btn" onclick="toggleMemoPanel()" title="메모 패널 접기">◀</button>
+        <button id="memo-toggle-btn" class="memo-toggle-btn" onclick="toggleMemoPanel()" title="메모 패널 접기">▶</button>
       </div>
-      <div class="memo-collapsed-label" onclick="toggleMemoPanel()">📝 메모 펼치기</div>
+      <div class="memo-collapsed-label" onclick="toggleMemoPanel()">📝 메모</div>
       <div id="daily-memo-list" style="display:flex; flex-direction:column; gap:8px;">
         <p style="color:#94a3b8; font-size:0.78rem;">수업 시간표에 작성한 특이사항이 표시됩니다.</p>
       </div>
@@ -1243,7 +1245,7 @@
       html += `</tr></thead><tbody>`;
 
       PERIODS.forEach(p => {
-        html += `<tr><td class="time-col ${p.isBreak ? 'is-break' : ''}">${p.shortLabel || p.name}<span class="time-sub">${p.time}</span></td>`;
+        html += `<tr class="${p.isBreak ? 'is-break-row' : ''}"><td class="time-col ${p.isBreak ? 'is-break' : ''}">${p.shortLabel || p.name}<span class="time-sub">${p.time}</span></td>`;
         days.forEach((d, i) => {
           const dt = new Date(monday); dt.setDate(monday.getDate() + i);
           const dateStr = toDateStr(dt);
@@ -1336,7 +1338,7 @@
       html += `</tr></thead><tbody>`;
 
       PERIODS.forEach(p => {
-        html += `<tr><td class="time-col ${p.isBreak ? 'is-break' : ''}">${p.shortLabel || p.name}<span class="time-sub">${p.time}</span></td>`;
+        html += `<tr class="${p.isBreak ? 'is-break-row' : ''}"><td class="time-col ${p.isBreak ? 'is-break' : ''}">${p.shortLabel || p.name}<span class="time-sub">${p.time}</span></td>`;
         days.forEach((d, i) => {
           const dt = new Date(monday); dt.setDate(monday.getDate() + i);
           const dateStr = toDateStr(dt);
@@ -1418,39 +1420,40 @@
       let html = `<table><thead>
         <tr>
           <th class="time-col" rowspan="2">교시 / 시간</th>
-          ${studentGroups.map(g => `<th colspan="${g.list.length}">${g.label} (${g.list.length})</th>`).join('')}
-          <th colspan="${roster.helpers.length}">지원인력 (${roster.helpers.length})</th>
-          <th colspan="${roster.teachers.length}">담당 교사 (${roster.teachers.length})</th>
+          ${studentGroups.map((g, gi) => `<th colspan="${g.list.length}" class="${gi > 0 ? 'group-divider' : ''}">${g.label} (${g.list.length})</th>`).join('')}
+          <th colspan="${roster.helpers.length}" class="group-divider">지원인력 (${roster.helpers.length})</th>
+          <th colspan="${roster.teachers.length}" class="group-divider">담당 교사 (${roster.teachers.length})</th>
         </tr><tr>`;
 
       // 학생 이름 및 아래 줄바꿈 출결 상태 (우리반 + 외부/옆반)
-      studentGroups.forEach(g => {
-        g.list.forEach(s => {
+      studentGroups.forEach((g, gi) => {
+        g.list.forEach((s, si) => {
           const b = formatAttBadge(todayAtt[s], true);
-          html += `<th>${s}${b ? `<br><span class="${b.cls}">${b.text}</span>` : ''}</th>`;
+          const dividerCls = (gi > 0 && si === 0) ? 'group-divider' : '';
+          html += `<th class="${dividerCls}">${s}${b ? `<br><span class="${b.cls}">${b.text}</span>` : ''}</th>`;
         });
       });
       // 지원인력
-      roster.helpers.forEach(h => {
+      roster.helpers.forEach((h, hi) => {
         const b = formatAttBadge(todayAtt[h], false);
-        html += `<th>${h}${b ? `<br><span class="${b.cls}">${b.text}</span>` : ''}</th>`;
+        html += `<th class="${hi === 0 ? 'group-divider' : ''}">${h}${b ? `<br><span class="${b.cls}">${b.text}</span>` : ''}</th>`;
       });
       // 교사
-      roster.teachers.forEach(t => {
+      roster.teachers.forEach((t, ti) => {
         const b = formatAttBadge(todayAtt[t], false);
-        html += `<th>${t}${b ? `<br><span class="${b.cls}">${b.text}</span>` : ''}</th>`;
+        html += `<th class="${ti === 0 ? 'group-divider' : ''}">${t}${b ? `<br><span class="${b.cls}">${b.text}</span>` : ''}</th>`;
       });
       html += `</tr></thead><tbody>`;
 
       PERIODS.forEach(p => {
         const cellId = `${dateStr}_${p.name}`;
 
-        html += `<tr><td class="time-col ${p.isBreak ? 'is-break' : ''}">${p.shortLabel || p.name}<span class="time-sub">${p.time}</span></td>`;
+        html += `<tr class="${p.isBreak ? 'is-break-row' : ''}"><td class="time-col ${p.isBreak ? 'is-break' : ''}">${p.shortLabel || p.name}<span class="time-sub">${p.time}</span></td>`;
 
         // 학생 열(우리반+외부/옆반): 그 학생이 포함된 기록을 찾아 장소 + 지원인력 + (필요 시) 교사 표기
         // + 문제행동/늘봄학교 시간대를 셀 높이에 비례한 수직 화살표(↕)로 오버레이 표시 (늘봄: 왼쪽 화살표 + 오른쪽에 참여 수업명 텍스트)
-        studentGroups.forEach(g => {
-          g.list.forEach(s => {
+        studentGroups.forEach((g, gi) => {
+          g.list.forEach((s, si) => {
             const entry = findEntryForPerson(cellId, s);
             const rec = todayAtt[s];
             const b = formatAttBadgeForPeriod(rec, true, p);
@@ -1458,7 +1461,8 @@
             let bg = entry ? '#fff7ed' : '';
             if(rec && rec.status === 'ABSENT') bg = '#fef2f2';
             else if(b && b.cls === 'badge-tardy') bg = '#fef9c3';
-            const cellClass = `clickable-cell matrix-cell-relative selectable-cell${neulbomOverlaps.length ? ' has-neulbom' : ''}`;
+            const dividerCls = (gi > 0 && si === 0) ? ' group-divider' : '';
+            const cellClass = `clickable-cell matrix-cell-relative selectable-cell${dividerCls}${neulbomOverlaps.length ? ' has-neulbom' : ''}`;
             html += `<td class="${cellClass}" style="${bg ? `background:${bg};` : ''}" data-cellkey="${cellId}|${s}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${s}')">`;
             if(entry) {
               const showTeacher = shouldShowTeacherTag(entry, roster, false);
@@ -1485,14 +1489,15 @@
         });
 
         // 지원인력 열: 그 지원인력이 포함된 기록을 찾아 장소 + 지원 대상 학생 + (필요 시) 교사 표기
-        roster.helpers.forEach(h => {
+        roster.helpers.forEach((h, hi) => {
           const entry = findEntryForPerson(cellId, h);
           const rec = todayAtt[h];
           const b = formatAttBadgeForPeriod(rec, false, p);
           let bg = entry ? '#e0e7ff' : '';
           if(rec && rec.status === 'ABSENT') bg = '#fef2f2';
           else if(b && b.cls === 'badge-tardy') bg = '#fef9c3';
-          html += `<td class="clickable-cell selectable-cell" style="${bg ? `background:${bg};` : ''}" data-cellkey="${cellId}|${h}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${h}')">`;
+          const helperDividerCls = hi === 0 ? ' group-divider' : '';
+          html += `<td class="clickable-cell selectable-cell${helperDividerCls}" style="${bg ? `background:${bg};` : ''}" data-cellkey="${cellId}|${h}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${h}')">`;
           if(entry) {
             const showTeacher = shouldShowTeacherTag(entry, roster, false);
             html += `<div class="tag tag-helper">[${entry.className||'지원'}]</div>`;
@@ -1503,14 +1508,15 @@
         });
 
         // 교사 열: 그 교사가 포함된 기록을 찾아 표기
-        roster.teachers.forEach(t => {
+        roster.teachers.forEach((t, ti) => {
           const entry = findEntryForPerson(cellId, t);
           const rec = todayAtt[t];
           const b = formatAttBadgeForPeriod(rec, false, p);
           let bg = entry ? '#dcfce7' : '';
           if(rec && rec.status === 'ABSENT') bg = '#fef2f2';
           else if(b && b.cls === 'badge-tardy') bg = '#fef9c3';
-          html += `<td class="clickable-cell selectable-cell" style="${bg ? `background:${bg};` : ''}" data-cellkey="${cellId}|${t}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${t}')">
+          const teacherDividerCls = ti === 0 ? ' group-divider' : '';
+          html += `<td class="clickable-cell selectable-cell${teacherDividerCls}" style="${bg ? `background:${bg};` : ''}" data-cellkey="${cellId}|${t}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${t}')">
             ${entry ? `<span class="tag tag-teacher">[${entry.className||'수업'}]</span>` : ''}
           </td>`;
         });
@@ -1571,7 +1577,7 @@
       const panel = document.getElementById('memo-panel');
       const btn = document.getElementById('memo-toggle-btn');
       panel.classList.toggle('collapsed', memoPanelCollapsed);
-      btn.innerText = memoPanelCollapsed ? '▶' : '◀';
+      btn.innerText = memoPanelCollapsed ? '◀' : '▶';
       btn.title = memoPanelCollapsed ? '메모 패널 펼치기' : '메모 패널 접기';
     }
 
