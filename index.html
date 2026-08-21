@@ -4,9 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>특수학급 스마트 시간표 & 일지</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
   <style>
     html { font-size: 18px; }
-    * { box-sizing: border-box; font-family: 'Pretendard', 'Malgun Gothic', sans-serif; }
+    * { box-sizing: border-box; font-family: 'Noto Sans KR', 'Pretendard', 'Malgun Gothic', sans-serif; }
     body { display: flex; flex-direction: column; height: 100vh; margin: 0; background: #f8fafc; color: #1e293b; }
     
     /* 상단 네비게이션 */
@@ -40,8 +43,11 @@
       .nav-group { flex-wrap: nowrap; overflow-x: auto; gap: 5px; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
       .nav-group::-webkit-scrollbar { height: 4px; }
       .nav-group button { font-size: 0.72rem !important; padding: 5px 7px !important; white-space: nowrap; flex-shrink: 0; }
+      .nav-group .badge { font-size: 0.68rem !important; padding: 3px 7px !important; white-space: nowrap; flex-shrink: 0; }
+      .nav-group select { font-size: 0.72rem !important; padding: 4px 6px !important; white-space: nowrap; flex-shrink: 0; width: auto !important; max-width: 110px; }
       #current-date-text { white-space: nowrap; flex-shrink: 0; }
-      .tab-btn { font-size: 0.76rem; padding: 5px 9px; }
+      .tab-btn { font-size: 0.76rem; padding: 5px 9px; white-space: nowrap; flex-shrink: 0; }
+      .nav-tabs { flex-shrink: 0; }
     }
     .content-area { flex: 1 1 auto; min-width: 0; padding: 12px; overflow: auto; }
     .cell-selected { outline: 3px solid #2563eb; outline-offset: -3px; }
