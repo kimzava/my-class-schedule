@@ -189,7 +189,7 @@
 <body>
 
   <script>
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz5qZ7_5VDuECAzs-VCiTJleE8zrBBnuf2JAl4kEjEwCSRh8j1vlrhwN6vj5cWGZ5YogQ/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx26TtfQzxSYQwsH3jiEX5N0EsOmuJ0tZlks-MjL3IUs_AofNEIg-R-EN8MWqxMLhMRow/exec';
     const ACCESS_KEY = 'spedehxhfl'; // Code.gs의 ACCESS_KEY와 반드시 동일한 값으로 맞춰주세요
   </script>
 
@@ -279,7 +279,7 @@
 
   <!-- 시간표 입력 모달 -->
   <div class="modal-overlay" id="overlay" onclick="closeModal()"></div>
-  <div class="modal" id="input-modal">
+  <div class="modal" id="input-modal" onclick="event.stopPropagation()">
     <h4 style="margin-top:0; margin-bottom:4px;" id="modal-title">수업 및 지원 기록</h4>
     <p id="modal-target-info" style="margin:0 0 8px 0; font-size:0.72rem; color:#2563eb; font-weight:bold;"></p>
 
@@ -368,7 +368,7 @@
   </div>
 
   <!-- 출결 관리 모달 -->
-  <div class="modal" id="attendance-modal" style="width:560px;">
+  <div class="modal" id="attendance-modal" style="width:560px;" onclick="event.stopPropagation()">
     <h4 style="margin-top:0; margin-bottom:8px;">🏥 출결 관리</h4>
 
     <div class="att-date-nav">
@@ -402,7 +402,7 @@
   </div>
 
   <!-- 출결 주간 모아보기 모달 -->
-  <div class="modal" id="attendance-weekly-modal" style="width:700px;">
+  <div class="modal" id="attendance-weekly-modal" style="width:700px;" onclick="event.stopPropagation()">
     <h4 style="margin-top:0; margin-bottom:4px;">📊 출결 주간 모아보기</h4>
     <p id="att-weekly-range-label" style="font-size:0.75rem; color:#64748b; margin-top:0;"></p>
     <div id="attendance-weekly-table-wrap" style="overflow-x:auto;"></div>
@@ -412,7 +412,7 @@
   </div>
 
   <!-- 행사 입력 모달 -->
-  <div class="modal" id="event-modal">
+  <div class="modal" id="event-modal" onclick="event.stopPropagation()">
     <h4 style="margin-top:0; margin-bottom:8px;">🗓️ 일일 행사 & 하루 기록</h4>
 
     <div class="att-date-nav">
@@ -636,7 +636,11 @@
             <option value="2027">2027학년도</option>
           </select>
         </div>
-        <div id="class-management-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+        <div id="class-management-list" style="display:flex; flex-direction:column; gap:10px; margin-bottom:12px;"></div>
+        <div style="display:flex; gap:4px;">
+          <input type="text" id="add-class-input" placeholder="새 학급 이름 (예: 통합지원반)" style="flex:1;">
+          <button type="button" class="btn btn-secondary" onclick="addCustomClass()">+ 학급 추가</button>
+        </div>
       </div>
 
       <!-- 늘봄학교 (설정 페이지 안에 직접 표시) -->
@@ -2011,7 +2015,9 @@
 
     // 학생들을 "우리반/외부반"이 아니라 실제 배정된 특수학급 반별로 묶어서 반환
     function getStudentGroupsByClass(year, allStudents) {
-      const groups = { '저학년반': [], '고학년반': [], '윤슬반': [], '반 미배정': [] };
+      const groups = {};
+      getAllClassNames().forEach(c => groups[c] = []);
+      groups['반 미배정'] = [];
       allStudents.forEach(name => {
         const id = resolvePersonId(year, name, false);
         const yd = id && personYearData[id] && personYearData[id][year];
@@ -2285,9 +2291,19 @@
       const custom = getCustomLocations();
       return [...defaults, ...custom.filter(c => !defaults.includes(c))];
     }
+    // 특수학급 목록 (기본 3개 + 설정에서 추가한 학급) - 학급관리 탭에서 추가/편집 가능
+    function getCustomClasses() {
+      const saved = localStorage.getItem('customClasses');
+      return saved ? JSON.parse(saved) : [];
+    }
+    function getAllClassNames() {
+      const defaults = ['저학년반', '고학년반', '윤슬반'];
+      const custom = getCustomClasses();
+      return [...defaults, ...custom.filter(c => !defaults.includes(c))];
+    }
     // "해당 학급/장소 선택" 드롭다운을 반 목록 + 설정된 장소 목록 + 기타(직접입력)로 재구성
     function buildClassSelectOptions() {
-      const classes = ['저학년반', '고학년반', '윤슬반'];
+      const classes = getAllClassNames();
       const locations = getLocationPresets();
       const classSelect = document.getElementById('input-class');
       let optionsHtml = classes.map(c => `<option value="${c}">${c}</option>`).join('');
@@ -2949,20 +2965,23 @@
       const allStudents = [...roster.mainStudents, ...roster.extraStudents];
       const groups = getStudentGroupsByClass(year, allStudents);
 
-      container.innerHTML = ['저학년반', '고학년반', '윤슬반'].map(className => {
+      const fixedClasses = ['저학년반', '고학년반', '윤슬반'];
+      container.innerHTML = getAllClassNames().map(className => {
         const teacher = classTeachers[className] || '';
         const group = groups.find(g => g.label === className);
         const students = group ? group.list : [];
+        const isCustom = !fixedClasses.includes(className);
         return `
           <div style="border:1px solid #e2e8f0; border-radius:10px; padding:12px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
               <strong style="font-size:0.95rem;">🏫 ${className}</strong>
-              <div style="display:flex; align-items:center; gap:4px;">
+              <div style="display:flex; align-items:center; gap:6px;">
                 <span style="font-size:0.72rem; color:#475569;">담당교사</span>
                 <select style="width:auto; font-size:0.75rem; padding:3px 6px;" onchange="setClassTeacher('${className}', this.value)">
                   <option value="">-- 미배정 --</option>
                   ${roster.teachers.map(t => `<option value="${t}" ${t===teacher?'selected':''}>${t}</option>`).join('')}
                 </select>
+                ${isCustom ? `<button class="person-icon-btn" title="학급 삭제" onclick="removeCustomClass('${className}')">✕</button>` : ''}
               </div>
             </div>
             <div style="font-size:0.75rem; color:#64748b; margin-bottom:4px;">소속 학생 ${students.length}명 (${year}학년도 기준)</div>
@@ -2973,6 +2992,25 @@
           </div>
         `;
       }).join('');
+    }
+
+    function addCustomClass() {
+      const input = document.getElementById('add-class-input');
+      const name = input.value.trim();
+      if(!name) return;
+      if(getAllClassNames().includes(name)) { alert('이미 존재하는 학급 이름입니다.'); return; }
+      const custom = getCustomClasses();
+      custom.push(name);
+      localStorage.setItem('customClasses', JSON.stringify(custom));
+      input.value = '';
+      renderClassManagement();
+    }
+
+    function removeCustomClass(name) {
+      if(!confirm(`"${name}" 학급을 삭제할까요? (이미 배정된 학생의 반배정 정보는 남아있지만 목록에서는 사라집니다)`)) return;
+      const custom = getCustomClasses().filter(c => c !== name);
+      localStorage.setItem('customClasses', JSON.stringify(custom));
+      renderClassManagement();
     }
 
     function setClassTeacher(className, teacherName) {
@@ -3179,7 +3217,7 @@
       });
 
       const container = document.getElementById('people-students-grouped');
-      const order = ['저학년반', '고학년반', '윤슬반', '반 미배정'];
+      const order = [...getAllClassNames(), '반 미배정'];
       container.innerHTML = order.filter(k => groups[k] && groups[k].length).map(className => `
         <div class="student-class-group">
           <div class="student-class-group-title">🏫 ${className} (${groups[className].length}명)</div>
@@ -3271,6 +3309,10 @@
       document.getElementById('profile-person-id').value = id;
       document.getElementById('profile-person-category').value = category;
       document.getElementById('profile-modal-title').innerText = `👤 ${name} 프로필 (${year}학년도 기준)`;
+
+      const classOptions = '<option value="">-- 선택 --</option>' + getAllClassNames().map(c => `<option value="${c}">${c}</option>`).join('');
+      document.getElementById('profile-special-class').innerHTML = classOptions;
+      document.getElementById('profile-class-assigned').innerHTML = '<option value="">-- 없음 --</option>' + getAllClassNames().map(c => `<option value="${c}">${c}</option>`).join('');
       document.getElementById('profile-notes').value = profile.notes || '';
 
       document.getElementById('profile-helper-type-row').style.display = type === 'helper' ? 'block' : 'none';
@@ -3711,7 +3753,7 @@
     }
 
     function populateNbLocationSelect(selectedValue) {
-      const classes = ['저학년반', '고학년반', '윤슬반'];
+      const classes = getAllClassNames();
       const locations = getLocationPresets();
       const all = [...classes, ...locations];
       const select = document.getElementById('nb-location');
