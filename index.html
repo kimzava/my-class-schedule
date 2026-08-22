@@ -13,9 +13,9 @@
     body { display: flex; flex-direction: column; height: 100vh; margin: 0; background: #f8fafc; color: #1e293b; }
     
     /* 상단 네비게이션 */
-    .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: white; border-bottom: 1px solid #cbd5e1; flex-wrap: wrap; gap: 8px; }
-    .nav-group { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; max-width: 100%; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
-    .nav-group::-webkit-scrollbar { height: 4px; }
+    .top-bar { display: flex; align-items: center; padding: 8px 16px; background: white; border-bottom: 1px solid #cbd5e1; flex-wrap: nowrap; gap: 12px; overflow-x: auto; overflow-y: hidden; }
+    .top-bar::-webkit-scrollbar { height: 4px; }
+    .nav-group { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; flex-shrink: 0; }
     .nav-group > * { flex-shrink: 0; }
     .nav-group button { font-size: 0.86rem; padding: 5px 9px; border-radius: 6px; }
     .nav-tabs { display: flex; gap: 4px; background: #f1f5f9; padding: 3px; border-radius: 8px; }
@@ -43,9 +43,8 @@
       .memo-panel.collapsed .memo-panel-header { display: flex !important; justify-content: space-between !important; align-items: center !important; height: 48px !important; padding: 0 12px !important; margin: 0 !important; box-sizing: border-box; }
       .memo-panel.collapsed .memo-title { display: block !important; font-size: 0.85rem !important; }
 
-      .top-bar { padding: 6px 8px; gap: 5px; }
-      .nav-group { flex-wrap: nowrap; overflow-x: auto; gap: 5px; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
-      .nav-group::-webkit-scrollbar { height: 4px; }
+      .top-bar { padding: 6px 8px; gap: 8px; }
+      .nav-group { gap: 5px; }
       .nav-group button { font-size: 0.72rem !important; padding: 5px 7px !important; white-space: nowrap; flex-shrink: 0; }
       .nav-group .badge { font-size: 0.68rem !important; padding: 3px 7px !important; white-space: nowrap; flex-shrink: 0; }
       .nav-group select { font-size: 0.72rem !important; padding: 4px 6px !important; white-space: nowrap; flex-shrink: 0; width: auto !important; max-width: 110px; }
