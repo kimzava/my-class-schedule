@@ -51,7 +51,6 @@
       #current-date-text { white-space: nowrap; flex-shrink: 0; }
       .tab-btn { font-size: 0.76rem; padding: 5px 9px; white-space: nowrap; flex-shrink: 0; }
       .nav-tabs { flex-shrink: 0; }
-      #mini-cal-dropdown { position: fixed !important; top: 56px !important; left: 50% !important; transform: translateX(-50%); }
     }
     .content-area { flex: 1 1 auto; min-width: 0; padding: 12px; overflow: auto; }
     .cell-selected { outline: 3px solid #2563eb; outline-offset: -3px; }
@@ -217,7 +216,7 @@
       <span id="current-date-text" style="font-weight:bold; font-size:0.85rem;"></span>
       <div style="position:relative;">
         <button onclick="toggleMiniCalDropdown()" id="mini-cal-trigger-btn" class="mini-cal-trigger" title="달력">📅</button>
-        <div id="mini-cal-dropdown" style="display:none; position:absolute; top:calc(100% + 6px); left:0; background:white; border:1px solid #cbd5e1; border-radius:14px; box-shadow:0 10px 28px rgba(0,0,0,0.18); padding:10px; z-index:2200; width:200px;">
+        <div id="mini-cal-dropdown" style="display:none; position:fixed; top:56px; left:50%; transform:translateX(-50%); background:white; border:1px solid #cbd5e1; border-radius:14px; box-shadow:0 10px 28px rgba(0,0,0,0.18); padding:10px; z-index:2200; width:200px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:4px;">
             <button onclick="shiftMiniCalMonth(-1)" style="padding:2px 7px; font-size:0.7rem;">◀</button>
             <input type="month" id="cal-month-picker" onchange="renderMiniCal()" style="font-size:0.7rem; flex:1; min-width:0; padding:2px;">
@@ -229,7 +228,6 @@
       <button onclick="openEventModal()">🗓️ 행사·기록</button>
       <button onclick="openAttendanceModal()">🏥 출결 관리</button>
 
-      <button onclick="saveCurrentWeekAsTemplate()">📅 이번주 템플릿저장</button>
       <button onclick="openSettingsModal()">⚙️ 설정</button>
     </div>
   </div>
@@ -243,14 +241,16 @@
         <label style="font-weight:normal; display:flex; align-items:center; gap:3px;"><input type="checkbox" id="opt-show-helpers" checked onchange="saveWeeklyViewOptions(); render()" style="width:auto;"> 지원인력</label>
         <label style="font-weight:normal; display:flex; align-items:center; gap:3px;"><input type="checkbox" id="opt-show-teachers" checked onchange="saveWeeklyViewOptions(); render()" style="width:auto;"> 교사</label>
         <label style="font-weight:normal; display:flex; align-items:center; gap:3px;"><input type="checkbox" id="opt-show-location" checked onchange="saveWeeklyViewOptions(); render()" style="width:auto;"> 장소</label>
-        <span style="border-left:1px solid #cbd5e1; height:16px;"></span>
-        <span style="font-weight:bold; color:#475569;">메모:</span>
+        <span id="opt-memo-divider" style="border-left:1px solid #cbd5e1; height:16px;"></span>
+        <span id="opt-memo-label" style="font-weight:bold; color:#475569;">메모:</span>
         <select id="opt-memo-mode" onchange="saveWeeklyViewOptions(); render()" style="width:auto; padding:2px 4px; font-size:0.72rem;">
           <option value="full">전체 표시</option>
           <option value="truncate">잘라서 표시</option>
           <option value="summary">한 줄 요약</option>
           <option value="hide">표시 안 함</option>
         </select>
+        <span id="week-template-btn-wrap" style="border-left:1px solid #cbd5e1; height:16px;"></span>
+        <button id="week-template-save-btn" onclick="saveCurrentWeekAsTemplate()" style="padding:3px 8px; font-size:0.72rem;">📅 이번주 템플릿저장</button>
       </div>
       <div id="selection-toolbar" style="visibility:hidden; display:flex; align-items:center; gap:8px; background:#eff6ff; border:1px solid #93c5fd; border-radius:6px; padding:6px 10px; margin:8px 12px 0 12px; font-size:0.78rem; flex-shrink:0;">
         <span id="selection-count-label"></span>
@@ -1749,7 +1749,11 @@
       const container = document.getElementById('view-content');
       container.innerHTML = '';
 
-      document.getElementById('weekly-view-options').style.display = (currentView === 'classWeekly' || currentView === 'personWeekly') ? 'flex' : 'none';
+      document.getElementById('weekly-view-options').style.display = 'flex';
+      const isWeeklyView = (currentView === 'classWeekly' || currentView === 'personWeekly');
+      ['opt-memo-divider','opt-memo-label','opt-memo-mode','week-template-btn-wrap','week-template-save-btn'].forEach(id => {
+        document.getElementById(id).style.display = isWeeklyView ? '' : 'none';
+      });
 
       if(currentView === 'classWeekly') renderClassWeekly(container, monday);
       else if(currentView === 'personWeekly') renderPersonWeekly(container, monday);
@@ -1973,15 +1977,22 @@
       const dateStr = toDateStr(currentDate);
       const todayAtt = attendanceData[dateStr] || {};
 
-      // 학생 컬럼 그룹: 실제 배정된 특수학급 반별로 표시 (저학년반/고학년반/윤슬반/반 미배정)
-      const studentGroups = getStudentGroupsByClass(getAcademicYear(currentDate), [...roster.mainStudents, ...roster.extraStudents]);
+      const showStudents = shouldShowPersonType('students');
+      const showHelpers = shouldShowPersonType('helpers');
+      const showTeachers = shouldShowPersonType('teachers');
+      const showLocation = shouldShowLocationInCell();
+
+      // 학생 컬럼 그룹: 실제 배정된 특수학급 반별로 표시 (저학년반/고학년반/윤슬반/반 미배정) - 옵션 꺼져있으면 그룹 자체를 생략
+      const studentGroups = showStudents ? getStudentGroupsByClass(getAcademicYear(currentDate), [...roster.mainStudents, ...roster.extraStudents]) : [];
+      const helperList = showHelpers ? roster.helpers : [];
+      const teacherList = showTeachers ? roster.teachers : [];
 
       let html = `<table><thead>
         <tr>
           <th class="time-col" rowspan="2">교시 / 시간</th>
           ${studentGroups.map((g, gi) => `<th colspan="${g.list.length}" class="${gi > 0 ? 'group-divider' : ''}">${g.label} (${g.list.length})</th>`).join('')}
-          <th colspan="${roster.helpers.length}" class="group-divider">지원인력 (${roster.helpers.length})</th>
-          <th colspan="${roster.teachers.length}" class="group-divider">담당 교사 (${roster.teachers.length})</th>
+          ${helperList.length ? `<th colspan="${helperList.length}" class="group-divider">지원인력 (${helperList.length})</th>` : ''}
+          ${teacherList.length ? `<th colspan="${teacherList.length}" class="group-divider">담당 교사 (${teacherList.length})</th>` : ''}
         </tr><tr>`;
 
       // 학생 이름 및 아래 줄바꿈 출결 상태 (우리반 + 외부/옆반)
@@ -1993,12 +2004,12 @@
         });
       });
       // 지원인력
-      roster.helpers.forEach((h, hi) => {
+      helperList.forEach((h, hi) => {
         const b = formatAttBadge(todayAtt[h], false);
         html += `<th class="${hi === 0 ? 'group-divider' : ''}">${h}${b ? `<br><span class="${b.cls}">${b.text}</span>` : ''}</th>`;
       });
       // 교사
-      roster.teachers.forEach((t, ti) => {
+      teacherList.forEach((t, ti) => {
         const b = formatAttBadge(todayAtt[t], false);
         html += `<th class="${ti === 0 ? 'group-divider' : ''}">${t}${b ? `<br><span class="${b.cls}">${b.text}</span>` : ''}</th>`;
       });
@@ -2024,10 +2035,10 @@
             const cellClass = `clickable-cell matrix-cell-relative selectable-cell${dividerCls}${neulbomOverlaps.length ? ' has-neulbom' : ''}`;
             html += `<td class="${cellClass}" style="${bg ? `background:${bg};` : ''}" data-cellkey="${cellId}|${s}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${s}')">`;
             if(entry) {
-              const showTeacher = shouldShowTeacherTag(entry, roster, false);
-              html += `<span class="tag tag-main">${entry.className||'입실'}</span>`;
-              if(entry.helpers.length) html += `<div class="tag tag-helper" style="margin-top:2px;">${entry.helpers.join(', ')}</div>`;
-              if(showTeacher) html += `<div class="tag tag-teacher" style="margin-top:2px;">${entry.teachers.join(', ')}</div>`;
+              const showTeacherTag = showTeachers && shouldShowTeacherTag(entry, roster, false);
+              if(showLocation) html += `<span class="tag tag-main">${entry.className||'입실'}</span>`;
+              if(showHelpers && entry.helpers.length) html += `<div class="tag tag-helper" style="margin-top:2px;">${entry.helpers.join(', ')}</div>`;
+              if(showTeacherTag) html += `<div class="tag tag-teacher" style="margin-top:2px;">${entry.teachers.join(', ')}</div>`;
               if(entry.behavior) html += `<div class="tag tag-behavior">↕ ${entry.behavior}</div>`;
               if(entry.positive) html += `<div class="tag tag-positive">${entry.positive}</div>`;
 
@@ -2048,7 +2059,7 @@
         });
 
         // 지원인력 열: 그 지원인력이 포함된 기록을 찾아 장소 + 지원 대상 학생 + (필요 시) 교사 표기
-        roster.helpers.forEach((h, hi) => {
+        helperList.forEach((h, hi) => {
           const entry = findEntryForPerson(cellId, h);
           const rec = todayAtt[h];
           const b = formatAttBadgeForPeriod(rec, false, p);
@@ -2058,16 +2069,16 @@
           const helperDividerCls = hi === 0 ? ' group-divider' : '';
           html += `<td class="clickable-cell selectable-cell${helperDividerCls}" style="${bg ? `background:${bg};` : ''}" data-cellkey="${cellId}|${h}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${h}')">`;
           if(entry) {
-            const showTeacher = shouldShowTeacherTag(entry, roster, false);
-            html += `<div class="tag tag-helper">[${entry.className||'지원'}]</div>`;
-            if(entry.students.length) html += `<div style="font-size:0.68rem; color:#9a3412; margin-top:1px;">대상: ${entry.students.join(', ')}</div>`;
-            if(showTeacher) html += `<div class="tag tag-teacher" style="margin-top:2px;">${entry.teachers.join(', ')}</div>`;
+            const showTeacherTag = showTeachers && shouldShowTeacherTag(entry, roster, false);
+            if(showLocation) html += `<div class="tag tag-helper">[${entry.className||'지원'}]</div>`;
+            if(showStudents && entry.students.length) html += `<div style="font-size:0.68rem; color:#9a3412; margin-top:1px;">대상: ${entry.students.join(', ')}</div>`;
+            if(showTeacherTag) html += `<div class="tag tag-teacher" style="margin-top:2px;">${entry.teachers.join(', ')}</div>`;
           }
           html += `</td>`;
         });
 
         // 교사 열: 그 교사가 포함된 기록을 찾아 표기
-        roster.teachers.forEach((t, ti) => {
+        teacherList.forEach((t, ti) => {
           const entry = findEntryForPerson(cellId, t);
           const rec = todayAtt[t];
           const b = formatAttBadgeForPeriod(rec, false, p);
@@ -2076,7 +2087,7 @@
           else if(b && b.cls === 'badge-tardy') bg = '#fef9c3';
           const teacherDividerCls = ti === 0 ? ' group-divider' : '';
           html += `<td class="clickable-cell selectable-cell${teacherDividerCls}" style="${bg ? `background:${bg};` : ''}" data-cellkey="${cellId}|${t}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${t}')">
-            ${entry ? `<span class="tag tag-teacher">[${entry.className||'수업'}]</span>` : ''}
+            ${entry && showLocation ? `<span class="tag tag-teacher">[${entry.className||'수업'}]</span>` : ''}
           </td>`;
         });
 
@@ -2996,10 +3007,10 @@
     // 유형(및 지원인력 세부구분)별 이 학년도 상태값 정의
     const STATUS_OPTIONS = {
       student: ['재학', '졸업', '전학'],
-      teacher: ['재직', '전근', '휴직'],
-      helper_특수교육실무사: ['재직', '전근', '휴직'],
-      helper_사회복무요원: ['근무', '이동', '소집해제'],
-      helper_기타: ['재직', '전근', '휴직']
+      teacher: ['근무 전', '재직', '전근', '휴직'],
+      helper_특수교육실무사: ['근무 전', '재직', '전근', '휴직'],
+      helper_사회복무요원: ['근무 전', '근무', '이동', '소집해제'],
+      helper_기타: ['근무 전', '재직', '전근', '휴직']
     };
 
     function renderPersonStatusOptions(selected) {
