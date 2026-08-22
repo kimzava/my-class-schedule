@@ -185,7 +185,8 @@
 <body>
 
   <script>
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyBRjvaZe_GyCXS7aBMTOuOHZoS3awWY2__X9gUTC_y0bFkVXJJJzBM8XsvBMX5Qgc9Bg/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwQDqUddqB_5by5KF2BRCcAWB5isVz-k20n7_tFP0QmCqfQUjLwYIXPUEebaB8msLVomg/exec';
+    const ACCESS_KEY = '여기에_원하는_비밀키_입력'; // Code.gs의 ACCESS_KEY와 반드시 동일한 값으로 맞춰주세요
   </script>
 
   <!-- 상단 제어바 -->
@@ -1159,7 +1160,7 @@
     // 구글 시트로 저장/삭제 요청 전송 (Content-Type을 지정하지 않아야 CORS 사전요청 없이 바로 전송됨)
     function postToSheet(type, data) {
       if(!isSheetConnected()) return;
-      fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ type, data }) })
+      fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ type, data, key: ACCESS_KEY }) })
         .then(res => res.json())
         .then(json => {
           if(json && json.ok) { setSyncStatus('synced'); return; }
@@ -1183,7 +1184,7 @@
       resultEl.style.color = '#64748b';
       resultEl.textContent = '확인 중...';
       try {
-        const res = await fetch(`${GOOGLE_SCRIPT_URL}?type=all&_=${Date.now()}`, { cache: 'no-store' });
+        const res = await fetch(`${GOOGLE_SCRIPT_URL}?type=all&key=${encodeURIComponent(ACCESS_KEY)}&_=${Date.now()}`, { cache: 'no-store' });
         const text = await res.text();
         let json;
         try {
@@ -1223,7 +1224,7 @@
       let rawText = '';
       let json = null;
       try {
-        const res = await fetch(`${GOOGLE_SCRIPT_URL}?type=all&_=${Date.now()}`, { cache: 'no-store' });
+        const res = await fetch(`${GOOGLE_SCRIPT_URL}?type=all&key=${encodeURIComponent(ACCESS_KEY)}&_=${Date.now()}`, { cache: 'no-store' });
         rawText = await res.text();
         json = JSON.parse(rawText);
       } catch(err) {
