@@ -145,8 +145,8 @@
     .att-date-nav button { padding: 3px 10px; font-size: 0.78rem; }
 
     /* 모달 */
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 999; }
-    .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 12px; padding: 18px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 520px; max-width: 92%; z-index: 1000; max-height: 88vh; overflow-y: auto; }
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 2050; }
+    .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 12px; padding: 18px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 520px; max-width: 92%; z-index: 2100; max-height: 88vh; overflow-y: auto; }
     
     .form-group { margin-bottom: 16px; }
     .form-group label { display: block; font-size: 0.78rem; font-weight: bold; color: #475569; margin-bottom: 3px; }
@@ -161,6 +161,18 @@
     .person-row .person-name-edit { flex: 1; padding: 2px 6px; font-size: 0.78rem; border: 1px solid #93c5fd; border-radius: 4px; }
     .person-icon-btn { background: none; border: none; cursor: pointer; font-size: 0.85rem; padding: 2px 5px; border-radius: 4px; }
     .person-icon-btn:hover { background: #e2e8f0; }
+    .btn-manage { padding: 2px 8px; font-size: 0.72rem; background: #e0e7ff; color: #3730a3; border-radius: 4px; border: none; cursor: pointer; }
+
+    #settings-page { display: none; position: fixed; inset: 0; background: #f8fafc; z-index: 2000; overflow-y: auto; }
+    .settings-page-header { background: white; border-bottom: 1px solid #cbd5e1; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+    .settings-tabs { display: flex; gap: 2px; background: white; padding: 0 20px; overflow-x: auto; border-bottom: 1px solid #e2e8f0; position: sticky; top: 53px; z-index: 9; }
+    .settings-tab-btn { padding: 10px 16px; border: none; background: transparent; cursor: pointer; font-weight: bold; font-size: 0.85rem; color: #64748b; border-bottom: 3px solid transparent; white-space: nowrap; }
+    .settings-tab-btn.active { color: #2563eb; border-bottom-color: #2563eb; }
+    .settings-page-body { max-width: 720px; margin: 0 auto; padding: 20px; }
+    .settings-tab-content { display: block; }
+
+    .color-swatch { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
+    .color-swatch.selected { border-color: #1e293b; box-shadow: 0 0 0 2px white inset; }
 
     .btn { padding: 6px 13px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; font-size: 0.88rem; }
     .btn-primary { background: #2563eb; color: white; }
@@ -203,7 +215,7 @@
       <span id="current-date-text" style="font-weight:bold; font-size:0.85rem;"></span>
       <div style="position:relative;">
         <button onclick="toggleMiniCalDropdown()" id="mini-cal-trigger-btn" class="mini-cal-trigger" title="달력">📅</button>
-        <div id="mini-cal-dropdown" style="display:none; position:absolute; top:calc(100% + 6px); left:0; background:white; border:1px solid #cbd5e1; border-radius:14px; box-shadow:0 10px 28px rgba(0,0,0,0.18); padding:10px; z-index:1100; width:200px;">
+        <div id="mini-cal-dropdown" style="display:none; position:absolute; top:calc(100% + 6px); left:0; background:white; border:1px solid #cbd5e1; border-radius:14px; box-shadow:0 10px 28px rgba(0,0,0,0.18); padding:10px; z-index:2200; width:200px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:4px;">
             <button onclick="shiftMiniCalMonth(-1)" style="padding:2px 7px; font-size:0.7rem;">◀</button>
             <input type="month" id="cal-month-picker" onchange="renderMiniCal()" style="font-size:0.7rem; flex:1; min-width:0; padding:2px;">
@@ -437,116 +449,272 @@
   </div>
 
   <!-- 학년도 & 환경 설정 모달 -->
-  <div class="modal" id="settings-modal">
-    <h4 style="margin-top:0;">⚙️ 학년도 & 학급-교사 설정</h4>
-    
-    <div class="form-group">
-      <label>조회/수정 학년도 선택</label>
-      <select id="cfg-year-select" onchange="loadYearConfigToModal()">
-        <option value="2025">2025학년도</option>
-        <option value="2026">2026학년도</option>
-        <option value="2027">2027학년도</option>
-      </select>
+  <!-- 설정: 팝업이 아니라 화면 전체를 덮는 페이지 -->
+  <div id="settings-page">
+    <div class="settings-page-header">
+      <h3 style="margin:0; font-size:1.1rem;">⚙️ 설정</h3>
+      <button class="btn btn-secondary" onclick="closeSettingsPage()">✕ 닫기</button>
     </div>
-
-    <div class="form-group">
-      <label>기본 메인 반 설정 (접속 시 첫 화면에 자동 적용)</label>
-      <select id="cfg-default-class">
-        <option value="ALL">전체 보기</option>
-        <option value="저학년반">저학년반</option>
-        <option value="고학년반">고학년반</option>
-        <option value="윤슬반">윤슬반</option>
-      </select>
+    <div class="settings-tabs">
+      <button class="settings-tab-btn active" data-tab="general" onclick="switchSettingsTab('general')">일반</button>
+      <button class="settings-tab-btn" data-tab="students" onclick="switchSettingsTab('students')">학생 관리</button>
+      <button class="settings-tab-btn" data-tab="helpers" onclick="switchSettingsTab('helpers')">지원인력 관리</button>
+      <button class="settings-tab-btn" data-tab="teachers" onclick="switchSettingsTab('teachers')">교사 관리</button>
+      <button class="settings-tab-btn" data-tab="neulbom" onclick="switchSettingsTab('neulbom')">늘봄학교</button>
+      <button class="settings-tab-btn" data-tab="templates" onclick="switchSettingsTab('templates')">템플릿 관리</button>
     </div>
+    <div class="settings-page-body">
 
-    <div class="form-group">
-      <label>👥 교사 명단 — 아래 반별 담당 교사 드롭다운의 목록으로 사용됩니다</label>
-      <div class="people-manager" id="people-teachers"></div>
-      <div style="display:flex; gap:4px; margin-top:5px;">
-        <input type="text" id="add-input-teachers" placeholder="이름 입력 (쉼표로 여러 명 한번에 추가 가능)" style="flex:1;">
-        <button type="button" class="btn btn-secondary" onclick="addPeopleFromInput('teachers')">+ 추가</button>
-      </div>
-    </div>
-
-    <div style="background:#f1f5f9; padding:8px; border-radius:6px; margin-bottom:10px;">
-      <label style="font-weight:bold; font-size:0.75rem; color:#1e293b; display:block; margin-bottom:4px;">🏫 반별 담당 교사 연결 설정 (드롭다운 선택)</label>
-      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px;">
-        <div>
-          <span style="font-size:0.7rem;">저학년반</span>
-          <select id="cfg-teacher-low"><option value="">-- 선택 --</option></select>
+      <!-- 일반 -->
+      <div id="settings-tab-general" class="settings-tab-content">
+        <div class="form-group">
+          <label>조회/수정 학년도 선택</label>
+          <select id="cfg-year-select" onchange="loadYearConfigToModal()">
+            <option value="2025">2025학년도</option>
+            <option value="2026">2026학년도</option>
+            <option value="2027">2027학년도</option>
+          </select>
         </div>
-        <div>
-          <span style="font-size:0.7rem;">고학년반</span>
-          <select id="cfg-teacher-high"><option value="">-- 선택 --</option></select>
+        <div class="form-group">
+          <label>기본 메인 반 설정 (접속 시 첫 화면에 자동 적용)</label>
+          <select id="cfg-default-class">
+            <option value="ALL">전체 보기</option>
+            <option value="저학년반">저학년반</option>
+            <option value="고학년반">고학년반</option>
+            <option value="윤슬반">윤슬반</option>
+          </select>
         </div>
-        <div>
-          <span style="font-size:0.7rem;">윤슬반</span>
-          <select id="cfg-teacher-yun"><option value="">-- 선택 --</option></select>
+        <div class="form-group">
+          <label>🏫 추가 장소 목록 (쉼표 구분) — 반 선택 목록에 함께 나타납니다. 기본 제공: 통합학급, 급식실, 하교</label>
+          <input type="text" id="cfg-custom-locations" placeholder="예: 보건실, 운동장, 특별실, 상담실">
+        </div>
+        <div class="form-group">
+          <label>📍 학급 주간 뷰 칸에 장소/반 표시</label>
+          <label style="font-weight:normal; display:flex; align-items:center; gap:4px;"><input type="checkbox" id="cfg-show-location-in-cell" style="width:auto;" checked> [저학년반]처럼 학급/장소 이름표를 표시</label>
+        </div>
+        <div class="form-group">
+          <label>🗒️ 학급 주간 뷰 칸에 메모 표시</label>
+          <select id="cfg-memo-display-mode">
+            <option value="full">전체 표시</option>
+            <option value="truncate">잘라서 표시 (전체는 클릭하면 확인)</option>
+            <option value="summary">한 줄 요약만 표시 (입력 시 "요약" 칸이 있으면 그걸 우선 사용)</option>
+            <option value="hide">표시 안 함</option>
+          </select>
+          <p style="font-size:0.68rem; color:#94a3b8; margin:4px 0 0 0;">오른쪽 "오늘의 메모/일지" 패널은 이 설정과 무관하게 항상 전체 내용을 보여줍니다.</p>
+        </div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px; margin-bottom:10px;">
+          <label style="font-weight:bold; font-size:0.75rem; color:#1e293b; display:block; margin-bottom:4px;">☁️ 구글 시트 연결 상태</label>
+          <div style="font-size:0.68rem; color:#64748b; margin-bottom:6px;">
+            지금 이 파일에 실제로 저장된 GOOGLE_SCRIPT_URL 값:<br>
+            <span id="current-script-url" style="display:inline-block; margin-top:2px; padding:4px 6px; background:white; border:1px solid #cbd5e1; border-radius:4px; word-break:break-all; font-family:monospace; color:#1e293b;"></span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="btn btn-secondary" style="padding:4px 10px;" onclick="testSheetConnection()">🔧 연결 테스트</button>
+            <span id="sheet-test-result" style="font-size:0.75rem;"></span>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:12px;">
+          <button class="btn btn-primary" onclick="saveSettings()">설정 저장</button>
         </div>
       </div>
+
+      <!-- 학생 관리 -->
+      <div id="settings-tab-students" class="settings-tab-content" style="display:none;">
+        <p style="font-size:0.75rem; color:#64748b;">이름 옆 "관리"를 누르면 학년도별 반 배정·특성·메모를 개별로 기록할 수 있습니다.</p>
+        <button class="btn btn-secondary" style="margin-bottom:10px;" onclick="copyRosterToNextYear()">📋 이 학년도 전체 명단을 다음 학년도로 복사</button>
+        <div class="form-group">
+          <label>👥 우리반 학생</label>
+          <div class="people-manager" id="people-mainStudents"></div>
+          <div style="display:flex; gap:4px; margin-top:5px;">
+            <input type="text" id="add-input-mainStudents" placeholder="이름 입력 (쉼표로 여러 명 한번에 추가 가능)" style="flex:1;">
+            <button type="button" class="btn btn-secondary" onclick="addPeopleFromInput('mainStudents')">+ 추가</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>👥 외부/옆반 학생</label>
+          <div class="people-manager" id="people-extraStudents"></div>
+          <div style="display:flex; gap:4px; margin-top:5px;">
+            <input type="text" id="add-input-extraStudents" placeholder="이름 입력 (쉼표로 여러 명 한번에 추가 가능)" style="flex:1;">
+            <button type="button" class="btn btn-secondary" onclick="addPeopleFromInput('extraStudents')">+ 추가</button>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+          <button class="btn btn-primary" onclick="saveSettings()">설정 저장</button>
+        </div>
+      </div>
+
+      <!-- 지원인력 관리 -->
+      <div id="settings-tab-helpers" class="settings-tab-content" style="display:none;">
+        <p style="font-size:0.75rem; color:#64748b;">이름 옆 "관리"를 누르면 학년도별 근무 여부·메모를 개별로 기록할 수 있습니다.</p>
+        <div class="form-group">
+          <label>👥 지원인력</label>
+          <div class="people-manager" id="people-helpers"></div>
+          <div style="display:flex; gap:4px; margin-top:5px;">
+            <input type="text" id="add-input-helpers" placeholder="이름 입력 (쉼표로 여러 명 한번에 추가 가능)" style="flex:1;">
+            <button type="button" class="btn btn-secondary" onclick="addPeopleFromInput('helpers')">+ 추가</button>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+          <button class="btn btn-primary" onclick="saveSettings()">설정 저장</button>
+        </div>
+      </div>
+
+      <!-- 교사 관리 -->
+      <div id="settings-tab-teachers" class="settings-tab-content" style="display:none;">
+        <p style="font-size:0.75rem; color:#64748b;">이름 옆 "관리"를 누르면 담당 교과·색상·관리자 여부·방과후 여부·메모를 개별로 기록할 수 있습니다.</p>
+        <div class="form-group">
+          <label>👥 교사</label>
+          <div class="people-manager" id="people-teachers"></div>
+          <div style="display:flex; gap:4px; margin-top:5px;">
+            <input type="text" id="add-input-teachers" placeholder="이름 입력 (쉼표로 여러 명 한번에 추가 가능)" style="flex:1;">
+            <button type="button" class="btn btn-secondary" onclick="addPeopleFromInput('teachers')">+ 추가</button>
+          </div>
+        </div>
+        <div style="background:#f1f5f9; padding:8px; border-radius:6px; margin-bottom:10px;">
+          <label style="font-weight:bold; font-size:0.75rem; color:#1e293b; display:block; margin-bottom:4px;">🏫 반별 담당 교사 (이 학년도 기준)</label>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px;">
+            <div>
+              <span style="font-size:0.7rem;">저학년반</span>
+              <select id="cfg-teacher-low"><option value="">-- 선택 --</option></select>
+            </div>
+            <div>
+              <span style="font-size:0.7rem;">고학년반</span>
+              <select id="cfg-teacher-high"><option value="">-- 선택 --</option></select>
+            </div>
+            <div>
+              <span style="font-size:0.7rem;">윤슬반</span>
+              <select id="cfg-teacher-yun"><option value="">-- 선택 --</option></select>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+          <button class="btn btn-primary" onclick="saveSettings()">설정 저장</button>
+        </div>
+      </div>
+
+      <!-- 늘봄학교 (기존 모달 재사용) -->
+      <div id="settings-tab-neulbom" class="settings-tab-content" style="display:none;">
+        <p style="font-size:0.8rem; color:#475569;">늘봄학교 프로그램(맞춤형교실/돌봄/특수선택형교육/선택형교육)은 별도 화면에서 관리합니다.</p>
+        <button class="btn btn-primary" onclick="openNeulbomModal()">🌤️ 늘봄학교 프로그램 관리 열기</button>
+      </div>
+
+      <!-- 템플릿 관리 (기존 모달 재사용) -->
+      <div id="settings-tab-templates" class="settings-tab-content" style="display:none;">
+        <p style="font-size:0.8rem; color:#475569;">시간표 템플릿(단일 기록/주간 전체)은 별도 화면에서 관리합니다.</p>
+        <button class="btn btn-primary" onclick="openTemplateModal()">📋 템플릿 관리 열기</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 개별 사람 프로필(관리) 모달 -->
+  <div class="modal" id="person-profile-modal" style="width:520px;">
+    <h4 id="profile-modal-title" style="margin-top:0; margin-bottom:10px;">👤 프로필</h4>
+    <input type="hidden" id="profile-person-name">
+    <input type="hidden" id="profile-person-category">
+
+    <div class="form-group" id="profile-active-row">
+      <label style="font-weight:normal; display:flex; align-items:center; gap:4px;"><input type="checkbox" id="profile-active" style="width:auto;" checked> 이 학년도에 재학/재직 중 (졸업·전근·소집해제 등으로 해제 시 체크 해제)</label>
     </div>
 
-    <div class="form-group">
-      <label>👥 우리반 학생 명단</label>
-      <div class="people-manager" id="people-mainStudents"></div>
-      <div style="display:flex; gap:4px; margin-top:5px;">
-        <input type="text" id="add-input-mainStudents" placeholder="이름 입력 (쉼표로 여러 명 한번에 추가 가능)" style="flex:1;">
-        <button type="button" class="btn btn-secondary" onclick="addPeopleFromInput('mainStudents')">+ 추가</button>
+    <!-- 학생 전용 -->
+    <div id="profile-student-fields" style="display:none;">
+      <div class="form-group">
+        <label>특수학급 반 배정 (이 학년도)</label>
+        <select id="profile-special-class">
+          <option value="">-- 선택 --</option>
+          <option value="저학년반">저학년반</option>
+          <option value="고학년반">고학년반</option>
+          <option value="윤슬반">윤슬반</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>통합학급 (이 학년도, 예: 3학년 2반)</label>
+        <input type="text" id="profile-integrated-class" placeholder="예: 3학년 2반">
+      </div>
+      <div class="form-group">
+        <label>장애 유형 (복수 선택 가능)</label>
+        <div class="checkbox-grid" id="profile-disability-types">
+          <label><input type="checkbox" value="지적장애"> 지적장애</label>
+          <label><input type="checkbox" value="자폐성장애"> 자폐성장애</label>
+          <label><input type="checkbox" value="지체장애"> 지체장애</label>
+          <label><input type="checkbox" value="정서·행동장애"> 정서·행동장애</label>
+          <label><input type="checkbox" value="발달지체"> 발달지체</label>
+          <label><input type="checkbox" value="시각장애"> 시각장애</label>
+          <label><input type="checkbox" value="청각장애"> 청각장애</label>
+          <label><input type="checkbox" value="언어장애"> 언어장애</label>
+          <label><input type="checkbox" value="건강장애"> 건강장애</label>
+          <label><input type="checkbox" value="학습장애"> 학습장애</label>
+          <label><input type="checkbox" value="기타"> 기타</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>학습 수준 (1=매우 낮음 ~ 5=매우 높음)</label>
+        <select id="profile-learning-level">
+          <option value="">-- 선택 --</option>
+          <option value="1">1 - 매우 낮음</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5 - 매우 높음</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>지원 강도</label>
+        <select id="profile-support-intensity">
+          <option value="">-- 선택 --</option>
+          <option value="독립수행">독립 수행 (대부분 혼자 가능)</option>
+          <option value="부분지원">부분 지원 (일부 지원 필요)</option>
+          <option value="전일지원">전일 지원 (상시 지원 필요)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>의사소통 수준</label>
+        <select id="profile-communication-level">
+          <option value="">-- 선택 --</option>
+          <option value="구어">구어 (말로 의사소통)</option>
+          <option value="AAC">AAC (보완대체 의사소통)</option>
+          <option value="비구어">비구어 (제스처·행동)</option>
+        </select>
       </div>
     </div>
-    <div class="form-group">
-      <label>👥 외부/옆반 학생 명단</label>
-      <div class="people-manager" id="people-extraStudents"></div>
-      <div style="display:flex; gap:4px; margin-top:5px;">
-        <input type="text" id="add-input-extraStudents" placeholder="이름 입력 (쉼표로 여러 명 한번에 추가 가능)" style="flex:1;">
-        <button type="button" class="btn btn-secondary" onclick="addPeopleFromInput('extraStudents')">+ 추가</button>
+
+    <!-- 교사 전용 -->
+    <div id="profile-teacher-fields" style="display:none;">
+      <div class="form-group">
+        <label>이 학년도 담당 학급</label>
+        <select id="profile-class-assigned">
+          <option value="">-- 없음 --</option>
+          <option value="저학년반">저학년반</option>
+          <option value="고학년반">고학년반</option>
+          <option value="윤슬반">윤슬반</option>
+        </select>
       </div>
-    </div>
-    <div class="form-group">
-      <label>👥 지원인력 명단</label>
-      <div class="people-manager" id="people-helpers"></div>
-      <div style="display:flex; gap:4px; margin-top:5px;">
-        <input type="text" id="add-input-helpers" placeholder="이름 입력 (쉼표로 여러 명 한번에 추가 가능)" style="flex:1;">
-        <button type="button" class="btn btn-secondary" onclick="addPeopleFromInput('helpers')">+ 추가</button>
+      <div class="form-group">
+        <label>담당 교과</label>
+        <input type="text" id="profile-subject" placeholder="예: 국어, 수학 등">
       </div>
-    </div>
-
-    <div class="form-group">
-      <label>🏫 추가 장소 목록 (쉼표 구분) — 반 선택 목록에 함께 나타납니다. 기본 제공: 통합학급, 급식실, 하교</label>
-      <input type="text" id="cfg-custom-locations" placeholder="예: 보건실, 운동장, 특별실, 상담실">
-    </div>
-
-    <div class="form-group">
-      <label>📍 학급 주간 뷰 칸에 장소/반 표시</label>
-      <label style="font-weight:normal; display:flex; align-items:center; gap:4px;"><input type="checkbox" id="cfg-show-location-in-cell" style="width:auto;" checked> [저학년반]처럼 학급/장소 이름표를 표시</label>
-    </div>
-
-    <div class="form-group">
-      <label>🗒️ 학급 주간 뷰 칸에 메모 표시</label>
-      <select id="cfg-memo-display-mode">
-        <option value="full">전체 표시</option>
-        <option value="truncate">잘라서 표시 (전체는 클릭하면 확인)</option>
-        <option value="summary">한 줄 요약만 표시 (입력 시 "요약" 칸이 있으면 그걸 우선 사용)</option>
-        <option value="hide">표시 안 함</option>
-      </select>
-      <p style="font-size:0.68rem; color:#94a3b8; margin:4px 0 0 0;">오른쪽 "오늘의 메모/일지" 패널은 이 설정과 무관하게 항상 전체 내용을 보여줍니다.</p>
-    </div>
-
-    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px; margin-bottom:10px;">
-      <label style="font-weight:bold; font-size:0.75rem; color:#1e293b; display:block; margin-bottom:4px;">☁️ 구글 시트 연결 상태</label>
-      <div style="font-size:0.68rem; color:#64748b; margin-bottom:6px;">
-        지금 이 파일에 실제로 저장된 GOOGLE_SCRIPT_URL 값:<br>
-        <span id="current-script-url" style="display:inline-block; margin-top:2px; padding:4px 6px; background:white; border:1px solid #cbd5e1; border-radius:4px; word-break:break-all; font-family:monospace; color:#1e293b;"></span>
+      <div class="form-group">
+        <label>표시 색상</label>
+        <div id="profile-color-picker" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
       </div>
-      <div style="display:flex; align-items:center; gap:8px;">
-        <button class="btn btn-secondary" style="padding:4px 10px;" onclick="testSheetConnection()">🔧 연결 테스트</button>
-        <span id="sheet-test-result" style="font-size:0.75rem;"></span>
+      <div class="form-group" style="display:flex; gap:14px;">
+        <label style="font-weight:normal; display:flex; align-items:center; gap:4px;"><input type="checkbox" id="profile-is-admin" style="width:auto;"> 관리자</label>
+        <label style="font-weight:normal; display:flex; align-items:center; gap:4px;"><input type="checkbox" id="profile-after-school" style="width:auto;"> 방과후 담당</label>
       </div>
     </div>
 
-    <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:12px;">
-      <button class="btn btn-secondary" onclick="closeModal()">취소</button>
-      <button class="btn btn-primary" onclick="saveSettings()">설정 저장</button>
+    <div class="form-group">
+      <label>📝 메모 (학년도 무관, 이 사람에 대한 공통 기록)</label>
+      <textarea id="profile-notes" rows="4" placeholder="특이사항, 상성, 유의점 등을 자유롭게 기록하세요"></textarea>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; gap:6px;">
+      <button class="btn btn-secondary" onclick="copyPersonToNextYear()">➡️ 다음 학년도로 복사</button>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-secondary" onclick="closeModal()">닫기</button>
+        <button class="btn btn-primary" onclick="savePersonProfile()">저장</button>
+      </div>
     </div>
   </div>
 
@@ -706,6 +874,26 @@
     let scheduleTemplates = JSON.parse(localStorage.getItem('scheduleTemplates') || '[]');
     // 주간 템플릿: 학급/개인 주간 뷰의 한 주(월~금) 전체를 통째로 저장
     let weekTemplates = JSON.parse(localStorage.getItem('weekTemplates') || '[]');
+
+    // 사람 프로필: 이름을 키로 사용 (앱 전체에서 이름을 고유 식별자로 쓰는 방식과 일관성 유지)
+    // people[이름] = { type, notes, disabilityTypes, learningLevel, supportIntensity, communicationLevel, color, isAdmin, afterSchool, subject } - 학년도 무관 공통 정보
+    let people = JSON.parse(localStorage.getItem('people') || '{}');
+    // personYearData[이름][학년도] = { active, specialClass, integratedClass, classAssigned } - 학년도별 정보
+    let personYearData = JSON.parse(localStorage.getItem('personYearData') || '{}');
+
+    function getPersonProfile(name) {
+      if(!people[name]) people[name] = { notes: '', disabilityTypes: [], learningLevel: '', supportIntensity: '', communicationLevel: '', color: '', isAdmin: false, afterSchool: false, subject: '' };
+      return people[name];
+    }
+    function getPersonYear(name, year) {
+      if(!personYearData[name]) personYearData[name] = {};
+      if(!personYearData[name][year]) personYearData[name][year] = { active: true, specialClass: '', integratedClass: '', classAssigned: '' };
+      return personYearData[name][year];
+    }
+    function savePeopleData() {
+      localStorage.setItem('people', JSON.stringify(people));
+      localStorage.setItem('personYearData', JSON.stringify(personYearData));
+    }
     const NEULBOM_CATEGORIES = ['맞춤형교실', '돌봄', '특수선택형교육', '선택형교육'];
     const WEEKDAY_NAMES = ['월', '화', '수', '목', '금'];
 
@@ -2474,8 +2662,18 @@
       loadYearConfigToModal();
       document.getElementById('current-script-url').textContent = getRawScriptUrlForDisplay();
       document.getElementById('sheet-test-result').textContent = '';
-      document.getElementById('settings-modal').style.display = 'block';
-      document.getElementById('overlay').style.display = 'block';
+      document.getElementById('settings-page').style.display = 'block';
+      switchSettingsTab('general');
+    }
+
+    function closeSettingsPage() {
+      document.getElementById('settings-page').style.display = 'none';
+    }
+
+    function switchSettingsTab(tab) {
+      document.querySelectorAll('.settings-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+      document.querySelectorAll('.settings-tab-content').forEach(c => c.style.display = 'none');
+      document.getElementById('settings-tab-' + tab).style.display = 'block';
     }
 
     // 담당 교사 드롭다운을 '지원인력/교사 명단' 입력값 기준으로 재구성
@@ -2485,17 +2683,23 @@
     function renderPeopleManager(category) {
       const container = document.getElementById('people-' + category);
       const list = rosterDraft[category];
+      const year = document.getElementById('cfg-year-select').value;
       if(list.length === 0) {
         container.innerHTML = '<p style="color:#94a3b8; font-size:0.75rem; margin:2px 0;">등록된 사람이 없습니다.</p>';
       } else {
-        container.innerHTML = list.map((name, idx) => `
+        container.innerHTML = list.map((name, idx) => {
+          const yd = (personYearData[name] || {})[year];
+          const inactiveBadge = (yd && yd.active === false) ? '<span style="font-size:0.65rem; color:#dc2626; font-weight:bold;">(비활성)</span>' : '';
+          return `
           <div class="person-row" data-idx="${idx}">
-            <span class="person-name-display">${name}</span>
+            <span class="person-name-display">${name} ${inactiveBadge}</span>
             <input type="text" class="person-name-edit" value="${name}" style="display:none;">
+            <button type="button" class="btn-manage" onclick="openPersonProfile('${name}', '${category}')">관리</button>
             <button type="button" class="person-icon-btn" title="이름 수정" onclick="togglePersonEdit(this, '${category}')">✏️</button>
             <button type="button" class="person-icon-btn" title="삭제" onclick="removePersonAt('${category}', ${idx})">✕</button>
           </div>
-        `).join('');
+        `;
+        }).join('');
       }
       if(category === 'teachers') updateClassTeacherDropdowns();
     }
@@ -2525,7 +2729,12 @@
 
       rosterDraft[category][idx] = newName;
       renderPeopleManager(category);
-      if(doCascade) renamePersonEverywhere(oldName, newName);
+      if(doCascade) {
+        renamePersonEverywhere(oldName, newName);
+        if(people[oldName]) { people[newName] = people[oldName]; delete people[oldName]; }
+        if(personYearData[oldName]) { personYearData[newName] = personYearData[oldName]; delete personYearData[oldName]; }
+        savePeopleData();
+      }
     }
 
     // 기존 시간표(scheduleData)·출결(attendanceData) 기록에 남아있는 이름을 전부 새 이름으로 변경
@@ -2562,6 +2771,142 @@
       });
       input.value = '';
       renderPeopleManager(category);
+    }
+
+    // ===== 개별 사람 프로필(관리) 모달 =====
+    const TEACHER_COLORS = ['#2563eb','#f59e0b','#16a34a','#dc2626','#8b5cf6','#a16207','#db2777','#0f766e','#84cc16','#0891b2'];
+    const PROFILE_CATEGORY_TYPE = { mainStudents: 'student', extraStudents: 'student', helpers: 'helper', teachers: 'teacher' };
+
+    function openPersonProfile(name, category) {
+      const type = PROFILE_CATEGORY_TYPE[category];
+      const year = document.getElementById('cfg-year-select').value;
+      const profile = getPersonProfile(name);
+      const yearData = getPersonYear(name, year);
+
+      document.getElementById('profile-person-name').value = name;
+      document.getElementById('profile-person-category').value = category;
+      document.getElementById('profile-modal-title').innerText = `👤 ${name} 프로필 (${year}학년도 기준)`;
+      document.getElementById('profile-active').checked = yearData.active !== false;
+      document.getElementById('profile-notes').value = profile.notes || '';
+
+      document.getElementById('profile-student-fields').style.display = type === 'student' ? 'block' : 'none';
+      document.getElementById('profile-teacher-fields').style.display = type === 'teacher' ? 'block' : 'none';
+
+      if(type === 'student') {
+        document.getElementById('profile-special-class').value = yearData.specialClass || '';
+        document.getElementById('profile-integrated-class').value = yearData.integratedClass || '';
+        document.querySelectorAll('#profile-disability-types input').forEach(cb => {
+          cb.checked = (profile.disabilityTypes || []).includes(cb.value);
+        });
+        document.getElementById('profile-learning-level').value = profile.learningLevel || '';
+        document.getElementById('profile-support-intensity').value = profile.supportIntensity || '';
+        document.getElementById('profile-communication-level').value = profile.communicationLevel || '';
+      } else if(type === 'teacher') {
+        document.getElementById('profile-class-assigned').value = yearData.classAssigned || '';
+        document.getElementById('profile-subject').value = profile.subject || '';
+        document.getElementById('profile-is-admin').checked = !!profile.isAdmin;
+        document.getElementById('profile-after-school').checked = !!profile.afterSchool;
+        renderColorPicker(profile.color);
+      }
+
+      document.getElementById('person-profile-modal').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    }
+
+    function renderColorPicker(selected) {
+      const container = document.getElementById('profile-color-picker');
+      container.innerHTML = TEACHER_COLORS.map(c => `
+        <div class="color-swatch ${c === selected ? 'selected' : ''}" style="background:${c};" data-color="${c}" onclick="selectProfileColor('${c}')"></div>
+      `).join('');
+    }
+    function selectProfileColor(c) {
+      document.querySelectorAll('#profile-color-picker .color-swatch').forEach(s => s.classList.toggle('selected', s.dataset.color === c));
+      document.getElementById('profile-color-picker').dataset.selected = c;
+    }
+
+    function savePersonProfile() {
+      const name = document.getElementById('profile-person-name').value;
+      const category = document.getElementById('profile-person-category').value;
+      const type = PROFILE_CATEGORY_TYPE[category];
+      const year = document.getElementById('cfg-year-select').value;
+
+      const profile = getPersonProfile(name);
+      const yearData = getPersonYear(name, year);
+
+      yearData.active = document.getElementById('profile-active').checked;
+      profile.notes = document.getElementById('profile-notes').value;
+
+      if(type === 'student') {
+        yearData.specialClass = document.getElementById('profile-special-class').value;
+        yearData.integratedClass = document.getElementById('profile-integrated-class').value;
+        profile.disabilityTypes = Array.from(document.querySelectorAll('#profile-disability-types input:checked')).map(cb => cb.value);
+        profile.learningLevel = document.getElementById('profile-learning-level').value;
+        profile.supportIntensity = document.getElementById('profile-support-intensity').value;
+        profile.communicationLevel = document.getElementById('profile-communication-level').value;
+      } else if(type === 'teacher') {
+        yearData.classAssigned = document.getElementById('profile-class-assigned').value;
+        profile.subject = document.getElementById('profile-subject').value;
+        profile.isAdmin = document.getElementById('profile-is-admin').checked;
+        profile.afterSchool = document.getElementById('profile-after-school').checked;
+        const colorEl = document.getElementById('profile-color-picker');
+        profile.color = colorEl.dataset.selected || (colorEl.querySelector('.color-swatch.selected') || {}).dataset?.color || profile.color;
+      }
+
+      savePeopleData();
+      // 담당 학급 배정을 교사 프로필에서 바꿨다면, 반별 담당교사 드롭다운에도 즉시 반영
+      if(type === 'teacher' && yearData.classAssigned) {
+        const map = { '저학년반':'cfg-teacher-low', '고학년반':'cfg-teacher-high', '윤슬반':'cfg-teacher-yun' };
+        if(map[yearData.classAssigned]) document.getElementById(map[yearData.classAssigned]).value = name;
+      }
+      closeModal();
+      renderPeopleManager(category);
+      alert(`"${name}"의 프로필이 저장되었습니다.`);
+    }
+
+    // 지금 편집 중인 사람을 다음 학년도 명단에도 그대로 추가(프로필 공유, 반배정 등은 새로 지정)
+    function copyPersonToNextYear() {
+      const name = document.getElementById('profile-person-name').value;
+      const category = document.getElementById('profile-person-category').value;
+      const year = document.getElementById('cfg-year-select').value;
+      const nextYear = String(Number(year) + 1);
+
+      const nextRoster = JSON.parse(localStorage.getItem(`roster_${nextYear}`) || 'null') || { mainStudents: [], extraStudents: [], helpers: [], teachers: [], classTeachers: {} };
+      if(!nextRoster[category].includes(name)) nextRoster[category].push(name);
+      localStorage.setItem(`roster_${nextYear}`, JSON.stringify(nextRoster));
+
+      // 다음 학년도 정보는 기본적으로 이번 학년도와 동일하게 시작(재직 중), 이후 개별적으로 수정 가능
+      const yearData = getPersonYear(name, year);
+      const nextYearData = getPersonYear(name, nextYear);
+      nextYearData.active = true;
+      nextYearData.specialClass = yearData.specialClass || '';
+      nextYearData.integratedClass = ''; // 통합학급은 보통 학년이 바뀌므로 비워둠(직접 재지정)
+      nextYearData.classAssigned = yearData.classAssigned || '';
+      savePeopleData();
+
+      alert(`"${name}"을(를) ${nextYear}학년도 명단에도 추가했습니다. ${nextYear}학년도로 전환해서 반 배정을 확인해주세요.`);
+    }
+
+    // 이 학년도의 활성(재직/재학) 명단 전체를 다음 학년도로 복사
+    function copyRosterToNextYear() {
+      const year = document.getElementById('cfg-year-select').value;
+      const nextYear = String(Number(year) + 1);
+      if(!confirm(`${year}학년도의 전체 명단을 ${nextYear}학년도로 복사할까요? (이미 ${nextYear}학년도에 있는 사람은 중복 추가되지 않습니다)`)) return;
+
+      const nextRoster = JSON.parse(localStorage.getItem(`roster_${nextYear}`) || 'null') || { mainStudents: [], extraStudents: [], helpers: [], teachers: [], classTeachers: {} };
+      ['mainStudents','extraStudents','helpers','teachers'].forEach(category => {
+        rosterDraft[category].forEach(name => {
+          const yd = getPersonYear(name, year);
+          if(yd.active === false) return; // 비활성(졸업/전근 등) 인원은 복사하지 않음
+          if(!nextRoster[category].includes(name)) nextRoster[category].push(name);
+          const nextYd = getPersonYear(name, nextYear);
+          nextYd.active = true;
+          nextYd.specialClass = yd.specialClass || '';
+          nextYd.classAssigned = yd.classAssigned || '';
+        });
+      });
+      localStorage.setItem(`roster_${nextYear}`, JSON.stringify(nextRoster));
+      savePeopleData();
+      alert(`${nextYear}학년도로 복사되었습니다. 학년도 선택을 ${nextYear}로 바꾸면 확인할 수 있습니다.`);
     }
 
     function updateClassTeacherDropdowns() {
