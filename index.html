@@ -43,8 +43,8 @@
       .memo-panel.collapsed .memo-panel-header { display: flex !important; justify-content: space-between !important; align-items: center !important; height: 48px !important; padding: 0 12px !important; margin: 0 !important; box-sizing: border-box; }
       .memo-panel.collapsed .memo-title { display: block !important; font-size: 0.85rem !important; }
 
-      .top-bar { padding: 6px 8px; gap: 8px; }
-      .nav-group { gap: 5px; }
+      .top-bar { padding: 6px 8px; gap: 6px; flex-wrap: wrap; overflow-x: visible; }
+      .nav-group { gap: 5px; flex-wrap: wrap; flex-basis: 100%; }
       .nav-group button { font-size: 0.72rem !important; padding: 5px 7px !important; white-space: nowrap; flex-shrink: 0; }
       .nav-group .badge { font-size: 0.68rem !important; padding: 3px 7px !important; white-space: nowrap; flex-shrink: 0; }
       .nav-group select { font-size: 0.72rem !important; padding: 4px 6px !important; white-space: nowrap; flex-shrink: 0; width: auto !important; max-width: 110px; }
@@ -156,9 +156,9 @@
     .checkbox-grid label input[type="checkbox"] { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
     .checkbox-grid label:has(input:checked) { background: #dbeafe; border-color: #60a5fa; color: #1e40af; font-weight: bold; }
     .people-manager { display: flex; flex-direction: column; gap: 4px; max-height: 190px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px; }
-    .person-row { display: flex; align-items: center; gap: 6px; background: #f8fafc; padding: 4px 8px; border-radius: 6px; }
-    .person-row .person-name-display { flex: 1; font-size: 0.8rem; }
-    .person-row .person-name-edit { flex: 1; padding: 2px 6px; font-size: 0.78rem; border: 1px solid #93c5fd; border-radius: 4px; }
+    .person-card { display: flex; flex-direction: column; gap: 2px; background: #f8fafc; padding: 5px 8px; border-radius: 6px; }
+    .person-card .person-name-display { font-size: 0.8rem; font-weight: bold; }
+    .person-card .person-name-edit { flex: 1; padding: 2px 6px; font-size: 0.78rem; border: 1px solid #93c5fd; border-radius: 4px; }
     .person-icon-btn { background: none; border: none; cursor: pointer; font-size: 0.85rem; padding: 2px 5px; border-radius: 4px; }
     .person-icon-btn:hover { background: #e2e8f0; }
     .btn-manage { padding: 2px 8px; font-size: 0.72rem; background: #e0e7ff; color: #3730a3; border-radius: 4px; border: none; cursor: pointer; }
@@ -476,6 +476,7 @@
       <button class="settings-tab-btn" data-tab="students" onclick="switchSettingsTab('students')">학생 관리</button>
       <button class="settings-tab-btn" data-tab="helpers" onclick="switchSettingsTab('helpers')">지원인력 관리</button>
       <button class="settings-tab-btn" data-tab="teachers" onclick="switchSettingsTab('teachers')">교사 관리</button>
+      <button class="settings-tab-btn" data-tab="classes" onclick="switchSettingsTab('classes')">학급 관리</button>
       <button class="settings-tab-btn" data-tab="neulbom" onclick="switchSettingsTab('neulbom')">늘봄학교</button>
       <button class="settings-tab-btn" data-tab="templates" onclick="switchSettingsTab('templates')">템플릿 관리</button>
     </div>
@@ -620,6 +621,20 @@
         <div style="display:flex; justify-content:flex-end; margin-top:12px;">
           <button class="btn btn-primary" onclick="saveSettings()">설정 저장</button>
         </div>
+      </div>
+
+      <!-- 학급 관리 -->
+      <div id="settings-tab-classes" class="settings-tab-content" style="display:none;">
+        <p style="font-size:0.75rem; color:#64748b;">각 특수학급의 담당교사와 소속 학생을 학년도별로 한눈에 확인합니다.</p>
+        <div class="form-group">
+          <label>기준 학년도</label>
+          <select class="mgmt-year-select" onchange="setManagementYear(this.value)">
+            <option value="2025">2025학년도</option>
+            <option value="2026">2026학년도</option>
+            <option value="2027">2027학년도</option>
+          </select>
+        </div>
+        <div id="class-management-list" style="display:flex; flex-direction:column; gap:10px;"></div>
       </div>
 
       <!-- 늘봄학교 (설정 페이지 안에 직접 표시) -->
@@ -777,6 +792,19 @@
     <div class="form-group" id="profile-active-row">
       <label>이 학년도 상태</label>
       <select id="profile-status"></select>
+    </div>
+
+    <div class="form-group" style="background:#eff6ff; border:1px solid #93c5fd; border-radius:8px; padding:8px;">
+      <label>재학/근무 기간</label>
+      <div style="display:flex; gap:6px; align-items:center;">
+        <select id="profile-enroll-start" style="flex:1;"></select>
+        <span>~</span>
+        <select id="profile-enroll-end" style="flex:1;">
+          <option value="">현재까지 (종료일 미정)</option>
+        </select>
+      </div>
+      <button type="button" class="btn btn-secondary" style="margin-top:6px; font-size:0.72rem; padding:4px 8px;" onclick="applyEnrollmentPeriod()">📌 이 기간 전체 학년도에 자동 반영</button>
+      <p style="font-size:0.65rem; color:#64748b; margin:4px 0 0 0;">시작~종료 학년도를 정하면, 그 사이 모든 학년도 명단에 자동으로 포함되고 상태도 맞춰집니다. 매년 "다음 학년도로 복사"를 누를 필요가 없습니다.</p>
     </div>
 
     <!-- 학생 전용 -->
@@ -2886,6 +2914,35 @@
       document.getElementById('settings-tab-' + tab).style.display = 'block';
       if(tab === 'neulbom') openNeulbomModal();
       if(tab === 'templates') openTemplateModal();
+      if(tab === 'classes') renderClassManagement();
+    }
+
+    // ===== 학급 관리: 특수학급별 담당교사 + 소속 학생을 학년도 기준으로 한눈에 =====
+    function renderClassManagement() {
+      const year = document.getElementById('cfg-year-select').value;
+      const roster = getRoster(year);
+      const container = document.getElementById('class-management-list');
+      const classTeachers = roster.classTeachers || {};
+      const allStudents = [...roster.mainStudents, ...roster.extraStudents];
+      const groups = getStudentGroupsByClass(year, allStudents);
+
+      container.innerHTML = ['저학년반', '고학년반', '윤슬반'].map(className => {
+        const teacher = classTeachers[className] || '(미배정)';
+        const group = groups.find(g => g.label === className);
+        const students = group ? group.list : [];
+        return `
+          <div style="border:1px solid #e2e8f0; border-radius:10px; padding:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <strong style="font-size:0.95rem;">🏫 ${className}</strong>
+              <span style="font-size:0.75rem; color:#475569;">담당교사: <b>${teacher}</b></span>
+            </div>
+            <div style="font-size:0.75rem; color:#64748b; margin-bottom:4px;">소속 학생 ${students.length}명 (${year}학년도 기준)</div>
+            <div style="display:flex; flex-wrap:wrap; gap:4px;">
+              ${students.length ? students.map(s => `<span class="tag tag-main">${s}</span>`).join('') : '<span style="color:#94a3b8; font-size:0.72rem;">배정된 학생 없음</span>'}
+            </div>
+          </div>
+        `;
+      }).join('');
     }
 
     // 담당 교사 드롭다운을 '지원인력/교사 명단' 입력값 기준으로 재구성
@@ -2901,15 +2958,48 @@
       } else {
         container.innerHTML = list.map((name, idx) => {
           const id = resolvePersonId(year, name, true);
-          const yd = (personYearData[id] || {})[year];
-          const inactiveBadge = (yd && yd.status && yd.active === false) ? `<span style="font-size:0.65rem; color:#dc2626; font-weight:bold;">(${yd.status})</span>` : '';
+          const profile = getPersonProfile(id);
+          const yd = (personYearData[id] || {})[year] || {};
+          const isActive = yd.active !== false;
+          const statusBadge = yd.status ? `<span class="tag ${isActive ? 'tag-positive' : 'badge-leave'}" style="margin-left:4px;">${yd.status}</span>` : '';
+
+          // 재학/근무 기간 기준으로 "예정"/"종료" 여부 판단해서 카드 배경색 다르게 (기간 벗어난 경우 시각적으로 구분)
+          const yNum = Number(year);
+          let periodStyle = '';
+          if(profile.enrollStartYear && yNum < Number(profile.enrollStartYear)) periodStyle = 'background:#eff6ff; border:1px dashed #93c5fd;'; // 아직 시작 전(예정)
+          else if(profile.enrollEndYear && yNum > Number(profile.enrollEndYear)) periodStyle = 'background:#f1f5f9; opacity:0.6;'; // 기간 종료됨
+
+          // 학년반/장애/담당교과 등 요약 정보 한 줄
+          const type = PROFILE_CATEGORY_TYPE[category];
+          let detailParts = [];
+          if(type === 'student') {
+            if(yd.specialClass) detailParts.push(yd.specialClass);
+            if(yd.integratedGrade || yd.integratedClassNum) detailParts.push(`통합 ${yd.integratedGrade||'?'}학년 ${yd.integratedClassNum||'?'}반`);
+            if((profile.disabilityTypes||[]).length) detailParts.push(profile.disabilityTypes.join('·'));
+          } else if(type === 'teacher') {
+            if(yd.classAssigned) detailParts.push(yd.classAssigned);
+            if(profile.subject) detailParts.push(profile.subject);
+            if(profile.afterSchool) detailParts.push('방과후');
+          } else if(type === 'helper') {
+            if(profile.helperType) detailParts.push(profile.helperType);
+          }
+          if(profile.enrollStartYear) detailParts.push(`기간 ${profile.enrollStartYear}~${profile.enrollEndYear || '현재'}`);
+          const detailLine = detailParts.length ? `<div style="font-size:0.68rem; color:#64748b; margin-top:2px;">${detailParts.join(' · ')}</div>` : '';
+
           return `
-          <div class="person-row" data-idx="${idx}">
-            <span class="person-name-display">${name} ${inactiveBadge}</span>
-            <input type="text" class="person-name-edit" value="${name}" style="display:none;">
-            <button type="button" class="btn-manage" onclick="openPersonProfile('${name}', '${category}')">관리</button>
-            <button type="button" class="person-icon-btn" title="이름 수정" onclick="togglePersonEdit(this, '${category}')">✏️</button>
-            <button type="button" class="person-icon-btn" title="삭제" onclick="removePersonAt('${category}', ${idx})">✕</button>
+          <div class="person-card" data-idx="${idx}" style="${periodStyle}">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <div>
+                <span class="person-name-display">${name}</span>${statusBadge}
+                <input type="text" class="person-name-edit" value="${name}" style="display:none;">
+              </div>
+              <div style="display:flex; gap:2px; flex-shrink:0;">
+                <button type="button" class="btn-manage" onclick="openPersonProfile('${name}', '${category}')">관리</button>
+                <button type="button" class="person-icon-btn" title="이름 수정" onclick="togglePersonEdit(this, '${category}')">✏️</button>
+                <button type="button" class="person-icon-btn" title="삭제" onclick="removePersonAt('${category}', ${idx})">✕</button>
+              </div>
+            </div>
+            ${detailLine}
           </div>
         `;
         }).join('');
@@ -2918,7 +3008,7 @@
     }
 
     function togglePersonEdit(btn, category) {
-      const row = btn.closest('.person-row');
+      const row = btn.closest('.person-card');
       const display = row.querySelector('.person-name-display');
       const edit = row.querySelector('.person-name-edit');
       const isEditing = edit.style.display === 'block';
@@ -3040,6 +3130,14 @@
       if(type === 'helper') document.getElementById('profile-helper-type').value = profile.helperType || '특수교육실무사';
       renderPersonStatusOptions(yearData.status);
 
+      // 재학/근무 기간 드롭다운 채우기 (2025~2030 범위로 넉넉히 제공)
+      const yearOptions = [];
+      for(let y = 2025; y <= 2030; y++) yearOptions.push(y);
+      document.getElementById('profile-enroll-start').innerHTML = yearOptions.map(y => `<option value="${y}">${y}학년도</option>`).join('');
+      document.getElementById('profile-enroll-end').innerHTML = '<option value="">현재까지 (종료일 미정)</option>' + yearOptions.map(y => `<option value="${y}">${y}학년도</option>`).join('');
+      document.getElementById('profile-enroll-start').value = profile.enrollStartYear || year;
+      document.getElementById('profile-enroll-end').value = profile.enrollEndYear || '';
+
       document.getElementById('profile-student-fields').style.display = type === 'student' ? 'block' : 'none';
       document.getElementById('profile-teacher-fields').style.display = type === 'teacher' ? 'block' : 'none';
 
@@ -3090,6 +3188,8 @@
       yearData.active = ['재학', '재직', '근무'].includes(yearData.status); // 재학/재직/근무만 활성으로 취급
       if(type === 'helper') profile.helperType = document.getElementById('profile-helper-type').value;
       profile.notes = document.getElementById('profile-notes').value;
+      profile.enrollStartYear = document.getElementById('profile-enroll-start').value;
+      profile.enrollEndYear = document.getElementById('profile-enroll-end').value;
 
       if(type === 'student') {
         yearData.specialClass = document.getElementById('profile-special-class').value;
@@ -3130,6 +3230,37 @@
     }
 
     // 지금 편집 중인 사람을 다음 학년도 명단에도 그대로 추가(프로필 공유, 반배정 등은 새로 지정)
+    // 재학/근무 "기간"을 지정하면, 그 사이 모든 학년도 명단에 자동으로 포함시키고 상태도 맞춰줌 (매년 수동 복사 불필요)
+    function applyEnrollmentPeriod() {
+      const name = document.getElementById('profile-person-name').value;
+      const id = document.getElementById('profile-person-id').value;
+      const category = document.getElementById('profile-person-category').value;
+      const type = PROFILE_CATEGORY_TYPE[category];
+      const startYear = Number(document.getElementById('profile-enroll-start').value);
+      const endYearVal = document.getElementById('profile-enroll-end').value;
+      const endYear = endYearVal ? Number(endYearVal) : startYear + 5; // 종료 미정이면 넉넉히 앞으로 5년까지 적용
+
+      if(!confirm(`${startYear}학년도부터 ${endYearVal || '(현재까지)'} 까지 "${name}"을(를) 자동으로 반영할까요?\n각 학년도 명단에 없으면 추가되고, 상태도 재학/재직 중으로 맞춰집니다.`)) return;
+
+      let count = 0;
+      for(let y = startYear; y <= endYear; y++) {
+        const yearStr = String(y);
+        const nextRoster = JSON.parse(localStorage.getItem(`roster_${yearStr}`) || 'null') || { mainStudents: [], extraStudents: [], helpers: [], teachers: [], classTeachers: {} };
+        if(!nextRoster[category].includes(name)) nextRoster[category].push(name);
+        localStorage.setItem(`roster_${yearStr}`, JSON.stringify(nextRoster));
+        setRosterIdMapEntry(yearStr, name, id);
+
+        const yd = getPersonYear(id, yearStr);
+        yd.active = true;
+        yd.status = type === 'student' ? '재학' : (type === 'helper' && getPersonProfile(id).helperType === '사회복무요원' ? '근무' : '재직');
+        postToSheet('personYear', { id, year: yearStr, active: true, status: yd.status, specialClass: yd.specialClass||'', integratedGrade: yd.integratedGrade||'', integratedClassNum: yd.integratedClassNum||'', classAssigned: yd.classAssigned||'', duty: yd.duty||'' });
+        count++;
+      }
+      savePeopleData();
+      alert(`${count}개 학년도에 반영되었습니다.`);
+      renderPeopleManager(category);
+    }
+
     function copyPersonToNextYear() {
       const name = document.getElementById('profile-person-name').value;
       const id = document.getElementById('profile-person-id').value;
@@ -3202,6 +3333,7 @@
       document.getElementById('cfg-year-select').value = year;
       document.querySelectorAll('.mgmt-year-select').forEach(sel => sel.value = year);
       loadYearConfigToModal();
+      if(document.getElementById('settings-tab-classes').style.display !== 'none') renderClassManagement();
     }
 
     function loadYearConfigToModal() {
