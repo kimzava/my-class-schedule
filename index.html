@@ -156,6 +156,10 @@
     .checkbox-grid label input[type="checkbox"] { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
     .checkbox-grid label:has(input:checked) { background: #dbeafe; border-color: #60a5fa; color: #1e40af; font-weight: bold; }
     .people-manager { display: flex; flex-direction: column; gap: 4px; max-height: 190px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px; }
+    .student-class-group { margin-bottom: 14px; }
+    .student-class-group-title { font-weight: bold; font-size: 0.85rem; color: #1e40af; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+    .student-block-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+    .student-block { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 8px; }
     .person-card { display: flex; flex-direction: column; gap: 2px; background: #f8fafc; padding: 5px 8px; border-radius: 6px; }
     .person-card .person-name-display { font-size: 0.8rem; font-weight: bold; }
     .person-card .person-name-edit { flex: 1; padding: 2px 6px; font-size: 0.78rem; border: 1px solid #93c5fd; border-radius: 4px; }
@@ -185,7 +189,7 @@
 <body>
 
   <script>
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzZipV3j0ewdHIrovzIRkdoL7YjHP7eK6egvUqFwWck_8KFdViWeKheUurCzbrxh_gFtw/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz5qZ7_5VDuECAzs-VCiTJleE8zrBBnuf2JAl4kEjEwCSRh8j1vlrhwN6vj5cWGZ5YogQ/exec';
     const ACCESS_KEY = 'spedehxhfl'; // Code.gs의 ACCESS_KEY와 반드시 동일한 값으로 맞춰주세요
   </script>
 
@@ -524,7 +528,7 @@
 
       <!-- 학생 관리 -->
       <div id="settings-tab-students" class="settings-tab-content" style="display:none;">
-        <p style="font-size:0.75rem; color:#64748b;">이름 옆 "관리"를 누르면 학년도별 반 배정·특성·메모를 개별로 기록할 수 있습니다.</p>
+        <p style="font-size:0.75rem; color:#64748b;">학생은 배정된 특수학급(저학년반/고학년반/윤슬반)별로 묶여서 표시됩니다. 이름 옆 "관리"를 누르면 반배정·특성·메모를 개별로 기록할 수 있습니다.</p>
         <div class="form-group">
           <label>기준 학년도</label>
           <select class="mgmt-year-select" onchange="setManagementYear(this.value)">
@@ -534,22 +538,20 @@
           </select>
         </div>
 
-        <button class="btn btn-secondary" style="margin-bottom:10px;" onclick="copyRosterToNextYear()">📋 이 학년도 전체 명단을 다음 학년도로 복사</button>
+        <div id="people-students-grouped" style="margin-bottom:10px;"></div>
+
         <div class="form-group">
-          <label>👥 특수학급 소속 학생</label>
-          <div class="people-manager" id="people-mainStudents"></div>
-          <div style="display:flex; gap:4px; margin-top:5px;">
+          <label>👥 학생 추가</label>
+          <div style="display:flex; gap:4px;">
             <input type="text" id="add-input-mainStudents" placeholder="이름 입력 (쉼표로 여러 명 한번에 추가 가능)" style="flex:1;">
             <button type="button" class="btn btn-secondary" onclick="addPeopleFromInput('mainStudents')">+ 추가</button>
           </div>
+          <p style="font-size:0.65rem; color:#94a3b8; margin:4px 0 0 0;">추가한 학생은 "관리"에서 특수학급 반을 배정하면 해당 반 그룹으로 옮겨 표시됩니다.</p>
         </div>
-        <div class="form-group">
-          <label>👥 통합학급 지원 학생</label>
-          <div class="people-manager" id="people-extraStudents"></div>
-          <div style="display:flex; gap:4px; margin-top:5px;">
-            <input type="text" id="add-input-extraStudents" placeholder="이름 입력 (쉼표로 여러 명 한번에 추가 가능)" style="flex:1;">
-            <button type="button" class="btn btn-secondary" onclick="addPeopleFromInput('extraStudents')">+ 추가</button>
-          </div>
+        <div class="people-manager" id="people-mainStudents" style="display:none;"></div>
+        <div class="people-manager" id="people-extraStudents" style="display:none;"></div>
+        <div style="display:none;">
+          <input type="text" id="add-input-extraStudents">
         </div>
         <div style="display:flex; justify-content:flex-end; margin-top:12px;">
           <button class="btn btn-primary" onclick="saveSettings()">설정 저장</button>
@@ -774,8 +776,19 @@
     </div>
   </div>
 
+  <!-- 학급 소속 학생 편집 모달 -->
+  <div class="modal" id="class-editor-modal" style="width:420px;" onclick="event.stopPropagation()">
+    <h4 id="class-editor-title" style="margin-top:0; margin-bottom:8px;">👥 소속 학생 편집</h4>
+    <input type="hidden" id="class-editor-classname">
+    <div id="class-editor-student-list" style="max-height:320px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px; padding:8px;"></div>
+    <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:12px;">
+      <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveClassStudentEditor()">저장</button>
+    </div>
+  </div>
+
   <!-- 개별 사람 프로필(관리) 모달 -->
-  <div class="modal" id="person-profile-modal" style="width:520px;">
+  <div class="modal" id="person-profile-modal" style="width:520px;" onclick="event.stopPropagation()">
     <h4 id="profile-modal-title" style="margin-top:0; margin-bottom:10px;">👤 프로필</h4>
     <input type="hidden" id="profile-person-name">
     <input type="hidden" id="profile-person-id">
@@ -783,7 +796,7 @@
 
     <div class="form-group" id="profile-helper-type-row" style="display:none;">
       <label>지원인력 구분</label>
-      <select id="profile-helper-type" onchange="renderPersonStatusOptions()">
+      <select id="profile-helper-type" onchange="renderPersonStatusOptions(); toggleServicePeriodSection();">
         <option value="특수교육실무사">특수교육실무사</option>
         <option value="사회복무요원">사회복무요원</option>
         <option value="기타">기타</option>
@@ -794,8 +807,8 @@
       <select id="profile-status"></select>
     </div>
 
-    <div class="form-group" style="background:#eff6ff; border:1px solid #93c5fd; border-radius:8px; padding:8px;">
-      <label>재학/근무 기간</label>
+    <div class="form-group" style="background:#eff6ff; border:1px solid #93c5fd; border-radius:8px; padding:8px;" id="profile-enroll-year-section">
+      <label>재학/근무 기간 (학년도)</label>
       <div style="display:flex; gap:6px; align-items:center;">
         <select id="profile-enroll-start" style="flex:1;"></select>
         <span>~</span>
@@ -804,7 +817,18 @@
         </select>
       </div>
       <button type="button" class="btn btn-secondary" style="margin-top:6px; font-size:0.72rem; padding:4px 8px;" onclick="applyEnrollmentPeriod()">📌 이 기간 전체 학년도에 자동 반영</button>
-      <p style="font-size:0.65rem; color:#64748b; margin:4px 0 0 0;">시작~종료 학년도를 정하면, 그 사이 모든 학년도 명단에 자동으로 포함되고 상태도 맞춰집니다. 매년 "다음 학년도로 복사"를 누를 필요가 없습니다.</p>
+      <p style="font-size:0.65rem; color:#64748b; margin:4px 0 0 0;">시작~종료 학년도를 정하면, 그 사이 모든 학년도 명단에 자동으로 포함되고 상태도 맞춰집니다.</p>
+    </div>
+
+    <div class="form-group" style="background:#fff7ed; border:1px solid #fdba74; border-radius:8px; padding:8px; display:none;" id="profile-enroll-date-section">
+      <label>근무 기간 (날짜) — 사회복무요원</label>
+      <div style="display:flex; gap:6px; align-items:center;">
+        <input type="date" id="profile-service-start-date" style="flex:1;">
+        <span>~</span>
+        <input type="date" id="profile-service-end-date" style="flex:1;">
+      </div>
+      <button type="button" class="btn btn-secondary" style="margin-top:6px; font-size:0.72rem; padding:4px 8px;" onclick="applyServiceDatePeriod()">📌 이 기간이 포함된 학년도에 자동 반영</button>
+      <p style="font-size:0.65rem; color:#64748b; margin:4px 0 0 0;">복무 시작일~종료일을 입력하면, 그 날짜가 걸쳐있는 학년도(3월~다음해 2월) 전체에 자동 반영됩니다.</p>
     </div>
 
     <!-- 학생 전용 -->
@@ -914,12 +938,9 @@
       <textarea id="profile-notes" rows="4" placeholder="특이사항, 상성, 유의점 등을 자유롭게 기록하세요"></textarea>
     </div>
 
-    <div style="display:flex; justify-content:space-between; gap:6px;">
-      <button class="btn btn-secondary" onclick="copyPersonToNextYear()">➡️ 다음 학년도로 복사</button>
-      <div style="display:flex; gap:6px;">
-        <button class="btn btn-secondary" onclick="closeModal()">닫기</button>
-        <button class="btn btn-primary" onclick="savePersonProfile()">저장</button>
-      </div>
+    <div style="display:flex; justify-content:flex-end; gap:6px;">
+      <button class="btn btn-secondary" onclick="closeModal()">닫기</button>
+      <button class="btn btn-primary" onclick="savePersonProfile()">저장</button>
     </div>
   </div>
 
@@ -1464,7 +1485,9 @@
             learningLevel: row['학습수준'] || '', supportIntensity: row['지원강도'] || '',
             communicationLevel: row['의사소통수준'] || '', color: row['색상'] || '',
             afterSchool: row['방과후'] === true || row['방과후'] === 'TRUE' || row['방과후'] === 'true',
-            subject: row['교과'] || '', helperType: row['지원인력구분'] || ''
+            subject: row['교과'] || '', helperType: row['지원인력구분'] || '',
+            enrollStartYear: row['재학근무시작학년도'] || '', enrollEndYear: row['재학근무종료학년도'] || '',
+            serviceStartDate: row['복무시작일'] || '', serviceEndDate: row['복무종료일'] || ''
           };
         });
 
@@ -2010,10 +2033,10 @@
       const showTeachers = shouldShowPersonType('teachers');
       const showLocation = shouldShowLocationInCell();
 
-      // 학생 컬럼 그룹: 실제 배정된 특수학급 반별로 표시 (저학년반/고학년반/윤슬반/반 미배정) - 옵션 꺼져있으면 그룹 자체를 생략
-      const studentGroups = showStudents ? getStudentGroupsByClass(getAcademicYear(currentDate), [...roster.mainStudents, ...roster.extraStudents]) : [];
-      const helperList = showHelpers ? roster.helpers : [];
-      const teacherList = showTeachers ? roster.teachers : [];
+      // 학생/지원인력/교사 열(행·열 구조)은 항상 표시. 위 옵션은 각 셀 "안"에 표시되는 정보(장소/교차참조 이름)만 제어함
+      const studentGroups = getStudentGroupsByClass(getAcademicYear(currentDate), [...roster.mainStudents, ...roster.extraStudents]);
+      const helperList = roster.helpers;
+      const teacherList = roster.teachers;
 
       let html = `<table><thead>
         <tr>
@@ -2927,22 +2950,82 @@
       const groups = getStudentGroupsByClass(year, allStudents);
 
       container.innerHTML = ['저학년반', '고학년반', '윤슬반'].map(className => {
-        const teacher = classTeachers[className] || '(미배정)';
+        const teacher = classTeachers[className] || '';
         const group = groups.find(g => g.label === className);
         const students = group ? group.list : [];
         return `
           <div style="border:1px solid #e2e8f0; border-radius:10px; padding:12px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
               <strong style="font-size:0.95rem;">🏫 ${className}</strong>
-              <span style="font-size:0.75rem; color:#475569;">담당교사: <b>${teacher}</b></span>
+              <div style="display:flex; align-items:center; gap:4px;">
+                <span style="font-size:0.72rem; color:#475569;">담당교사</span>
+                <select style="width:auto; font-size:0.75rem; padding:3px 6px;" onchange="setClassTeacher('${className}', this.value)">
+                  <option value="">-- 미배정 --</option>
+                  ${roster.teachers.map(t => `<option value="${t}" ${t===teacher?'selected':''}>${t}</option>`).join('')}
+                </select>
+              </div>
             </div>
             <div style="font-size:0.75rem; color:#64748b; margin-bottom:4px;">소속 학생 ${students.length}명 (${year}학년도 기준)</div>
-            <div style="display:flex; flex-wrap:wrap; gap:4px;">
+            <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px;">
               ${students.length ? students.map(s => `<span class="tag tag-main">${s}</span>`).join('') : '<span style="color:#94a3b8; font-size:0.72rem;">배정된 학생 없음</span>'}
             </div>
+            <button class="btn btn-secondary" style="font-size:0.72rem; padding:3px 8px;" onclick="openClassStudentEditor('${className}')">👥 소속 학생 편집</button>
           </div>
         `;
       }).join('');
+    }
+
+    function setClassTeacher(className, teacherName) {
+      const year = document.getElementById('cfg-year-select').value;
+      const roster = getRoster(year);
+      roster.classTeachers = roster.classTeachers || {};
+      roster.classTeachers[className] = teacherName;
+      localStorage.setItem(`roster_${year}`, JSON.stringify(roster));
+      postToSheet('roster', {
+        academicYear: year, mainStudents: roster.mainStudents.join(', '), extraStudents: roster.extraStudents.join(', '),
+        helpers: roster.helpers.join(', '), teachers: roster.teachers.join(', '),
+        teacherLow: roster.classTeachers['저학년반']||'', teacherHigh: roster.classTeachers['고학년반']||'', teacherYun: roster.classTeachers['윤슬반']||''
+      });
+      const map = { '저학년반':'cfg-teacher-low', '고학년반':'cfg-teacher-high', '윤슬반':'cfg-teacher-yun' };
+      if(map[className] && document.getElementById(map[className])) document.getElementById(map[className]).value = teacherName;
+      renderClassManagement();
+    }
+
+    function openClassStudentEditor(className) {
+      const year = document.getElementById('cfg-year-select').value;
+      const roster = getRoster(year);
+      const allStudents = [...roster.mainStudents, ...roster.extraStudents];
+      document.getElementById('class-editor-title').innerText = `👥 ${className} 소속 학생 편집 (${year}학년도)`;
+      document.getElementById('class-editor-classname').value = className;
+      document.getElementById('class-editor-student-list').innerHTML = allStudents.map(name => {
+        const id = resolvePersonId(year, name, true);
+        const yd = (personYearData[id] || {})[year] || {};
+        const checked = yd.specialClass === className;
+        const otherClass = (yd.specialClass && yd.specialClass !== className) ? ` (현재: ${yd.specialClass})` : '';
+        return `<label style="display:flex; align-items:center; gap:6px; padding:4px 0; font-weight:normal;"><input type="checkbox" value="${name}" ${checked?'checked':''} style="width:auto;"> ${name}<span style="color:#94a3b8; font-size:0.68rem;">${otherClass}</span></label>`;
+      }).join('') || '<p style="color:#94a3b8; font-size:0.75rem;">등록된 학생이 없습니다.</p>';
+      document.getElementById('class-editor-modal').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    }
+
+    function saveClassStudentEditor() {
+      const className = document.getElementById('class-editor-classname').value;
+      const year = document.getElementById('cfg-year-select').value;
+      const checkboxes = document.querySelectorAll('#class-editor-student-list input[type="checkbox"]');
+      let count = 0;
+      checkboxes.forEach(cb => {
+        const name = cb.value;
+        const id = resolvePersonId(year, name, true);
+        const yd = getPersonYear(id, year);
+        if(cb.checked) { yd.specialClass = className; count++; }
+        else if(yd.specialClass === className) { yd.specialClass = ''; }
+        postToSheet('personYear', { id, year, active: yd.active, status: yd.status||'', specialClass: yd.specialClass||'', integratedGrade: yd.integratedGrade||'', integratedClassNum: yd.integratedClassNum||'', classAssigned: yd.classAssigned||'', duty: yd.duty||'' });
+      });
+      savePeopleData();
+      closeModal();
+      renderClassManagement();
+      renderStudentsGrouped();
+      alert(`${count}명이 ${className}에 배정되었습니다.`);
     }
 
     // 담당 교사 드롭다운을 '지원인력/교사 명단' 입력값 기준으로 재구성
@@ -3005,6 +3088,7 @@
         }).join('');
       }
       if(category === 'teachers') updateClassTeacherDropdowns();
+      if((category === 'mainStudents' || category === 'extraStudents') && document.getElementById('people-students-grouped')) renderStudentsGrouped();
     }
 
     function togglePersonEdit(btn, category) {
@@ -3068,6 +3152,69 @@
       if(!confirm(`"${name}"을(를) 명단에서 삭제할까요? (기존에 저장된 시간표·출결 기록은 그대로 남습니다)`)) return;
       rosterDraft[category].splice(idx, 1);
       renderPeopleManager(category);
+      if(category === 'mainStudents' || category === 'extraStudents') renderStudentsGrouped();
+    }
+
+    // 이름으로 직접 삭제(그리드형 학생 카드에서 사용 - 배열 내 정확한 인덱스를 몰라도 됨)
+    function removePersonByName(category, name) {
+      const idx = rosterDraft[category].indexOf(name);
+      if(idx < 0) return;
+      removePersonAt(category, idx);
+    }
+
+    // ===== 학생 목록을 "우리반/외부반" 구분 대신 실제 배정된 특수학급 반별로 그룹핑해서 그리드로 표시 =====
+    function renderStudentsGrouped() {
+      const year = document.getElementById('cfg-year-select').value;
+      const combined = [
+        ...rosterDraft.mainStudents.map(name => ({ name, category: 'mainStudents' })),
+        ...rosterDraft.extraStudents.map(name => ({ name, category: 'extraStudents' }))
+      ];
+      const groups = { '저학년반': [], '고학년반': [], '윤슬반': [], '반 미배정': [] };
+      combined.forEach(item => {
+        const id = resolvePersonId(year, item.name, true);
+        const yd = (personYearData[id] || {})[year] || {};
+        const cls = yd.specialClass || '반 미배정';
+        if(!groups[cls]) groups[cls] = [];
+        groups[cls].push({ ...item, id, yd, profile: getPersonProfile(id) });
+      });
+
+      const container = document.getElementById('people-students-grouped');
+      const order = ['저학년반', '고학년반', '윤슬반', '반 미배정'];
+      container.innerHTML = order.filter(k => groups[k] && groups[k].length).map(className => `
+        <div class="student-class-group">
+          <div class="student-class-group-title">🏫 ${className} (${groups[className].length}명)</div>
+          <div class="student-block-grid">
+            ${groups[className].map(item => renderStudentBlock(item)).join('')}
+          </div>
+        </div>
+      `).join('') || '<p style="color:#94a3b8; font-size:0.75rem;">등록된 학생이 없습니다.</p>';
+    }
+
+    function renderStudentBlock(item) {
+      const { name, category, yd, profile } = item;
+      const isActive = yd.active !== false;
+      const statusBadge = yd.status ? `<span class="tag ${isActive ? 'tag-positive' : 'badge-leave'}" style="font-size:0.6rem; margin-left:3px;">${yd.status}</span>` : '';
+      let details = [];
+      if((profile.disabilityTypes||[]).length) details.push(profile.disabilityTypes.join('·'));
+      if(yd.integratedGrade || yd.integratedClassNum) details.push(`통합 ${yd.integratedGrade||'?'}-${yd.integratedClassNum||'?'}`);
+      let periodStyle = '';
+      const yNum = Number(document.getElementById('cfg-year-select').value);
+      if(profile.enrollStartYear && yNum < Number(profile.enrollStartYear)) periodStyle = 'background:#eff6ff; border-style:dashed;';
+      else if(profile.enrollEndYear && yNum > Number(profile.enrollEndYear)) periodStyle = 'background:#f1f5f9; opacity:0.6;';
+
+      return `
+        <div class="student-block" style="${periodStyle}">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:0.78rem; font-weight:bold;">${name}</span>
+            ${statusBadge}
+          </div>
+          ${details.length ? `<div style="font-size:0.62rem; color:#64748b; margin-top:1px;">${details.join(' · ')}</div>` : ''}
+          <div style="display:flex; gap:3px; margin-top:4px;">
+            <button type="button" class="btn-manage" style="font-size:0.62rem; padding:1px 6px;" onclick="openPersonProfile('${name}', '${category}')">관리</button>
+            <button type="button" class="person-icon-btn" style="font-size:0.68rem; padding:1px 4px;" onclick="removePersonByName('${category}', '${name}')">✕</button>
+          </div>
+        </div>
+      `;
     }
 
     // 이름을 추가할 때, 다른 학년도에 이미 같은 이름의 사람이 있으면 "동일인물인지 동명이인인지" 확인
@@ -3129,6 +3276,12 @@
       document.getElementById('profile-helper-type-row').style.display = type === 'helper' ? 'block' : 'none';
       if(type === 'helper') document.getElementById('profile-helper-type').value = profile.helperType || '특수교육실무사';
       renderPersonStatusOptions(yearData.status);
+
+      const isConscript = (type === 'helper' && (profile.helperType || '특수교육실무사') === '사회복무요원');
+      document.getElementById('profile-enroll-year-section').style.display = isConscript ? 'none' : 'block';
+      document.getElementById('profile-enroll-date-section').style.display = isConscript ? 'block' : 'none';
+      document.getElementById('profile-service-start-date').value = profile.serviceStartDate || '';
+      document.getElementById('profile-service-end-date').value = profile.serviceEndDate || '';
 
       // 재학/근무 기간 드롭다운 채우기 (2025~2030 범위로 넉넉히 제공)
       const yearOptions = [];
@@ -3212,7 +3365,9 @@
       postToSheet('people', {
         id, notes: profile.notes, disabilityTypes: (profile.disabilityTypes||[]).join(', '), learningLevel: profile.learningLevel||'',
         supportIntensity: profile.supportIntensity||'', communicationLevel: profile.communicationLevel||'', color: profile.color||'',
-        afterSchool: profile.afterSchool||false, subject: profile.subject||'', helperType: profile.helperType||''
+        afterSchool: profile.afterSchool||false, subject: profile.subject||'', helperType: profile.helperType||'',
+        enrollStartYear: profile.enrollStartYear||'', enrollEndYear: profile.enrollEndYear||'',
+        serviceStartDate: profile.serviceStartDate||'', serviceEndDate: profile.serviceEndDate||''
       });
       postToSheet('personYear', {
         id, year, active: yearData.active, status: yearData.status||'', specialClass: yearData.specialClass||'',
@@ -3231,6 +3386,56 @@
 
     // 지금 편집 중인 사람을 다음 학년도 명단에도 그대로 추가(프로필 공유, 반배정 등은 새로 지정)
     // 재학/근무 "기간"을 지정하면, 그 사이 모든 학년도 명단에 자동으로 포함시키고 상태도 맞춰줌 (매년 수동 복사 불필요)
+    function toggleServicePeriodSection() {
+      const isConscript = document.getElementById('profile-helper-type').value === '사회복무요원';
+      document.getElementById('profile-enroll-year-section').style.display = isConscript ? 'none' : 'block';
+      document.getElementById('profile-enroll-date-section').style.display = isConscript ? 'block' : 'none';
+    }
+
+    // 사회복무요원 전용: 복무 시작일~종료일이 걸쳐있는 학년도(3월~다음해 2월) 전체에 자동 반영
+    function applyServiceDatePeriod() {
+      const name = document.getElementById('profile-person-name').value;
+      const id = document.getElementById('profile-person-id').value;
+      const category = document.getElementById('profile-person-category').value;
+      const startDateVal = document.getElementById('profile-service-start-date').value;
+      const endDateVal = document.getElementById('profile-service-end-date').value;
+      if(!startDateVal) { alert('복무 시작일을 입력해주세요.'); return; }
+
+      const profile = getPersonProfile(id);
+      profile.serviceStartDate = startDateVal;
+      profile.serviceEndDate = endDateVal;
+      postToSheet('people', {
+        id, notes: profile.notes||'', disabilityTypes: (profile.disabilityTypes||[]).join(', '), learningLevel: profile.learningLevel||'',
+        supportIntensity: profile.supportIntensity||'', communicationLevel: profile.communicationLevel||'', color: profile.color||'',
+        afterSchool: profile.afterSchool||false, subject: profile.subject||'', helperType: profile.helperType||'',
+        enrollStartYear: profile.enrollStartYear||'', enrollEndYear: profile.enrollEndYear||'',
+        serviceStartDate: startDateVal, serviceEndDate: endDateVal
+      });
+
+      const startYear = getAcademicYear(new Date(startDateVal + 'T00:00:00'));
+      const endYear = endDateVal ? getAcademicYear(new Date(endDateVal + 'T00:00:00')) : startYear + 5;
+
+      if(!confirm(`복무기간(${startDateVal} ~ ${endDateVal || '미정'})이 걸쳐있는 ${startYear}~${endYear}학년도에 "${name}"을(를) 자동 반영할까요?`)) return;
+
+      let count = 0;
+      for(let y = startYear; y <= endYear; y++) {
+        const yearStr = String(y);
+        const nextRoster = JSON.parse(localStorage.getItem(`roster_${yearStr}`) || 'null') || { mainStudents: [], extraStudents: [], helpers: [], teachers: [], classTeachers: {} };
+        if(!nextRoster[category].includes(name)) nextRoster[category].push(name);
+        localStorage.setItem(`roster_${yearStr}`, JSON.stringify(nextRoster));
+        setRosterIdMapEntry(yearStr, name, id);
+
+        const yd = getPersonYear(id, yearStr);
+        yd.active = true;
+        yd.status = '근무';
+        postToSheet('personYear', { id, year: yearStr, active: true, status: '근무', specialClass: '', integratedGrade: '', integratedClassNum: '', classAssigned: '', duty: yd.duty||'' });
+        count++;
+      }
+      savePeopleData();
+      alert(`${count}개 학년도에 반영되었습니다.`);
+      renderPeopleManager(category);
+    }
+
     function applyEnrollmentPeriod() {
       const name = document.getElementById('profile-person-name').value;
       const id = document.getElementById('profile-person-id').value;
@@ -3241,6 +3446,17 @@
       const endYear = endYearVal ? Number(endYearVal) : startYear + 5; // 종료 미정이면 넉넉히 앞으로 5년까지 적용
 
       if(!confirm(`${startYear}학년도부터 ${endYearVal || '(현재까지)'} 까지 "${name}"을(를) 자동으로 반영할까요?\n각 학년도 명단에 없으면 추가되고, 상태도 재학/재직 중으로 맞춰집니다.`)) return;
+
+      const profile = getPersonProfile(id);
+      profile.enrollStartYear = String(startYear);
+      profile.enrollEndYear = endYearVal || '';
+      postToSheet('people', {
+        id, notes: profile.notes||'', disabilityTypes: (profile.disabilityTypes||[]).join(', '), learningLevel: profile.learningLevel||'',
+        supportIntensity: profile.supportIntensity||'', communicationLevel: profile.communicationLevel||'', color: profile.color||'',
+        afterSchool: profile.afterSchool||false, subject: profile.subject||'', helperType: profile.helperType||'',
+        enrollStartYear: profile.enrollStartYear, enrollEndYear: profile.enrollEndYear,
+        serviceStartDate: profile.serviceStartDate||'', serviceEndDate: profile.serviceEndDate||''
+      });
 
       let count = 0;
       for(let y = startYear; y <= endYear; y++) {
@@ -3350,6 +3566,7 @@
       renderPeopleManager('mainStudents');
       renderPeopleManager('extraStudents');
       renderPeopleManager('helpers');
+      renderStudentsGrouped();
 
       const ct = roster.classTeachers || {};
       document.getElementById('cfg-teacher-low').value = ct['저학년반'] || '';
