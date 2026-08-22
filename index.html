@@ -155,6 +155,12 @@
     .checkbox-grid label { position: relative; font-size: 0.85rem; background: #f8fafc; padding: 5px 11px; border-radius: 14px; border: 1px solid #e2e8f0; cursor: pointer; user-select: none; transition: background 0.15s, border-color 0.15s, color 0.15s; }
     .checkbox-grid label input[type="checkbox"] { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
     .checkbox-grid label:has(input:checked) { background: #dbeafe; border-color: #60a5fa; color: #1e40af; font-weight: bold; }
+    .people-manager { display: flex; flex-direction: column; gap: 4px; max-height: 190px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px; }
+    .person-row { display: flex; align-items: center; gap: 6px; background: #f8fafc; padding: 4px 8px; border-radius: 6px; }
+    .person-row .person-name-display { flex: 1; font-size: 0.8rem; }
+    .person-row .person-name-edit { flex: 1; padding: 2px 6px; font-size: 0.78rem; border: 1px solid #93c5fd; border-radius: 4px; }
+    .person-icon-btn { background: none; border: none; cursor: pointer; font-size: 0.85rem; padding: 2px 5px; border-radius: 4px; }
+    .person-icon-btn:hover { background: #e2e8f0; }
 
     .btn { padding: 6px 13px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; font-size: 0.88rem; }
     .btn-primary { background: #2563eb; color: white; }
@@ -454,8 +460,12 @@
     </div>
 
     <div class="form-group">
-      <label>지원인력 / 교사 명단 (쉼표 구분) — 아래 반별 담당 교사 드롭다운의 목록으로 사용됩니다</label>
-      <input type="text" id="cfg-teachers" oninput="updateClassTeacherDropdowns()">
+      <label>👥 교사 명단 — 아래 반별 담당 교사 드롭다운의 목록으로 사용됩니다</label>
+      <div class="people-manager" id="people-teachers"></div>
+      <div style="display:flex; gap:4px; margin-top:5px;">
+        <input type="text" id="add-input-teachers" placeholder="이름 입력 (쉼표로 여러 명 한번에 추가 가능)" style="flex:1;">
+        <button type="button" class="btn btn-secondary" onclick="addPeopleFromInput('teachers')">+ 추가</button>
+      </div>
     </div>
 
     <div style="background:#f1f5f9; padding:8px; border-radius:6px; margin-bottom:10px;">
@@ -477,16 +487,28 @@
     </div>
 
     <div class="form-group">
-      <label>우리반 학생 명단 (쉼표 구분)</label>
-      <input type="text" id="cfg-main-students">
+      <label>👥 우리반 학생 명단</label>
+      <div class="people-manager" id="people-mainStudents"></div>
+      <div style="display:flex; gap:4px; margin-top:5px;">
+        <input type="text" id="add-input-mainStudents" placeholder="이름 입력 (쉼표로 여러 명 한번에 추가 가능)" style="flex:1;">
+        <button type="button" class="btn btn-secondary" onclick="addPeopleFromInput('mainStudents')">+ 추가</button>
+      </div>
     </div>
     <div class="form-group">
-      <label>외부/옆반 학생 명단 (쉼표 구분)</label>
-      <input type="text" id="cfg-extra-students">
+      <label>👥 외부/옆반 학생 명단</label>
+      <div class="people-manager" id="people-extraStudents"></div>
+      <div style="display:flex; gap:4px; margin-top:5px;">
+        <input type="text" id="add-input-extraStudents" placeholder="이름 입력 (쉼표로 여러 명 한번에 추가 가능)" style="flex:1;">
+        <button type="button" class="btn btn-secondary" onclick="addPeopleFromInput('extraStudents')">+ 추가</button>
+      </div>
     </div>
     <div class="form-group">
-      <label>지원인력 명단</label>
-      <input type="text" id="cfg-helpers">
+      <label>👥 지원인력 명단</label>
+      <div class="people-manager" id="people-helpers"></div>
+      <div style="display:flex; gap:4px; margin-top:5px;">
+        <input type="text" id="add-input-helpers" placeholder="이름 입력 (쉼표로 여러 명 한번에 추가 가능)" style="flex:1;">
+        <button type="button" class="btn btn-secondary" onclick="addPeopleFromInput('helpers')">+ 추가</button>
+      </div>
     </div>
 
     <div class="form-group">
@@ -2457,8 +2479,93 @@
     }
 
     // 담당 교사 드롭다운을 '지원인력/교사 명단' 입력값 기준으로 재구성
+    // ===== 사람 관리(추가/삭제/이름변경) - 쉼표구분 줄글 대신 목록형 UI =====
+    let rosterDraft = { mainStudents: [], extraStudents: [], helpers: [], teachers: [] };
+
+    function renderPeopleManager(category) {
+      const container = document.getElementById('people-' + category);
+      const list = rosterDraft[category];
+      if(list.length === 0) {
+        container.innerHTML = '<p style="color:#94a3b8; font-size:0.75rem; margin:2px 0;">등록된 사람이 없습니다.</p>';
+      } else {
+        container.innerHTML = list.map((name, idx) => `
+          <div class="person-row" data-idx="${idx}">
+            <span class="person-name-display">${name}</span>
+            <input type="text" class="person-name-edit" value="${name}" style="display:none;">
+            <button type="button" class="person-icon-btn" title="이름 수정" onclick="togglePersonEdit(this, '${category}')">✏️</button>
+            <button type="button" class="person-icon-btn" title="삭제" onclick="removePersonAt('${category}', ${idx})">✕</button>
+          </div>
+        `).join('');
+      }
+      if(category === 'teachers') updateClassTeacherDropdowns();
+    }
+
+    function togglePersonEdit(btn, category) {
+      const row = btn.closest('.person-row');
+      const display = row.querySelector('.person-name-display');
+      const edit = row.querySelector('.person-name-edit');
+      const isEditing = edit.style.display === 'block';
+      if(!isEditing) {
+        display.style.display = 'none';
+        edit.style.display = 'block';
+        edit.focus();
+        btn.textContent = '✅';
+      } else {
+        const idx = Number(row.dataset.idx);
+        commitPersonRename(category, idx, edit.value.trim());
+      }
+    }
+
+    function commitPersonRename(category, idx, newName) {
+      const oldName = rosterDraft[category][idx];
+      if(!newName || newName === oldName) { renderPeopleManager(category); return; }
+      if(rosterDraft[category].includes(newName)) { alert('이미 존재하는 이름입니다.'); renderPeopleManager(category); return; }
+
+      const doCascade = confirm(`"${oldName}"을(를) "${newName}"(으)로 바꿀까요?\n\n[확인] = 기존에 저장된 시간표·출결 기록의 이름도 함께 "${newName}"(으)로 바꿉니다.\n[취소] = 명단의 이름만 바꾸고, 기존 기록은 예전 이름 "${oldName}" 그대로 남습니다.`);
+
+      rosterDraft[category][idx] = newName;
+      renderPeopleManager(category);
+      if(doCascade) renamePersonEverywhere(oldName, newName);
+    }
+
+    // 기존 시간표(scheduleData)·출결(attendanceData) 기록에 남아있는 이름을 전부 새 이름으로 변경
+    function renamePersonEverywhere(oldName, newName) {
+      Object.values(scheduleData).forEach(entries => {
+        entries.forEach(entry => {
+          ['students', 'helpers', 'teachers'].forEach(k => {
+            const i = entry[k].indexOf(oldName);
+            if(i >= 0) entry[k][i] = newName;
+          });
+        });
+      });
+      Object.keys(attendanceData).forEach(dateStr => {
+        if(attendanceData[dateStr][oldName]) {
+          attendanceData[dateStr][newName] = attendanceData[dateStr][oldName];
+          delete attendanceData[dateStr][oldName];
+        }
+      });
+      render();
+    }
+
+    function removePersonAt(category, idx) {
+      const name = rosterDraft[category][idx];
+      if(!confirm(`"${name}"을(를) 명단에서 삭제할까요? (기존에 저장된 시간표·출결 기록은 그대로 남습니다)`)) return;
+      rosterDraft[category].splice(idx, 1);
+      renderPeopleManager(category);
+    }
+
+    function addPeopleFromInput(category) {
+      const input = document.getElementById('add-input-' + category);
+      const names = input.value.split(',').map(s => s.trim()).filter(Boolean);
+      names.forEach(name => {
+        if(!rosterDraft[category].includes(name)) rosterDraft[category].push(name);
+      });
+      input.value = '';
+      renderPeopleManager(category);
+    }
+
     function updateClassTeacherDropdowns() {
-      const teacherNames = document.getElementById('cfg-teachers').value.split(',').map(s=>s.trim()).filter(Boolean);
+      const teacherNames = rosterDraft.teachers;
       const selectIds = ['cfg-teacher-low','cfg-teacher-high','cfg-teacher-yun'];
       selectIds.forEach(id => {
         const el = document.getElementById(id);
@@ -2471,12 +2578,16 @@
     function loadYearConfigToModal() {
       const year = document.getElementById('cfg-year-select').value;
       const roster = getRoster(year);
-      document.getElementById('cfg-main-students').value = roster.mainStudents.join(', ');
-      document.getElementById('cfg-extra-students').value = roster.extraStudents.join(', ');
-      document.getElementById('cfg-helpers').value = roster.helpers.join(', ');
-      document.getElementById('cfg-teachers').value = roster.teachers.join(', ');
-
-      updateClassTeacherDropdowns();
+      rosterDraft = {
+        mainStudents: [...roster.mainStudents],
+        extraStudents: [...roster.extraStudents],
+        helpers: [...roster.helpers],
+        teachers: [...roster.teachers]
+      };
+      renderPeopleManager('teachers');
+      renderPeopleManager('mainStudents');
+      renderPeopleManager('extraStudents');
+      renderPeopleManager('helpers');
 
       const ct = roster.classTeachers || {};
       document.getElementById('cfg-teacher-low').value = ct['저학년반'] || '';
@@ -2496,10 +2607,10 @@
     function saveSettings() {
       const year = document.getElementById('cfg-year-select').value;
       const roster = {
-        mainStudents: document.getElementById('cfg-main-students').value.split(',').map(s=>s.trim()).filter(Boolean),
-        extraStudents: document.getElementById('cfg-extra-students').value.split(',').map(s=>s.trim()).filter(Boolean),
-        helpers: document.getElementById('cfg-helpers').value.split(',').map(s=>s.trim()).filter(Boolean),
-        teachers: document.getElementById('cfg-teachers').value.split(',').map(s=>s.trim()).filter(Boolean),
+        mainStudents: [...rosterDraft.mainStudents],
+        extraStudents: [...rosterDraft.extraStudents],
+        helpers: [...rosterDraft.helpers],
+        teachers: [...rosterDraft.teachers],
         classTeachers: {
           '저학년반': document.getElementById('cfg-teacher-low').value.trim(),
           '고학년반': document.getElementById('cfg-teacher-high').value.trim(),
