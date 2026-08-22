@@ -186,7 +186,7 @@
 <body>
 
   <script>
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwblxpYD8tZhFYpZ610l7hCz70hnK-xx5AWNsuekFgxY_S0W0h2cijlNo36u9UQVGNFlQ/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz3LRUOicdpcN7oIQsp9P56-xIpIIJqFn1GErCEUx6k1Z1QBup10eYMqpcv9fChH1VT5g/exec';
     const ACCESS_KEY = 'spedehxhfl'; // Code.gs의 ACCESS_KEY와 반드시 동일한 값으로 맞춰주세요
   </script>
 
@@ -1297,7 +1297,8 @@
     }
 
     // 앱 시작 시 구글 시트의 모든 데이터를 불러와 로컬 상태를 채움 (시트 미연결 시 로컬 데이터로만 동작)
-    async function loadFromSheet() {
+    async function loadFromSheet(retryCount) {
+      retryCount = retryCount || 0;
       if(!isSheetConnected()) { render(); return; }
       setSyncStatus('loading');
 
@@ -1308,11 +1309,24 @@
         rawText = await res.text();
         json = JSON.parse(rawText);
       } catch(err) {
+        // 요청 자체가 실패한 경우(배포 직후 일시적 오류 등) - 잠깐 기다렸다가 최대 3회까지 자동 재시도
+        if(retryCount < 3) {
+          console.warn(`시트 요청 실패, ${retryCount+1}번째 재시도 예정...`, err.message);
+          await new Promise(r => setTimeout(r, 1500));
+          return loadFromSheet(retryCount + 1);
+        }
         const detail = '요청 또는 JSON 파싱 실패: ' + err.message + '\n\n실제 응답 원문(앞부분):\n' + rawText.slice(0, 1000);
         console.error('시트 불러오기 실패:', detail);
         setSyncStatus('error', detail);
         render();
         return;
+      }
+
+      // "unauthorized" 응답도 배포 직후 전파 지연 등으로 일시적일 수 있으므로 동일하게 재시도
+      if(json && json.error === 'unauthorized' && retryCount < 3) {
+        console.warn(`인증 실패 응답, ${retryCount+1}번째 재시도 예정... (배포 전파 지연일 수 있음)`);
+        await new Promise(r => setTimeout(r, 1500));
+        return loadFromSheet(retryCount + 1);
       }
 
       console.log('[시트에서 불러온 원본 데이터]', json); // 개발자도구 콘솔에서 직접 확인 가능
