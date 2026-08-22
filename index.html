@@ -560,7 +560,7 @@
 
       <!-- 지원인력 관리 -->
       <div id="settings-tab-helpers" class="settings-tab-content" style="display:none;">
-        <p style="font-size:0.75rem; color:#64748b;">이름 옆 "관리"를 누르면 학년도별 근무 여부·메모를 개별로 기록할 수 있습니다.</p>
+        <p style="font-size:0.75rem; color:#64748b;">지원인력구분(특수교육실무사/사회복무요원/기타)별로 묶여서 표시됩니다. 이름 옆 "관리"를 누르면 근무 여부·메모를 개별로 기록할 수 있습니다.</p>
         <div class="form-group">
           <label>기준 학년도</label>
           <select class="mgmt-year-select" onchange="setManagementYear(this.value)">
@@ -570,13 +570,16 @@
           </select>
         </div>
 
+        <div id="people-helpers-grouped" style="margin-bottom:10px;"></div>
+        <div class="people-manager" id="people-helpers" style="display:none;"></div>
+
         <div class="form-group">
-          <label>👥 지원인력</label>
-          <div class="people-manager" id="people-helpers"></div>
-          <div style="display:flex; gap:4px; margin-top:5px;">
+          <label>👥 지원인력 추가</label>
+          <div style="display:flex; gap:4px;">
             <input type="text" id="add-input-helpers" placeholder="이름 입력 (쉼표로 여러 명 한번에 추가 가능)" style="flex:1;">
             <button type="button" class="btn btn-secondary" onclick="addPeopleFromInput('helpers')">+ 추가</button>
           </div>
+          <p style="font-size:0.65rem; color:#94a3b8; margin:4px 0 0 0;">추가한 인력은 "관리"에서 구분을 지정하면 해당 그룹으로 옮겨 표시됩니다.</p>
         </div>
         <div style="display:flex; justify-content:flex-end; margin-top:12px;">
           <button class="btn btn-primary" onclick="saveSettings()">설정 저장</button>
@@ -585,7 +588,7 @@
 
       <!-- 교사 관리 -->
       <div id="settings-tab-teachers" class="settings-tab-content" style="display:none;">
-        <p style="font-size:0.75rem; color:#64748b;">이름 옆 "관리"를 누르면 담당 교과·색상·방과후 여부·담당업무·메모를 개별로 기록할 수 있습니다.</p>
+        <p style="font-size:0.75rem; color:#64748b;">담당 학급별로 묶여서 표시됩니다. 이름 옆 "관리"를 누르면 담당 교과·색상·방과후 여부·담당업무·메모를 개별로 기록할 수 있습니다.</p>
         <div class="form-group">
           <label>기준 학년도</label>
           <select class="mgmt-year-select" onchange="setManagementYear(this.value)">
@@ -595,10 +598,12 @@
           </select>
         </div>
 
+        <div id="people-teachers-grouped" style="margin-bottom:10px;"></div>
+        <div class="people-manager" id="people-teachers" style="display:none;"></div>
+
         <div class="form-group">
-          <label>👥 교사</label>
-          <div class="people-manager" id="people-teachers"></div>
-          <div style="display:flex; gap:4px; margin-top:5px;">
+          <label>👥 교사 추가</label>
+          <div style="display:flex; gap:4px;">
             <input type="text" id="add-input-teachers" placeholder="이름 입력 (쉼표로 여러 명 한번에 추가 가능)" style="flex:1;">
             <button type="button" class="btn btn-secondary" onclick="addPeopleFromInput('teachers')">+ 추가</button>
           </div>
@@ -801,6 +806,7 @@
     <div class="form-group" id="profile-helper-type-row" style="display:none;">
       <label>지원인력 구분</label>
       <select id="profile-helper-type" onchange="renderPersonStatusOptions(); toggleServicePeriodSection();">
+        <option value="">-- 선택 --</option>
         <option value="특수교육실무사">특수교육실무사</option>
         <option value="사회복무요원">사회복무요원</option>
         <option value="기타">기타</option>
@@ -991,7 +997,9 @@
       if(!rosterIdMap[year]) rosterIdMap[year] = {};
       if(rosterIdMap[year][name]) return rosterIdMap[year][name];
       if(!createIfMissing) return null;
-      const id = generatePersonId();
+      // 다른 학년도에 이미 같은 이름의 ID가 있으면 자동으로 같은 사람으로 연결 (묻지 않고 기본적으로 동일인물 취급 - 구분/특성 등이 학년도마다 끊기지 않도록)
+      const existingId = findExistingIdForName(name, year);
+      const id = existingId || generatePersonId();
       setRosterIdMapEntry(year, name, id);
       return id;
     }
@@ -3125,7 +3133,8 @@
         `;
         }).join('');
       }
-      if(category === 'teachers') updateClassTeacherDropdowns();
+      if(category === 'teachers') { updateClassTeacherDropdowns(); renderTeachersGrouped(); }
+      if(category === 'helpers') renderHelpersGrouped();
       if((category === 'mainStudents' || category === 'extraStudents') && document.getElementById('people-students-grouped')) renderStudentsGrouped();
     }
 
@@ -3233,8 +3242,13 @@
       const isActive = yd.active !== false;
       const statusBadge = yd.status ? `<span class="tag ${isActive ? 'tag-positive' : 'badge-leave'}" style="font-size:0.6rem; margin-left:3px;">${yd.status}</span>` : '';
       let details = [];
-      if((profile.disabilityTypes||[]).length) details.push(profile.disabilityTypes.join('·'));
-      if(yd.integratedGrade || yd.integratedClassNum) details.push(`통합 ${yd.integratedGrade||'?'}-${yd.integratedClassNum||'?'}`);
+      if(category === 'mainStudents' || category === 'extraStudents') {
+        if((profile.disabilityTypes||[]).length) details.push(profile.disabilityTypes.join('·'));
+        if(yd.integratedGrade || yd.integratedClassNum) details.push(`통합 ${yd.integratedGrade||'?'}-${yd.integratedClassNum||'?'}`);
+      } else if(category === 'teachers') {
+        if(profile.subject) details.push(profile.subject);
+        if(profile.afterSchool) details.push('방과후');
+      }
       let periodStyle = '';
       const yNum = Number(document.getElementById('cfg-year-select').value);
       if(profile.enrollStartYear && yNum < Number(profile.enrollStartYear)) periodStyle = 'background:#eff6ff; border-style:dashed;';
@@ -3253,6 +3267,53 @@
           </div>
         </div>
       `;
+    }
+
+    // ===== 교사 목록: 담당 학급별로 그룹핑해서 블록 그리드로 표시 =====
+    function renderTeachersGrouped() {
+      const year = document.getElementById('cfg-year-select').value;
+      const container = document.getElementById('people-teachers-grouped');
+      if(!container) return;
+      const groups = {};
+      getAllClassNames().forEach(c => groups[c] = []);
+      groups['담당 없음'] = [];
+      rosterDraft.teachers.forEach(name => {
+        const id = resolvePersonId(year, name, true);
+        const yd = (personYearData[id] || {})[year] || {};
+        const cls = yd.classAssigned || '담당 없음';
+        if(!groups[cls]) groups[cls] = [];
+        groups[cls].push({ name, category: 'teachers', id, yd, profile: getPersonProfile(id) });
+      });
+      const order = [...getAllClassNames(), '담당 없음'];
+      container.innerHTML = order.filter(k => groups[k] && groups[k].length).map(cls => `
+        <div class="student-class-group">
+          <div class="student-class-group-title">🏫 ${cls} (${groups[cls].length}명)</div>
+          <div class="student-block-grid">${groups[cls].map(renderStudentBlock).join('')}</div>
+        </div>
+      `).join('') || '<p style="color:#94a3b8; font-size:0.75rem;">등록된 교사가 없습니다.</p>';
+    }
+
+    // ===== 지원인력 목록: 지원인력구분별로 그룹핑해서 블록 그리드로 표시 =====
+    function renderHelpersGrouped() {
+      const year = document.getElementById('cfg-year-select').value;
+      const container = document.getElementById('people-helpers-grouped');
+      if(!container) return;
+      const groups = { '특수교육실무사': [], '사회복무요원': [], '기타': [], '구분 미정': [] };
+      rosterDraft.helpers.forEach(name => {
+        const id = resolvePersonId(year, name, true);
+        const profile = getPersonProfile(id);
+        const yd = (personYearData[id] || {})[year] || {};
+        const key = profile.helperType || '구분 미정';
+        if(!groups[key]) groups[key] = [];
+        groups[key].push({ name, category: 'helpers', id, yd, profile });
+      });
+      const order = ['특수교육실무사', '사회복무요원', '기타', '구분 미정'];
+      container.innerHTML = order.filter(k => groups[k] && groups[k].length).map(key => `
+        <div class="student-class-group">
+          <div class="student-class-group-title">🙋 ${key} (${groups[key].length}명)</div>
+          <div class="student-block-grid">${groups[key].map(renderStudentBlock).join('')}</div>
+        </div>
+      `).join('') || '<p style="color:#94a3b8; font-size:0.75rem;">등록된 지원인력이 없습니다.</p>';
     }
 
     // 이름을 추가할 때, 다른 학년도에 이미 같은 이름의 사람이 있으면 "동일인물인지 동명이인인지" 확인
@@ -3294,8 +3355,8 @@
       if(type === 'helper') key = 'helper_' + document.getElementById('profile-helper-type').value;
       const options = STATUS_OPTIONS[key] || STATUS_OPTIONS.teacher;
       const select = document.getElementById('profile-status');
-      select.innerHTML = options.map(o => `<option value="${o}">${o}</option>`).join('');
-      if(selected && options.includes(selected)) select.value = selected;
+      select.innerHTML = '<option value="">-- 선택 --</option>' + options.map(o => `<option value="${o}">${o}</option>`).join('');
+      select.value = (selected && options.includes(selected)) ? selected : '';
     }
 
     function openPersonProfile(name, category) {
@@ -3316,7 +3377,7 @@
       document.getElementById('profile-notes').value = profile.notes || '';
 
       document.getElementById('profile-helper-type-row').style.display = type === 'helper' ? 'block' : 'none';
-      if(type === 'helper') document.getElementById('profile-helper-type').value = profile.helperType || '특수교육실무사';
+      if(type === 'helper') document.getElementById('profile-helper-type').value = profile.helperType || '';
       renderPersonStatusOptions(yearData.status);
 
       const isConscript = (type === 'helper' && (profile.helperType || '특수교육실무사') === '사회복무요원');
