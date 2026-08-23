@@ -3456,9 +3456,8 @@
       document.getElementById('profile-service-start-date').value = profile.serviceStartDate || '';
       document.getElementById('profile-service-end-date').value = profile.serviceEndDate || '';
 
-      // 재학/근무 기간 드롭다운 채우기 (2025~2030 범위로 넉넉히 제공)
-      const yearOptions = [];
-      for(let y = 2025; y <= 2030; y++) yearOptions.push(y);
+      // 재학/근무 기간 드롭다운 채우기 - "일반" 탭에서 관리하는 학년도 목록과 동일하게 맞춤
+      const yearOptions = getAcademicYearsList();
       document.getElementById('profile-enroll-start').innerHTML = yearOptions.map(y => `<option value="${y}">${y}학년도</option>`).join('');
       document.getElementById('profile-enroll-end').innerHTML = '<option value="">현재까지 (종료일 미정)</option>' + yearOptions.map(y => `<option value="${y}">${y}학년도</option>`).join('');
       document.getElementById('profile-enroll-start').value = profile.enrollStartYear || year;
