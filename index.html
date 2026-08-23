@@ -833,13 +833,8 @@
     <!-- 학생 전용 -->
     <div id="profile-student-fields" style="display:none;">
       <div class="form-group">
-        <label>특수학급 반 배정 (이 학년도)</label>
-        <select id="profile-special-class">
-          <option value="">-- 선택 --</option>
-          <option value="저학년반">저학년반</option>
-          <option value="고학년반">고학년반</option>
-          <option value="윤슬반">윤슬반</option>
-        </select>
+        <label>특수학급 반 배정 (이 학년도, 복수 선택 가능)</label>
+        <div class="checkbox-grid" id="profile-special-classes"></div>
       </div>
       <div class="form-group">
         <label>통합학급 (이 학년도)</label>
@@ -1017,8 +1012,15 @@
     }
     function getPersonYear(id, year) {
       if(!personYearData[id]) personYearData[id] = {};
-      if(!personYearData[id][year]) personYearData[id][year] = { active: true, specialClass: '', integratedGrade: '', integratedClassNum: '', classAssigned: '' };
+      if(!personYearData[id][year]) personYearData[id][year] = { active: true, specialClasses: [], integratedGrade: '', integratedClassNum: '', classAssigned: '' };
       return personYearData[id][year];
+    }
+    // 학생이 특수학급 여러 개에 동시 소속될 수 있음 - 예전 데이터(specialClass 단일값)와도 호환
+    function getSpecialClasses(yd) {
+      if(!yd) return [];
+      if(Array.isArray(yd.specialClasses)) return yd.specialClasses;
+      if(yd.specialClass) return [yd.specialClass];
+      return [];
     }
     function savePeopleData() {
       localStorage.setItem('peopleById', JSON.stringify(people));
@@ -1373,7 +1375,7 @@
         if(personYearData[canonicalId]) {
           Object.keys(personYearData[canonicalId]).forEach(year => {
             const yd = personYearData[canonicalId][year];
-            postToSheet('personYear', { id: canonicalId, year, active: yd.active, status: yd.status||'', specialClass: yd.specialClass||'', integratedGrade: yd.integratedGrade||'', integratedClassNum: yd.integratedClassNum||'', classAssigned: yd.classAssigned||'', duty: yd.duty||'' });
+            postToSheet('personYear', { id: canonicalId, year, active: yd.active, status: yd.status||'', specialClass: getSpecialClasses(yd).join(', '), integratedGrade: yd.integratedGrade||'', integratedClassNum: yd.integratedClassNum||'', classAssigned: yd.classAssigned||'', duty: yd.duty||'' });
           });
         }
 
@@ -1581,7 +1583,7 @@
           if(!personYearData[id]) personYearData[id] = {};
           personYearData[id][year] = {
             active: row['활성'] === true || row['활성'] === 'TRUE' || row['활성'] === 'true',
-            status: row['상태'] || '', specialClass: row['특수학급반'] || '',
+            status: row['상태'] || '', specialClasses: splitList(row['특수학급반']),
             integratedGrade: row['통합학년'] || '', integratedClassNum: row['통합반'] || '',
             classAssigned: row['담당학급'] || '', duty: row['담당업무'] || ''
           };
@@ -2099,9 +2101,9 @@
       allStudents.forEach(name => {
         const id = resolvePersonId(year, name, false);
         const yd = id && personYearData[id] && personYearData[id][year];
-        const cls = (yd && yd.specialClass) || '반 미배정';
-        if(!groups[cls]) groups[cls] = [];
-        groups[cls].push(name);
+        const classes = getSpecialClasses(yd);
+        if(classes.length === 0) { groups['반 미배정'].push(name); }
+        else classes.forEach(cls => { if(!groups[cls]) groups[cls] = []; groups[cls].push(name); });
       });
       return Object.keys(groups).filter(k => groups[k].length > 0).map(k => ({ label: k, list: groups[k] }));
     }
@@ -3111,14 +3113,16 @@
       const year = document.getElementById('cfg-year-select').value;
       const roster = getRoster(year);
       const allStudents = [...roster.mainStudents, ...roster.extraStudents];
-      document.getElementById('class-editor-title').innerText = `👥 ${className} 소속 학생 편집 (${year}학년도)`;
+      document.getElementById('class-editor-title').innerText = `👥 ${className} 소속 학생 편집 (${year}학년도, 복수 소속 가능)`;
       document.getElementById('class-editor-classname').value = className;
       document.getElementById('class-editor-student-list').innerHTML = allStudents.map(name => {
         const id = resolvePersonId(year, name, true);
         const yd = (personYearData[id] || {})[year] || {};
-        const checked = yd.specialClass === className;
-        const otherClass = (yd.specialClass && yd.specialClass !== className) ? ` (현재: ${yd.specialClass})` : '';
-        return `<label style="display:flex; align-items:center; gap:6px; padding:4px 0; font-weight:normal;"><input type="checkbox" value="${name}" ${checked?'checked':''} style="width:auto;"> ${name}<span style="color:#94a3b8; font-size:0.68rem;">${otherClass}</span></label>`;
+        const classes = getSpecialClasses(yd);
+        const checked = classes.includes(className);
+        const otherClasses = classes.filter(c => c !== className);
+        const otherLabel = otherClasses.length ? ` (다른 소속: ${otherClasses.join(', ')})` : '';
+        return `<label style="display:flex; align-items:center; gap:6px; padding:4px 0; font-weight:normal;"><input type="checkbox" value="${name}" ${checked?'checked':''} style="width:auto;"> ${name}<span style="color:#94a3b8; font-size:0.68rem;">${otherLabel}</span></label>`;
       }).join('') || '<p style="color:#94a3b8; font-size:0.75rem;">등록된 학생이 없습니다.</p>';
       document.getElementById('class-editor-modal').style.display = 'block';
       document.getElementById('overlay').style.display = 'block';
@@ -3133,9 +3137,13 @@
         const name = cb.value;
         const id = resolvePersonId(year, name, true);
         const yd = getPersonYear(id, year);
-        if(cb.checked) { yd.specialClass = className; count++; }
-        else if(yd.specialClass === className) { yd.specialClass = ''; }
-        postToSheet('personYear', { id, year, active: yd.active, status: yd.status||'', specialClass: yd.specialClass||'', integratedGrade: yd.integratedGrade||'', integratedClassNum: yd.integratedClassNum||'', classAssigned: yd.classAssigned||'', duty: yd.duty||'' });
+        const classes = getSpecialClasses(yd);
+        const idx = classes.indexOf(className);
+        if(cb.checked && idx === -1) { classes.push(className); count++; }
+        else if(!cb.checked && idx !== -1) { classes.splice(idx, 1); }
+        yd.specialClasses = classes;
+        delete yd.specialClass;
+        postToSheet('personYear', { id, year, active: yd.active, status: yd.status||'', specialClass: getSpecialClasses(yd).join(', '), integratedGrade: yd.integratedGrade||'', integratedClassNum: yd.integratedClassNum||'', classAssigned: yd.classAssigned||'', duty: yd.duty||'' });
       });
       savePeopleData();
       closeModal();
@@ -3172,7 +3180,7 @@
           const type = PROFILE_CATEGORY_TYPE[category];
           let detailParts = [];
           if(type === 'student') {
-            if(yd.specialClass) detailParts.push(yd.specialClass);
+            if(getSpecialClasses(yd).length > 1) detailParts.push(getSpecialClasses(yd).join('+'));
             if(yd.integratedGrade || yd.integratedClassNum) detailParts.push(`통합 ${yd.integratedGrade||'?'}학년 ${yd.integratedClassNum||'?'}반`);
             if((profile.disabilityTypes||[]).length) detailParts.push(profile.disabilityTypes.join('·'));
           } else if(type === 'teacher') {
@@ -3286,13 +3294,15 @@
         ...rosterDraft.mainStudents.map(name => ({ name, category: 'mainStudents' })),
         ...rosterDraft.extraStudents.map(name => ({ name, category: 'extraStudents' }))
       ];
-      const groups = { '저학년반': [], '고학년반': [], '윤슬반': [], '반 미배정': [] };
+      const groups = {};
+      getAllClassNames().forEach(c => groups[c] = []);
+      groups['반 미배정'] = [];
       combined.forEach(item => {
         const id = resolvePersonId(year, item.name, true);
         const yd = (personYearData[id] || {})[year] || {};
-        const cls = yd.specialClass || '반 미배정';
-        if(!groups[cls]) groups[cls] = [];
-        groups[cls].push({ ...item, id, yd, profile: getPersonProfile(id) });
+        const classes = getSpecialClasses(yd);
+        if(classes.length === 0) { groups['반 미배정'].push({ ...item, id, yd, profile: getPersonProfile(id) }); }
+        else classes.forEach(cls => { if(!groups[cls]) groups[cls] = []; groups[cls].push({ ...item, id, yd, profile: getPersonProfile(id) }); });
       });
 
       const container = document.getElementById('people-students-grouped');
@@ -3441,9 +3451,9 @@
       document.getElementById('profile-person-category').value = category;
       document.getElementById('profile-modal-title').innerText = `👤 ${name} 프로필 (${year}학년도 기준)`;
 
-      const classOptions = '<option value="">-- 선택 --</option>' + getAllClassNames().map(c => `<option value="${c}">${c}</option>`).join('');
-      document.getElementById('profile-special-class').innerHTML = classOptions;
-      document.getElementById('profile-class-assigned').innerHTML = '<option value="">-- 없음 --</option>' + getAllClassNames().map(c => `<option value="${c}">${c}</option>`).join('');
+      const classOptions = getAllClassNames().map(c => `<option value="${c}">${c}</option>`).join('');
+      document.getElementById('profile-special-classes').innerHTML = getAllClassNames().map(c => `<label><input type="checkbox" value="${c}"> ${c}</label>`).join('');
+      document.getElementById('profile-class-assigned').innerHTML = '<option value="">-- 없음 --</option>' + classOptions;
       document.getElementById('profile-notes').value = profile.notes || '';
 
       document.getElementById('profile-helper-type-row').style.display = type === 'helper' ? 'block' : 'none';
@@ -3467,7 +3477,8 @@
       document.getElementById('profile-teacher-fields').style.display = type === 'teacher' ? 'block' : 'none';
 
       if(type === 'student') {
-        document.getElementById('profile-special-class').value = yearData.specialClass || '';
+        const currentClasses = getSpecialClasses(yearData);
+        document.querySelectorAll('#profile-special-classes input').forEach(cb => { cb.checked = currentClasses.includes(cb.value); });
         document.getElementById('profile-integrated-grade').value = yearData.integratedGrade || '';
         document.getElementById('profile-integrated-class-num').value = yearData.integratedClassNum || '';
         document.querySelectorAll('#profile-disability-types input').forEach(cb => {
@@ -3517,7 +3528,8 @@
       profile.enrollEndYear = document.getElementById('profile-enroll-end').value;
 
       if(type === 'student') {
-        yearData.specialClass = document.getElementById('profile-special-class').value;
+        yearData.specialClasses = Array.from(document.querySelectorAll('#profile-special-classes input:checked')).map(cb => cb.value);
+        delete yearData.specialClass; // 예전 단일값 필드는 더 이상 사용하지 않음
         yearData.integratedGrade = document.getElementById('profile-integrated-grade').value;
         yearData.integratedClassNum = document.getElementById('profile-integrated-class-num').value;
         profile.disabilityTypes = Array.from(document.querySelectorAll('#profile-disability-types input:checked')).map(cb => cb.value);
@@ -3542,7 +3554,7 @@
         serviceStartDate: profile.serviceStartDate||'', serviceEndDate: profile.serviceEndDate||''
       });
       postToSheet('personYear', {
-        id, year, active: yearData.active, status: yearData.status||'', specialClass: yearData.specialClass||'',
+        id, year, active: yearData.active, status: yearData.status||'', specialClass: getSpecialClasses(yearData).join(', '),
         integratedGrade: yearData.integratedGrade||'', integratedClassNum: yearData.integratedClassNum||'',
         classAssigned: yearData.classAssigned||'', duty: yearData.duty||''
       });
@@ -3641,7 +3653,7 @@
         const yd = getPersonYear(id, yearStr);
         yd.active = true;
         yd.status = type === 'student' ? '재학' : (type === 'helper' && getPersonProfile(id).helperType === '사회복무요원' ? '근무' : '재직');
-        postToSheet('personYear', { id, year: yearStr, active: true, status: yd.status, specialClass: yd.specialClass||'', integratedGrade: yd.integratedGrade||'', integratedClassNum: yd.integratedClassNum||'', classAssigned: yd.classAssigned||'', duty: yd.duty||'' });
+        postToSheet('personYear', { id, year: yearStr, active: true, status: yd.status, specialClass: getSpecialClasses(yd).join(', '), integratedGrade: yd.integratedGrade||'', integratedClassNum: yd.integratedClassNum||'', classAssigned: yd.classAssigned||'', duty: yd.duty||'' });
         count++;
       }
       savePeopleData();
@@ -3668,12 +3680,12 @@
       const nextYearData = getPersonYear(id, nextYear);
       nextYearData.active = true;
       nextYearData.status = yearData.status;
-      nextYearData.specialClass = yearData.specialClass || '';
+      nextYearData.specialClasses = getSpecialClasses(yearData);
       nextYearData.integratedGrade = ''; // 통합학급은 보통 학년이 바뀌므로 비워둠(직접 재지정)
       nextYearData.integratedClassNum = '';
       nextYearData.classAssigned = yearData.classAssigned || '';
       savePeopleData();
-      postToSheet('personYear', { id, year: nextYear, active: true, status: yearData.status||'', specialClass: nextYearData.specialClass, integratedGrade: '', integratedClassNum: '', classAssigned: nextYearData.classAssigned, duty: '' });
+      postToSheet('personYear', { id, year: nextYear, active: true, status: yearData.status||'', specialClass: getSpecialClasses(nextYearData).join(', '), integratedGrade: '', integratedClassNum: '', classAssigned: nextYearData.classAssigned, duty: '' });
 
       alert(`"${name}"을(를) ${nextYear}학년도 명단에도 같은 사람으로 추가했습니다. ${nextYear}학년도로 전환해서 반 배정을 확인해주세요.`);
     }
@@ -3695,9 +3707,9 @@
           const nextYd = getPersonYear(id, nextYear);
           nextYd.active = true;
           nextYd.status = yd.status;
-          nextYd.specialClass = yd.specialClass || '';
+          nextYd.specialClasses = getSpecialClasses(yd);
           nextYd.classAssigned = yd.classAssigned || '';
-          postToSheet('personYear', { id, year: nextYear, active: true, status: yd.status||'', specialClass: nextYd.specialClass, integratedGrade: '', integratedClassNum: '', classAssigned: nextYd.classAssigned, duty: '' });
+          postToSheet('personYear', { id, year: nextYear, active: true, status: yd.status||'', specialClass: getSpecialClasses(nextYd).join(', '), integratedGrade: '', integratedClassNum: '', classAssigned: nextYd.classAssigned, duty: '' });
         });
       });
       localStorage.setItem(`roster_${nextYear}`, JSON.stringify(nextRoster));
