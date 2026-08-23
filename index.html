@@ -34,6 +34,7 @@
     /* 메인 뷰 레이아웃 (우측 메모 패널 포함 7:3 비율) */
     .main-container { display: flex; flex: 1; overflow: hidden; }
     @media (max-width: 768px) {
+      .cell-add-entry-btn { opacity: 0.55 !important; }
       .main-container { flex-direction: column; overflow-y: auto; }
       .content-area-wrapper { flex: 0 0 auto !important; min-height: 320px; }
       .memo-panel { flex: 0 0 auto !important; max-width: 100% !important; width: 100%; border-left: none; border-top: 1px solid #cbd5e1; }
@@ -100,8 +101,8 @@
     .matrix-entry-block + .matrix-entry-block { border-top: 1px dashed #cbd5e1; padding-top: 4px; }
     .add-entry-btn { cursor: pointer; font-size: 0.68rem; color: #2563eb; font-weight: bold; padding: 2px 4px; border: 1px dashed #93c5fd; border-radius: 4px; text-align: center; margin-top: 2px; }
     .add-entry-btn:hover { background: #eff6ff; }
-    .cell-add-entry-btn { cursor: pointer; font-size: 0.68rem; color: #94a3b8; text-align: center; margin-top: 2px; opacity: 0.5; }
-    td:hover .cell-add-entry-btn { opacity: 1; color: #2563eb; font-weight: bold; }
+    .cell-add-entry-btn { position: absolute; top: 1px; right: 2px; width: 14px; height: 14px; line-height: 13px; border-radius: 50%; background: #eff6ff; color: #2563eb; font-size: 0.7rem; font-weight: bold; text-align: center; cursor: pointer; opacity: 0; transition: opacity 0.15s; }
+    td:hover .cell-add-entry-btn { opacity: 1; }
     .empty-cell-add { display: block; min-height: 22px; }
 
     /* 늘봄학교 프로그램 관리 */
@@ -1977,7 +1978,7 @@
               }
               html += `</div>`;
             });
-            html += `<div class="cell-add-entry-btn" onclick="openInputModal('${cellId}', null, null)">+ 추가</div>`;
+            html += `<div class="cell-add-entry-btn" onclick="openInputModal('${cellId}', null, null)">+</div>`;
 
             // 문제행동 시간대 - 늘봄학교와 동일하게 셀 높이에 비례한 수직 화살표로 표시 (td에 직접 배치해야 %가 정상 적용됨)
             visibleEntries.forEach(entry => {
