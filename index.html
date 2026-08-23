@@ -490,11 +490,10 @@
       <div id="settings-tab-general" class="settings-tab-content">
         <div class="form-group">
           <label>조회/수정 학년도 선택</label>
-          <select id="cfg-year-select" onchange="loadYearConfigToModal()">
-            <option value="2025">2025학년도</option>
-            <option value="2026">2026학년도</option>
-            <option value="2027">2027학년도</option>
-          </select>
+          <div style="display:flex; gap:4px;">
+            <select id="cfg-year-select" class="year-select-dynamic" onchange="loadYearConfigToModal()" style="flex:1;"></select>
+            <button type="button" class="btn btn-secondary" onclick="addAcademicYear()">+ 학년도 추가</button>
+          </div>
         </div>
         <div class="form-group">
           <label>기본 메인 반 설정 (접속 시 첫 화면에 자동 적용)</label>
@@ -510,6 +509,12 @@
           <input type="text" id="cfg-custom-locations" placeholder="예: 보건실, 운동장, 특별실, 상담실">
         </div>
         <p style="font-size:0.72rem; color:#94a3b8;">💡 학급/장소·메모 표시 옵션은 학급/개인 주간 뷰 화면 상단에서 바로 조절할 수 있습니다.</p>
+        <div style="background:#fff7ed; border:1px solid #fdba74; border-radius:6px; padding:8px; margin-bottom:10px;">
+          <label style="font-weight:bold; font-size:0.75rem; color:#1e293b; display:block; margin-bottom:4px;">🔧 학년도별로 흩어진 동일 인물 정보 정리</label>
+          <p style="font-size:0.68rem; color:#64748b; margin:0 0 6px 0;">과거 버그로 인해, 같은 이름인데 학년도마다 프로필이 따로 저장돼있는 경우(지원인력구분·특성 등이 학년도마다 다르게 보임)를 찾아서 하나로 합칩니다. 이름이 같으면 같은 사람으로 간주합니다.</p>
+          <button class="btn btn-secondary" style="padding:4px 10px;" onclick="consolidateDuplicatePersonIds()">🔗 지금 정리하기</button>
+          <span id="consolidate-result" style="font-size:0.75rem; margin-left:6px;"></span>
+        </div>
         <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px; margin-bottom:10px;">
           <label style="font-weight:bold; font-size:0.75rem; color:#1e293b; display:block; margin-bottom:4px;">☁️ 구글 시트 연결 상태</label>
           <div style="font-size:0.68rem; color:#64748b; margin-bottom:6px;">
@@ -531,11 +536,7 @@
         <p style="font-size:0.75rem; color:#64748b;">학생은 배정된 특수학급(저학년반/고학년반/윤슬반)별로 묶여서 표시됩니다. 이름 옆 "관리"를 누르면 반배정·특성·메모를 개별로 기록할 수 있습니다.</p>
         <div class="form-group">
           <label>기준 학년도</label>
-          <select class="mgmt-year-select" onchange="setManagementYear(this.value)">
-            <option value="2025">2025학년도</option>
-            <option value="2026">2026학년도</option>
-            <option value="2027">2027학년도</option>
-          </select>
+          <select class="mgmt-year-select" onchange="setManagementYear(this.value)"></select>
         </div>
 
         <div id="people-students-grouped" style="margin-bottom:10px;"></div>
@@ -563,11 +564,7 @@
         <p style="font-size:0.75rem; color:#64748b;">지원인력구분(특수교육실무사/사회복무요원/기타)별로 묶여서 표시됩니다. 이름 옆 "관리"를 누르면 근무 여부·메모를 개별로 기록할 수 있습니다.</p>
         <div class="form-group">
           <label>기준 학년도</label>
-          <select class="mgmt-year-select" onchange="setManagementYear(this.value)">
-            <option value="2025">2025학년도</option>
-            <option value="2026">2026학년도</option>
-            <option value="2027">2027학년도</option>
-          </select>
+          <select class="mgmt-year-select" onchange="setManagementYear(this.value)"></select>
         </div>
 
         <div id="people-helpers-grouped" style="margin-bottom:10px;"></div>
@@ -591,11 +588,7 @@
         <p style="font-size:0.75rem; color:#64748b;">담당 학급별로 묶여서 표시됩니다. 이름 옆 "관리"를 누르면 담당 교과·색상·방과후 여부·담당업무·메모를 개별로 기록할 수 있습니다.</p>
         <div class="form-group">
           <label>기준 학년도</label>
-          <select class="mgmt-year-select" onchange="setManagementYear(this.value)">
-            <option value="2025">2025학년도</option>
-            <option value="2026">2026학년도</option>
-            <option value="2027">2027학년도</option>
-          </select>
+          <select class="mgmt-year-select" onchange="setManagementYear(this.value)"></select>
         </div>
 
         <div id="people-teachers-grouped" style="margin-bottom:10px;"></div>
@@ -635,11 +628,7 @@
         <p style="font-size:0.75rem; color:#64748b;">각 특수학급의 담당교사와 소속 학생을 학년도별로 한눈에 확인합니다.</p>
         <div class="form-group">
           <label>기준 학년도</label>
-          <select class="mgmt-year-select" onchange="setManagementYear(this.value)">
-            <option value="2025">2025학년도</option>
-            <option value="2026">2026학년도</option>
-            <option value="2027">2027학년도</option>
-          </select>
+          <select class="mgmt-year-select" onchange="setManagementYear(this.value)"></select>
         </div>
         <div id="class-management-list" style="display:flex; flex-direction:column; gap:10px; margin-bottom:12px;"></div>
         <div style="display:flex; gap:4px;">
@@ -1315,6 +1304,87 @@
     }
 
     // 설정 화면의 "🔧 연결 테스트" 버튼 - 실제 응답을 확인해 어디서 막혔는지 알려줌
+    // 과거 버그로 학년도마다 따로 생겼던 같은 이름의 ID들을 하나로 합침 (프로필/학년도정보 병합)
+    function consolidateDuplicatePersonIds() {
+      if(!confirm('여러 학년도에 흩어진 같은 이름의 서로 다른 프로필을 하나로 합칠까요?\n\n이름이 같으면 같은 사람으로 간주해서 정보를 병합합니다. 되돌릴 수 없으니 한 번만 실행해주세요.')) return;
+
+      // 이름별로 등장하는 모든 (학년도, ID) 수집
+      const nameToIds = {};
+      Object.keys(rosterIdMap).forEach(year => {
+        Object.keys(rosterIdMap[year]).forEach(name => {
+          const id = rosterIdMap[year][name];
+          if(!nameToIds[name]) nameToIds[name] = new Set();
+          nameToIds[name].add(id);
+        });
+      });
+
+      let mergedCount = 0;
+      Object.keys(nameToIds).forEach(name => {
+        const ids = Array.from(nameToIds[name]);
+        if(ids.length <= 1) return; // 이미 하나로 통일된 경우
+
+        // 정보가 가장 많이 채워진 프로필을 "대표 ID"로 선정
+        let canonicalId = ids[0];
+        let bestScore = -1;
+        ids.forEach(id => {
+          const p = people[id] || {};
+          const score = Object.values(p).filter(v => v && (!Array.isArray(v) || v.length)).length;
+          if(score > bestScore) { bestScore = score; canonicalId = id; }
+        });
+        const canonical = getPersonProfile(canonicalId);
+
+        ids.forEach(id => {
+          if(id === canonicalId) return;
+          // 대표 프로필에 비어있는 항목만 다른 ID의 값으로 채움
+          const p = people[id];
+          if(p) {
+            Object.keys(p).forEach(key => {
+              if(key === 'id') return;
+              const val = p[key];
+              const isEmpty = !val || (Array.isArray(val) && val.length === 0);
+              const canonicalEmpty = !canonical[key] || (Array.isArray(canonical[key]) && canonical[key].length === 0);
+              if(!isEmpty && canonicalEmpty) canonical[key] = val;
+            });
+          }
+          // 학년도별 정보도 대표 ID 쪽에 없는 연도만 이관
+          if(personYearData[id]) {
+            Object.keys(personYearData[id]).forEach(year => {
+              if(!personYearData[canonicalId]) personYearData[canonicalId] = {};
+              if(!personYearData[canonicalId][year]) personYearData[canonicalId][year] = personYearData[id][year];
+            });
+          }
+        });
+
+        // 모든 학년도의 매핑을 대표 ID로 통일하고, 바뀐 것만 시트로 재전송
+        Object.keys(rosterIdMap).forEach(year => {
+          if(rosterIdMap[year][name] && rosterIdMap[year][name] !== canonicalId) {
+            rosterIdMap[year][name] = canonicalId;
+            postToSheet('rosterIdMap', { year, name, id: canonicalId });
+          }
+        });
+        // 병합된 대표 프로필/학년도 정보를 시트에도 반영
+        postToSheet('people', {
+          id: canonicalId, notes: canonical.notes||'', disabilityTypes: (canonical.disabilityTypes||[]).join(', '),
+          learningLevel: canonical.learningLevel||'', supportIntensity: canonical.supportIntensity||'', communicationLevel: canonical.communicationLevel||'',
+          color: canonical.color||'', afterSchool: canonical.afterSchool||false, subject: canonical.subject||'', helperType: canonical.helperType||'',
+          enrollStartYear: canonical.enrollStartYear||'', enrollEndYear: canonical.enrollEndYear||'',
+          serviceStartDate: canonical.serviceStartDate||'', serviceEndDate: canonical.serviceEndDate||''
+        });
+        if(personYearData[canonicalId]) {
+          Object.keys(personYearData[canonicalId]).forEach(year => {
+            const yd = personYearData[canonicalId][year];
+            postToSheet('personYear', { id: canonicalId, year, active: yd.active, status: yd.status||'', specialClass: yd.specialClass||'', integratedGrade: yd.integratedGrade||'', integratedClassNum: yd.integratedClassNum||'', classAssigned: yd.classAssigned||'', duty: yd.duty||'' });
+          });
+        }
+
+        mergedCount++;
+      });
+
+      savePeopleData();
+      loadYearConfigToModal();
+      document.getElementById('consolidate-result').textContent = mergedCount > 0 ? `✅ ${mergedCount}명 정리 완료` : '정리할 항목이 없습니다 (이미 정상)';
+    }
+
     async function testSheetConnection() {
       const resultEl = document.getElementById('sheet-test-result');
       if(!isSheetConnected()) {
@@ -2943,7 +3013,7 @@
 
     function openSettingsModal() {
       const year = getAcademicYear(currentDate);
-      document.getElementById('cfg-year-select').value = year;
+      renderAcademicYearSelects(String(year));
       loadYearConfigToModal();
       document.getElementById('current-script-url').textContent = getRawScriptUrlForDisplay();
       document.getElementById('sheet-test-result').textContent = '';
@@ -3655,7 +3725,47 @@
       if(document.getElementById('settings-tab-classes').style.display !== 'none') renderClassManagement();
     }
 
+    // ===== 학년도 목록 (2025~2027로 고정하지 않고 자유롭게 추가 가능) =====
+    function getAcademicYearsList() {
+      const saved = localStorage.getItem('academicYearsList');
+      if(saved) return JSON.parse(saved);
+      return ['2025', '2026', '2027']; // 최초 기본값 (이후엔 자유롭게 추가/유지됨)
+    }
+    function saveAcademicYearsList(list) {
+      localStorage.setItem('academicYearsList', JSON.stringify(list));
+    }
+    // 모든 학년도 선택기(일반탭 + 각 관리탭)를 이 목록으로 채움 - 값이 있으면 유지, 없으면 기본값 사용
+    function renderAcademicYearSelects(selectedValue) {
+      let years = getAcademicYearsList();
+      if(selectedValue && !years.includes(selectedValue)) {
+        years = [...years, selectedValue].sort();
+        saveAcademicYearsList(years);
+      }
+      const optionsHtml = years.map(y => `<option value="${y}">${y}학년도</option>`).join('');
+      document.querySelectorAll('.year-select-dynamic, .mgmt-year-select').forEach(sel => {
+        const prev = selectedValue || sel.value;
+        sel.innerHTML = optionsHtml;
+        if(prev && years.includes(prev)) sel.value = prev;
+      });
+    }
+    // "+ 학년도 추가" - 자유 입력으로 원하는 학년도를 얼마든지 늘릴 수 있음 (사람 연결 로직은 연도 목록과 무관하게 항상 동작)
+    function addAcademicYear() {
+      const input = prompt('추가할 학년도를 입력하세요 (예: 2028)');
+      if(!input) return;
+      const year = input.trim();
+      if(!/^\d{4}$/.test(year)) { alert('4자리 연도로 입력해주세요 (예: 2028)'); return; }
+      const years = getAcademicYearsList();
+      if(years.includes(year)) { alert('이미 있는 학년도입니다.'); return; }
+      years.push(year);
+      years.sort();
+      saveAcademicYearsList(years);
+      renderAcademicYearSelects(year);
+      loadYearConfigToModal();
+      alert(`${year}학년도가 추가되었습니다.`);
+    }
+
     function loadYearConfigToModal() {
+      renderAcademicYearSelects();
       const year = document.getElementById('cfg-year-select').value;
       document.querySelectorAll('.mgmt-year-select').forEach(sel => sel.value = year);
       const roster = getRoster(year);
