@@ -38,7 +38,7 @@
       .content-area-wrapper { flex: 0 0 auto !important; min-height: 320px; }
       .memo-panel { flex: 0 0 auto !important; max-width: 100% !important; width: 100%; border-left: none; border-top: 1px solid #cbd5e1; }
       .memo-panel.collapsed { flex: 0 0 48px !important; max-width: 100% !important; padding: 0 !important; overflow: visible !important; }
-      .memo-panel.collapsed #mini-cal-widget, .memo-panel.collapsed #daily-memo-list { display: none; }
+      .memo-panel.collapsed #mini-cal-widget, .memo-panel.collapsed #current-date-text, .memo-panel.collapsed #daily-memo-list { display: none; }
       .memo-panel.collapsed .memo-collapsed-label { display: none !important; }
       .memo-panel.collapsed .memo-panel-header { display: flex !important; justify-content: space-between !important; align-items: center !important; height: 48px !important; padding: 0 12px !important; margin: 0 !important; box-sizing: border-box; }
       .memo-panel.collapsed .memo-title { display: block !important; font-size: 0.85rem !important; }
@@ -60,6 +60,7 @@
     .memo-panel-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; width: 100%; }
     .memo-panel.collapsed .memo-panel-header { border-bottom: none; justify-content: center; padding-bottom: 0; }
     .memo-panel.collapsed #mini-cal-widget,
+    .memo-panel.collapsed #current-date-text,
     .memo-panel.collapsed .memo-title,
     .memo-panel.collapsed #daily-memo-list { display: none; }
     .memo-collapsed-label { display: none; font-size: 1.1rem; margin-top: 10px; cursor: pointer; }
@@ -217,7 +218,6 @@
       <button onclick="goToday()">오늘</button>
       <button onclick="changeDate(1)">내일 &gt;</button>
       <button onclick="changeDate(7)">다음주 &gt;</button>
-      <span id="current-date-text" style="font-weight:bold; font-size:0.85rem;"></span>
       <div style="position:relative;">
         <button onclick="toggleMiniCalDropdown()" id="mini-cal-trigger-btn" class="mini-cal-trigger" title="달력">📅</button>
         <div id="mini-cal-dropdown" style="display:none; position:fixed; top:56px; left:50%; transform:translateX(-50%); background:white; border:1px solid #cbd5e1; border-radius:14px; box-shadow:0 10px 28px rgba(0,0,0,0.18); padding:10px; z-index:2200; width:200px;">
@@ -266,6 +266,7 @@
       <div class="content-area" id="view-content" style="flex:1; overflow:auto;"></div>
     </div>
     <div class="memo-panel" id="memo-panel">
+      <div id="current-date-text" style="font-weight:bold; font-size:0.85rem; color:#1e40af; margin-bottom:8px;"></div>
       <div class="memo-panel-header">
         <h4 class="memo-title" style="margin:0; font-size:0.95rem; color:#0f172a;">📝 오늘의 메모 / 일지</h4>
         <button id="memo-toggle-btn" class="memo-toggle-btn" onclick="toggleMemoPanel()" title="메모 패널 접기">▶</button>
