@@ -4205,11 +4205,7 @@
       const monday = getMonday(currentDate);
       const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
       const rangeStr = `${monday.getMonth()+1}/${monday.getDate()}-${friday.getMonth()+1}/${friday.getDate()}`;
-      if(currentDate.getDay() === 1) {
-        el.innerText = `${rangeStr} 주간`;
-      } else {
-        el.innerText = `${rangeStr} 주간 (기준일 ${currentDate.getMonth()+1}/${currentDate.getDate()} ${weekdayNames[currentDate.getDay()]})`;
-      }
+      el.innerText = `${rangeStr} 주간 (기준일 ${currentDate.getMonth()+1}/${currentDate.getDate()} ${weekdayNames[currentDate.getDay()]})`;
     }
 
     function toggleMiniCalDropdown() {
