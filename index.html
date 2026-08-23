@@ -189,7 +189,7 @@
 <body>
 
   <script>
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx26TtfQzxSYQwsH3jiEX5N0EsOmuJ0tZlks-MjL3IUs_AofNEIg-R-EN8MWqxMLhMRow/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzf-akRAZeHi6LT2lNzJY4jyyeilLooVY5cQE0SZc_op_8IctElKKJcvPD0OgBnR35VpQ/exec';
     const ACCESS_KEY = 'spedehxhfl'; // Code.gs의 ACCESS_KEY와 반드시 동일한 값으로 맞춰주세요
   </script>
 
@@ -833,6 +833,14 @@
     <!-- 학생 전용 -->
     <div id="profile-student-fields" style="display:none;">
       <div class="form-group">
+        <label>성별</label>
+        <select id="profile-gender">
+          <option value="">-- 선택 --</option>
+          <option value="남">남</option>
+          <option value="여">여</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label>특수학급 반 배정 (이 학년도, 복수 선택 가능)</label>
         <div class="checkbox-grid" id="profile-special-classes"></div>
       </div>
@@ -1007,7 +1015,7 @@
     }
 
     function getPersonProfile(id) {
-      if(!people[id]) people[id] = { id, notes: '', disabilityTypes: [], learningLevel: '', supportIntensity: '', communicationLevel: '', color: '', afterSchool: false, subject: '', helperType: '' };
+      if(!people[id]) people[id] = { id, notes: '', disabilityTypes: [], learningLevel: '', supportIntensity: '', communicationLevel: '', color: '', afterSchool: false, subject: '', helperType: '', gender: '' };
       return people[id];
     }
     function getPersonYear(id, year) {
@@ -1368,7 +1376,7 @@
         postToSheet('people', {
           id: canonicalId, notes: canonical.notes||'', disabilityTypes: (canonical.disabilityTypes||[]).join(', '),
           learningLevel: canonical.learningLevel||'', supportIntensity: canonical.supportIntensity||'', communicationLevel: canonical.communicationLevel||'',
-          color: canonical.color||'', afterSchool: canonical.afterSchool||false, subject: canonical.subject||'', helperType: canonical.helperType||'',
+          color: canonical.color||'', afterSchool: canonical.afterSchool||false, subject: canonical.subject||'', helperType: canonical.helperType||'', gender: canonical.gender||'',
           enrollStartYear: canonical.enrollStartYear||'', enrollEndYear: canonical.enrollEndYear||'',
           serviceStartDate: canonical.serviceStartDate||'', serviceEndDate: canonical.serviceEndDate||''
         });
@@ -1569,7 +1577,7 @@
             learningLevel: row['학습수준'] || '', supportIntensity: row['지원강도'] || '',
             communicationLevel: row['의사소통수준'] || '', color: row['색상'] || '',
             afterSchool: row['방과후'] === true || row['방과후'] === 'TRUE' || row['방과후'] === 'true',
-            subject: row['교과'] || '', helperType: row['지원인력구분'] || '',
+            subject: row['교과'] || '', helperType: row['지원인력구분'] || '', gender: row['성별'] || '',
             enrollStartYear: row['재학근무시작학년도'] || '', enrollEndYear: row['재학근무종료학년도'] || '',
             serviceStartDate: row['복무시작일'] || '', serviceEndDate: row['복무종료일'] || ''
           };
@@ -3323,6 +3331,7 @@
       const statusBadge = yd.status ? `<span class="tag ${isActive ? 'tag-positive' : 'badge-leave'}" style="font-size:0.6rem; margin-left:3px;">${yd.status}</span>` : '';
       let details = [];
       if(category === 'mainStudents' || category === 'extraStudents') {
+        if(profile.gender) details.push(profile.gender);
         if((profile.disabilityTypes||[]).length) details.push(profile.disabilityTypes.join('·'));
         if(yd.integratedGrade || yd.integratedClassNum) details.push(`통합 ${yd.integratedGrade||'?'}-${yd.integratedClassNum||'?'}`);
       } else if(category === 'teachers') {
@@ -3477,6 +3486,7 @@
       document.getElementById('profile-teacher-fields').style.display = type === 'teacher' ? 'block' : 'none';
 
       if(type === 'student') {
+        document.getElementById('profile-gender').value = profile.gender || '';
         const currentClasses = getSpecialClasses(yearData);
         document.querySelectorAll('#profile-special-classes input').forEach(cb => { cb.checked = currentClasses.includes(cb.value); });
         document.getElementById('profile-integrated-grade').value = yearData.integratedGrade || '';
@@ -3528,6 +3538,7 @@
       profile.enrollEndYear = document.getElementById('profile-enroll-end').value;
 
       if(type === 'student') {
+        profile.gender = document.getElementById('profile-gender').value;
         yearData.specialClasses = Array.from(document.querySelectorAll('#profile-special-classes input:checked')).map(cb => cb.value);
         delete yearData.specialClass; // 예전 단일값 필드는 더 이상 사용하지 않음
         yearData.integratedGrade = document.getElementById('profile-integrated-grade').value;
@@ -3549,7 +3560,7 @@
       postToSheet('people', {
         id, notes: profile.notes, disabilityTypes: (profile.disabilityTypes||[]).join(', '), learningLevel: profile.learningLevel||'',
         supportIntensity: profile.supportIntensity||'', communicationLevel: profile.communicationLevel||'', color: profile.color||'',
-        afterSchool: profile.afterSchool||false, subject: profile.subject||'', helperType: profile.helperType||'',
+        afterSchool: profile.afterSchool||false, subject: profile.subject||'', helperType: profile.helperType||'', gender: profile.gender||'',
         enrollStartYear: profile.enrollStartYear||'', enrollEndYear: profile.enrollEndYear||'',
         serviceStartDate: profile.serviceStartDate||'', serviceEndDate: profile.serviceEndDate||''
       });
@@ -3591,7 +3602,7 @@
       postToSheet('people', {
         id, notes: profile.notes||'', disabilityTypes: (profile.disabilityTypes||[]).join(', '), learningLevel: profile.learningLevel||'',
         supportIntensity: profile.supportIntensity||'', communicationLevel: profile.communicationLevel||'', color: profile.color||'',
-        afterSchool: profile.afterSchool||false, subject: profile.subject||'', helperType: profile.helperType||'',
+        afterSchool: profile.afterSchool||false, subject: profile.subject||'', helperType: profile.helperType||'', gender: profile.gender||'',
         enrollStartYear: profile.enrollStartYear||'', enrollEndYear: profile.enrollEndYear||'',
         serviceStartDate: startDateVal, serviceEndDate: endDateVal
       });
@@ -3637,7 +3648,7 @@
       postToSheet('people', {
         id, notes: profile.notes||'', disabilityTypes: (profile.disabilityTypes||[]).join(', '), learningLevel: profile.learningLevel||'',
         supportIntensity: profile.supportIntensity||'', communicationLevel: profile.communicationLevel||'', color: profile.color||'',
-        afterSchool: profile.afterSchool||false, subject: profile.subject||'', helperType: profile.helperType||'',
+        afterSchool: profile.afterSchool||false, subject: profile.subject||'', helperType: profile.helperType||'', gender: profile.gender||'',
         enrollStartYear: profile.enrollStartYear, enrollEndYear: profile.enrollEndYear,
         serviceStartDate: profile.serviceStartDate||'', serviceEndDate: profile.serviceEndDate||''
       });
