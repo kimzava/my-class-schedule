@@ -2080,7 +2080,7 @@
                 if(data.helpers.length && shouldShowPersonType('helpers')) html += `<div style="font-size:0.68rem; color:#3730a3;">지원: ${data.helpers.join(', ')}</div>`;
               }
 
-              if(data.behavior) html += `<div class="tag tag-behavior">↕ ${data.behavior}</div>`;
+              if(data.behavior) html += `<div class="tag tag-behavior">↕ ${data.behavior} (${data.behaviorTime||'시작-종료'})</div>`;
               if(data.positive) html += `<div class="tag tag-positive">${data.positive}</div>`;
 
               // 문제행동 시간대 - 셀 높이에 비례한 수직 화살표 (오른쪽)
@@ -2093,7 +2093,7 @@
             neulbomOverlaps.forEach(ov => {
               const timeLabel = `${Math.floor(ov.startMin/60)}:${String(ov.startMin%60).padStart(2,'0')}-${Math.floor(ov.endMin/60)}:${String(ov.endMin%60).padStart(2,'0')}`;
               html += `<div class="vertical-arrow neulbom" style="${verticalArrowStyle(ov.startMin, ov.endMin, p)}" title="늘봄학교 [${ov.program.category}] ${ov.program.name} (${timeLabel})"></div>`;
-              html += `<div class="tag tag-neulbom" style="margin-top:2px;">🌤️ ${ov.program.name} · ${ov.program.location}</div>`;
+              if(shouldShowLocationInCell()) html += `<div class="tag tag-neulbom" style="margin-top:2px;">🌤️ ${ov.program.name} · ${ov.program.location}</div>`;
             });
           }
           html += `</td>`;
@@ -2186,7 +2186,7 @@
               if(showLocation) html += `<span class="tag tag-main">${entry.className||'입실'}</span>`;
               if(showHelpers && entry.helpers.length) html += `<div class="tag tag-helper" style="margin-top:2px;">${entry.helpers.join(', ')}</div>`;
               if(showTeacherTag) html += `<div class="tag tag-teacher" style="margin-top:2px;">${entry.teachers.join(', ')}</div>`;
-              if(entry.behavior) html += `<div class="tag tag-behavior">↕ ${entry.behavior}</div>`;
+              if(entry.behavior) html += `<div class="tag tag-behavior">↕ ${entry.behavior} (${entry.behaviorTime||'시작-종료'})</div>`;
               if(entry.positive) html += `<div class="tag tag-positive">${entry.positive}</div>`;
 
               // 문제행동 시간대 - 셀 높이에 비례한 수직 화살표 (오른쪽)
@@ -2199,7 +2199,7 @@
             neulbomOverlaps.forEach(ov => {
               const timeLabel = `${Math.floor(ov.startMin/60)}:${String(ov.startMin%60).padStart(2,'0')}-${Math.floor(ov.endMin/60)}:${String(ov.endMin%60).padStart(2,'0')}`;
               html += `<div class="vertical-arrow neulbom" style="${verticalArrowStyle(ov.startMin, ov.endMin, p)}" title="늘봄학교 [${ov.program.category}] ${ov.program.name} (${timeLabel})"></div>`;
-              html += `<div class="tag tag-neulbom" style="margin-top:2px;">🌤️ ${ov.program.name} · ${ov.program.location}</div>`;
+              if(shouldShowLocationInCell()) html += `<div class="tag tag-neulbom" style="margin-top:2px;">🌤️ ${ov.program.name} · ${ov.program.location}</div>`;
             });
             html += `</td>`;
           });
