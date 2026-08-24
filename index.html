@@ -120,13 +120,8 @@
     /* 일일매트릭스: 늘봄/문제행동 시간을 셀 높이에 비례한 수직 화살표로 표시 */
     .matrix-cell-relative { position: relative; }
     .matrix-cell-relative.has-neulbom { padding-left: 11px; }
-    .vertical-arrow { position: absolute; right: 3px; width: 0; border-left: 2px solid #e11d48; pointer-events: none; }
-    .vertical-arrow::before, .vertical-arrow::after { content: ''; position: absolute; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; }
-    .vertical-arrow::before { top: -4px; border-bottom: 5px solid #e11d48; }
-    .vertical-arrow::after { bottom: -4px; border-top: 5px solid #e11d48; }
-    .vertical-arrow.neulbom { left: 2px; right: auto; border-left-color: #7c3aed; }
-    .vertical-arrow.neulbom::before { border-bottom-color: #7c3aed; }
-    .vertical-arrow.neulbom::after { border-top-color: #7c3aed; }
+    .vertical-arrow { position: absolute; right: 3px; width: 4px; background: #e11d48; border-radius: 2px; pointer-events: none; }
+    .vertical-arrow.neulbom { left: 2px; right: auto; background: #7c3aed; }
     .tag-neulbom { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; display: block; text-align: left; }
     .memo-card-clickable { cursor: pointer; transition: background 0.15s, border-color 0.15s; }
     .memo-card-clickable:hover { background: #eff6ff; border-color: #93c5fd; }
@@ -1993,7 +1988,7 @@
                 const cls = b ? b.cls : 'tag-helper';
                 html += `<span class="tag ${cls}" ${b ? `title=\"${b.text}\"` : ''}>${h}</span>`;
               });
-              if(entry.behavior && shouldShowBehavior()) html += `<div class="tag tag-behavior">↕ ${shouldShowBehaviorText() ? entry.behavior : ''}${(shouldShowBehaviorTime() && entry.behaviorTime) ? ' ('+entry.behaviorTime+')' : ''}</div>`;
+              if(entry.behavior && shouldShowBehavior()) html += `<div class="tag tag-behavior">${shouldShowBehaviorText() ? entry.behavior : ''}${(shouldShowBehaviorTime() && entry.behaviorTime) ? ' ('+entry.behaviorTime+')' : ''}</div>`;
               if(entry.positive) html += `<div class="tag tag-positive">${entry.positive}</div>`;
               const memoMode = getMemoDisplayMode();
               if(memoMode !== 'hide' && (entry.memo || entry.summary)) {
@@ -2107,7 +2102,7 @@
                 if(data.helpers.length && shouldShowPersonType('helpers')) html += `<div style="font-size:0.68rem; color:#3730a3;">지원: ${data.helpers.join(', ')}</div>`;
               }
 
-              if(data.behavior && shouldShowBehavior()) html += `<div class="tag tag-behavior">↕ ${shouldShowBehaviorText() ? data.behavior : ''}${(shouldShowBehaviorTime() && data.behaviorTime) ? ' ('+data.behaviorTime+')' : ''}</div>`;
+              if(data.behavior && shouldShowBehavior()) html += `<div class="tag tag-behavior">${shouldShowBehaviorText() ? data.behavior : ''}${(shouldShowBehaviorTime() && data.behaviorTime) ? ' ('+data.behaviorTime+')' : ''}</div>`;
               if(data.positive) html += `<div class="tag tag-positive">${data.positive}</div>`;
 
               // 문제행동 시간대 - 셀 높이에 비례한 수직 화살표 (오른쪽)
@@ -2212,13 +2207,13 @@
             else if(b && b.cls === 'badge-tardy') bg = '#fef9c3';
             const dividerCls = (gi > 0 && si === 0) ? ' group-divider' : '';
             const cellClass = `clickable-cell matrix-cell-relative selectable-cell${dividerCls}${neulbomOverlaps.length ? ' has-neulbom' : ''}`;
-            html += `<td class="${cellClass}" style="${bg ? `background:${bg};` : ''}" data-cellkey="${cellId}|${s}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${s}')">`;
+            html += `<td class="${cellClass}" style="${bg ? `background:${bg};` : ''}" data-cellkey="${cellId}|${s}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${s}', '${g.label}')">`;
             if(entry) {
               const showTeacherTag = showTeachers && shouldShowTeacherTag(entry, roster, false);
               if(showLocation) html += `<span class="tag tag-main">${entry.className||'입실'}</span>`;
               if(showHelpers && entry.helpers.length) html += `<div class="tag tag-helper" style="margin-top:2px;">${entry.helpers.join(', ')}</div>`;
               if(showTeacherTag) html += `<div class="tag tag-teacher" style="margin-top:2px;">${entry.teachers.join(', ')}</div>`;
-              if(entry.behavior && shouldShowBehavior()) html += `<div class="tag tag-behavior">↕ ${shouldShowBehaviorText() ? entry.behavior : ''}${(shouldShowBehaviorTime() && entry.behaviorTime) ? ' ('+entry.behaviorTime+')' : ''}</div>`;
+              if(entry.behavior && shouldShowBehavior()) html += `<div class="tag tag-behavior">${shouldShowBehaviorText() ? entry.behavior : ''}${(shouldShowBehaviorTime() && entry.behaviorTime) ? ' ('+entry.behaviorTime+')' : ''}</div>`;
               if(entry.positive) html += `<div class="tag tag-positive">${entry.positive}</div>`;
 
               // 문제행동 시간대 - 셀 높이에 비례한 수직 화살표 (오른쪽)
@@ -2346,7 +2341,7 @@
               ${entry.students.length ? `<div style="font-size:0.72rem; margin-top:2px;">학생: ${entry.students.join(', ')}</div>` : ''}
               ${entry.helpers.length ? `<div style="font-size:0.72rem; color:#3730a3; margin-top:2px;">지원인력: ${entry.helpers.join(', ')}</div>` : ''}
               ${entry.teachers.length ? `<div style="font-size:0.72rem; color:#166534; margin-top:2px;">교사: ${entry.teachers.join(', ')}</div>` : ''}
-              ${(entry.behavior && shouldShowBehavior()) ? `<div class="tag tag-behavior">↕ ${shouldShowBehaviorText() ? entry.behavior : ''}${(shouldShowBehaviorTime() && entry.behaviorTime) ? ' ('+entry.behaviorTime+')' : ''}</div>` : ''}
+              ${(entry.behavior && shouldShowBehavior()) ? `<div class="tag tag-behavior">${shouldShowBehaviorText() ? entry.behavior : ''}${(shouldShowBehaviorTime() && entry.behaviorTime) ? ' ('+entry.behaviorTime+')' : ''}</div>` : ''}
               ${entry.positive ? `<div class="tag tag-positive">${entry.positive}</div>` : ''}
               ${entry.memo ? `<div style="font-size:0.75rem; color:#334155; margin-top:3px; white-space:pre-line;">${entry.memo}</div>` : ''}
             </div>
@@ -2355,7 +2350,7 @@
       });
 
       if(count === 0) {
-        panel.innerHTML = '<p style="color:#94a3b8; font-size:0.78rem;">오늘 기록된 특이사항이나 메모가 없습니다.</p>';
+        panel.innerHTML += '<p style="color:#94a3b8; font-size:0.78rem;">오늘 기록된 다른 특이사항이나 메모가 없습니다.</p>';
       }
     }
 
@@ -2477,7 +2472,7 @@
     }
 
     // cellId: 날짜_교시 / entryId: 편집할 기존 기록의 id (null이면 신규 생성) / focusPerson: 이 인물을 클릭해서 열었는지 (신규 생성 시 자동 체크)
-    function openInputModal(cellId, entryId, focusPerson) {
+    function openInputModal(cellId, entryId, focusPerson, columnClassHint) {
       selectedCellId = cellId;
       selectedEntryId = entryId || null;
       const roster = getRoster();
@@ -2490,12 +2485,17 @@
       if(!existing && focusPerson) {
         if(roster.mainStudents.includes(focusPerson) || roster.extraStudents.includes(focusPerson)) {
           data.students = [focusPerson];
-          // 그 학생의 소속 특수학급을 기본 학급으로, 두 반 이상이면 저학년반/고학년반을 우선
+          // 그 학생의 소속 특수학급을 기본 학급으로 - 일일매트릭스처럼 "어느 열에서 클릭했는지" 알면 그 반을 최우선으로,
+          // 그렇지 않으면(다른 뷰) 두 반 이상 소속 시 저학년반/고학년반을 우선
           const year = String(getAcademicYear(currentDate));
           const id = resolvePersonId(year, focusPerson, false);
           const yd = id && personYearData[id] && personYearData[id][year];
           const classes = getSpecialClasses(yd);
-          if(classes.length) {
+          if(columnClassHint && classes.includes(columnClassHint)) {
+            defaultClassName = columnClassHint;
+            const classTeacherName = (roster.classTeachers || {})[defaultClassName];
+            if(classTeacherName && !data.teachers.includes(classTeacherName)) data.teachers = [...data.teachers, classTeacherName];
+          } else if(classes.length) {
             defaultClassName = classes.includes('저학년반') ? '저학년반' : (classes.includes('고학년반') ? '고학년반' : classes[0]);
             const classTeacherName = (roster.classTeachers || {})[defaultClassName];
             if(classTeacherName && !data.teachers.includes(classTeacherName)) data.teachers = [...data.teachers, classTeacherName];
