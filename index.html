@@ -336,9 +336,9 @@
           <option value="물건던짐">물건던짐</option>
           <option value="자해행동">자해행동</option>
         </select>
-        <input type="time" lang="en-GB" id="behavior-time-start" style="flex:1;">
+        <input type="text" placeholder="09:00" pattern="^([01][0-9]|2[0-3]):[0-5][0-9]$" inputmode="numeric" maxlength="5" onblur="formatTimeInput(this)" id="behavior-time-start" style="flex:1;">
         <span>~</span>
-        <input type="time" lang="en-GB" id="behavior-time-end" style="flex:1;">
+        <input type="text" placeholder="09:00" pattern="^([01][0-9]|2[0-3]):[0-5][0-9]$" inputmode="numeric" maxlength="5" onblur="formatTimeInput(this)" id="behavior-time-end" style="flex:1;">
       </div>
     </div>
     <div class="form-group">
@@ -1042,7 +1042,7 @@
 
     // 교시 정의 (startMin/endMin: 자정 기준 분 단위 시작/종료 시각). isBreak: 쉬는 시간 행 - 일반 교시와 동일하게 입력 가능 (이름은 셀 ID로 쓰이므로 서로 겹치지 않게 고유해야 함)
     const PERIODS = [
-      { name: '등교', time: '~ 09:00', startMin: 0, endMin: 540 },
+      { name: '등교', time: '~ 09:00', startMin: 480, endMin: 540 },
       { name: '1교시', time: '09:00 - 09:40', startMin: 540, endMin: 580 },
       { name: '쉬는시간(1-2교시)', shortLabel: '쉬는(1-2)', time: '09:40 - 09:50', startMin: 580, endMin: 590, isBreak: true },
       { name: '2교시', time: '09:50 - 10:30', startMin: 590, endMin: 630 },
@@ -1053,7 +1053,7 @@
       { name: '5교시', time: '13:00 - 13:40', startMin: 780, endMin: 820 },
       { name: '쉬는시간(5-6교시)', shortLabel: '쉬는(5-6)', time: '13:40 - 13:50', startMin: 820, endMin: 830, isBreak: true },
       { name: '6교시', time: '13:50 - 14:30', startMin: 830, endMin: 870 },
-      { name: '방과후', time: '14:30 ~', startMin: 870, endMin: 1440 }
+      { name: '방과후', time: '14:30 ~', startMin: 870, endMin: 1020 }
     ];
 
     // 1-1. 기록(entry) 관련 헬퍼
@@ -1743,6 +1743,20 @@
       return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
     }
 
+    // 시간 텍스트입력란(24시간제 전용, 오전/오후 없음)에서 벗어날 때 "900"/"9:30"/"0930" 등을 "09:00" 형태로 자동 정리
+    function formatTimeInput(el) {
+      const raw = el.value.trim();
+      if(!raw) return;
+      let h, min;
+      const withColon = raw.match(/^(\d{1,2}):(\d{1,2})$/);
+      const digitsOnly = raw.match(/^(\d{1,2})(\d{2})$/);
+      if(withColon) { h = parseInt(withColon[1], 10); min = parseInt(withColon[2], 10); }
+      else if(digitsOnly) { h = parseInt(digitsOnly[1], 10); min = parseInt(digitsOnly[2], 10); }
+      else { return; } // 알아볼 수 없는 형식은 그대로 두고 사용자가 직접 고치게 함
+      if(h > 23 || min > 59) return;
+      el.value = String(h).padStart(2, '0') + ':' + String(min).padStart(2, '0');
+    }
+
     // 4-1b. 교시별 출결 배지 헬퍼 - 지각(도착 전까지)/조퇴(하교 이후부터)만 교시별로 계산, 나머지는 하루 종일 동일하게 표시
     function formatAttBadgeForPeriod(rec, isStudent, period) {
       if(!rec || !rec.status || rec.status === 'PRESENT') return null;
@@ -1966,7 +1980,7 @@
                 const cls = b ? b.cls : 'tag-helper';
                 html += `<span class="tag ${cls}" ${b ? `title=\"${b.text}\"` : ''}>${h}</span>`;
               });
-              if(entry.behavior) html += `<div class="tag tag-behavior">↕ ${entry.behavior} (${entry.behaviorTime||'시작-종료'})</div>`;
+              if(entry.behavior) html += `<div class="tag tag-behavior">↕ ${entry.behavior}${entry.behaviorTime ? ' ('+entry.behaviorTime+')' : ''}</div>`;
               if(entry.positive) html += `<div class="tag tag-positive">${entry.positive}</div>`;
               const memoMode = getMemoDisplayMode();
               if(memoMode !== 'hide' && (entry.memo || entry.summary)) {
@@ -2080,7 +2094,7 @@
                 if(data.helpers.length && shouldShowPersonType('helpers')) html += `<div style="font-size:0.68rem; color:#3730a3;">지원: ${data.helpers.join(', ')}</div>`;
               }
 
-              if(data.behavior) html += `<div class="tag tag-behavior">↕ ${data.behavior} (${data.behaviorTime||'시작-종료'})</div>`;
+              if(data.behavior) html += `<div class="tag tag-behavior">↕ ${data.behavior}${data.behaviorTime ? ' ('+data.behaviorTime+')' : ''}</div>`;
               if(data.positive) html += `<div class="tag tag-positive">${data.positive}</div>`;
 
               // 문제행동 시간대 - 셀 높이에 비례한 수직 화살표 (오른쪽)
@@ -2186,7 +2200,7 @@
               if(showLocation) html += `<span class="tag tag-main">${entry.className||'입실'}</span>`;
               if(showHelpers && entry.helpers.length) html += `<div class="tag tag-helper" style="margin-top:2px;">${entry.helpers.join(', ')}</div>`;
               if(showTeacherTag) html += `<div class="tag tag-teacher" style="margin-top:2px;">${entry.teachers.join(', ')}</div>`;
-              if(entry.behavior) html += `<div class="tag tag-behavior">↕ ${entry.behavior} (${entry.behaviorTime||'시작-종료'})</div>`;
+              if(entry.behavior) html += `<div class="tag tag-behavior">↕ ${entry.behavior}${entry.behaviorTime ? ' ('+entry.behaviorTime+')' : ''}</div>`;
               if(entry.positive) html += `<div class="tag tag-positive">${entry.positive}</div>`;
 
               // 문제행동 시간대 - 셀 높이에 비례한 수직 화살표 (오른쪽)
@@ -2305,7 +2319,7 @@
               ${entry.students.length ? `<div style="font-size:0.72rem; margin-top:2px;">학생: ${entry.students.join(', ')}</div>` : ''}
               ${entry.helpers.length ? `<div style="font-size:0.72rem; color:#3730a3; margin-top:2px;">지원인력: ${entry.helpers.join(', ')}</div>` : ''}
               ${entry.teachers.length ? `<div style="font-size:0.72rem; color:#166534; margin-top:2px;">교사: ${entry.teachers.join(', ')}</div>` : ''}
-              ${entry.behavior ? `<div class="tag tag-behavior">↕ ${entry.behavior} (${entry.behaviorTime||''})</div>` : ''}
+              ${entry.behavior ? `<div class="tag tag-behavior">↕ ${entry.behavior}${entry.behaviorTime ? ' ('+entry.behaviorTime+')' : ''}</div>` : ''}
               ${entry.positive ? `<div class="tag tag-positive">${entry.positive}</div>` : ''}
               ${entry.memo ? `<div style="font-size:0.75rem; color:#334155; margin-top:3px; white-space:pre-line;">📝 ${entry.memo}</div>` : ''}
             </div>
@@ -2778,7 +2792,7 @@
                 <button type="button" class="att-btn ${status==='EARLY'?'active-early':''}" onclick="setStudentAttState('${person}', 'EARLY', this)">조퇴</button>
               </div>
             </div>
-            <input type="time" lang="en-GB" class="tardy-time-input" value="${rec.time||''}"
+            <input type="text" placeholder="09:00" pattern="^([01][0-9]|2[0-3]):[0-5][0-9]$" inputmode="numeric" maxlength="5" onblur="formatTimeInput(this)" class="tardy-time-input" value="${rec.time||''}"
               onchange="commitPersonAttTime('${person}', this.value)"
               style="display:${needsTime?'block':'none'};" placeholder="${status==='EARLY'?'조퇴 시각':'도착 시각'}">
           </div>
@@ -2798,7 +2812,7 @@
               <span style="font-size:0.78rem; font-weight:bold;">${person}</span>
               <select style="width:auto; font-size:0.75rem; padding:3px 6px;" onchange="setStaffAttState('${person}', this.value)">${options}</select>
             </div>
-            <input type="time" lang="en-GB" class="tardy-time-input" value="${rec.time||''}"
+            <input type="text" placeholder="09:00" pattern="^([01][0-9]|2[0-3]):[0-5][0-9]$" inputmode="numeric" maxlength="5" onblur="formatTimeInput(this)" class="tardy-time-input" value="${rec.time||''}"
               onchange="commitPersonAttTime('${person}', this.value)"
               style="display:${needsTime?'block':'none'};" placeholder="시각(선택)">
             <input type="text" class="att-note-input" value="${rec.note||''}" placeholder="기타 내용 직접 입력"
@@ -3903,9 +3917,9 @@
         return `
           <div class="nb-day-row" data-day="${day}" style="padding:3px 6px;">
             <label><input type="checkbox" class="nb-day-check" ${has ? 'checked' : ''} onchange="toggleNbDayRow(this)"> ${day}요일</label>
-            <input type="time" lang="en-GB" class="nb-day-start" value="${has ? overrideSchedule[day].start : ''}" style="display:${has ? 'block' : 'none'};">
+            <input type="text" placeholder="09:00" pattern="^([01][0-9]|2[0-3]):[0-5][0-9]$" inputmode="numeric" maxlength="5" onblur="formatTimeInput(this)" class="nb-day-start" value="${has ? overrideSchedule[day].start : ''}" style="display:${has ? 'block' : 'none'};">
             <span>~</span>
-            <input type="time" lang="en-GB" class="nb-day-end" value="${has ? overrideSchedule[day].end : ''}" style="display:${has ? 'block' : 'none'};">
+            <input type="text" placeholder="09:00" pattern="^([01][0-9]|2[0-3]):[0-5][0-9]$" inputmode="numeric" maxlength="5" onblur="formatTimeInput(this)" class="nb-day-end" value="${has ? overrideSchedule[day].end : ''}" style="display:${has ? 'block' : 'none'};">
           </div>
         `;
       }).join('');
@@ -3978,9 +3992,9 @@
         return `
           <div class="nb-day-row" data-day="${day}">
             <label><input type="checkbox" class="nb-day-check" ${has ? 'checked' : ''} onchange="toggleNbDayRow(this)"> ${day}요일</label>
-            <input type="time" lang="en-GB" class="nb-day-start" value="${has ? sched[day].start : ''}" style="display:${has ? 'block' : 'none'};">
+            <input type="text" placeholder="09:00" pattern="^([01][0-9]|2[0-3]):[0-5][0-9]$" inputmode="numeric" maxlength="5" onblur="formatTimeInput(this)" class="nb-day-start" value="${has ? sched[day].start : ''}" style="display:${has ? 'block' : 'none'};">
             <span style="align-self:center;">~</span>
-            <input type="time" lang="en-GB" class="nb-day-end" value="${has ? sched[day].end : ''}" style="display:${has ? 'block' : 'none'};">
+            <input type="text" placeholder="09:00" pattern="^([01][0-9]|2[0-3]):[0-5][0-9]$" inputmode="numeric" maxlength="5" onblur="formatTimeInput(this)" class="nb-day-end" value="${has ? sched[day].end : ''}" style="display:${has ? 'block' : 'none'};">
           </div>
         `;
       }).join('');
