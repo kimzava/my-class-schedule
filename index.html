@@ -1892,6 +1892,23 @@
       return { startMin: overlapStart, endMin: overlapEnd };
     }
 
+    // 늘봄학교와 동일한 방식: 그 사람의 "그 날짜 전체" 기록(어느 교시 칸에 저장돼있든 상관없이)을 훑어서,
+    // 문제행동 시간이 지금 그리는 교시와 겹치면 전부 찾아 반환 - 여러 교시에 걸친 문제행동도 각 교시에 표시되도록 함
+    function getAllBehaviorOverlapsForPeriod(personName, dateStr, period) {
+      const results = [];
+      PERIODS.forEach(otherPeriod => {
+        const cellId = `${dateStr}_${otherPeriod.name}`;
+        const entries = scheduleData[cellId] || [];
+        entries.forEach(entry => {
+          const isRelevant = entry.students.includes(personName) || entry.helpers.includes(personName) || entry.teachers.includes(personName);
+          if(!isRelevant) return;
+          const overlap = getBehaviorOverlapForPeriod(entry, period);
+          if(overlap) results.push({ entry, startMin: overlap.startMin, endMin: overlap.endMin });
+        });
+      });
+      return results;
+    }
+
     // 교시 내 상대 위치(%)를 계산해 수직 화살표 style(top/height) 문자열 생성
     function verticalArrowStyle(overlapStart, overlapEnd, period) {
       const span = period.endMin - period.startMin;
@@ -2001,15 +2018,22 @@
               html += `</div>`;
             });
             html += `<div class="cell-add-entry-btn" onclick="openInputModal('${cellId}', null, null)">+</div>`;
+          }
 
-            // 문제행동 시간대 - 늘봄학교와 동일하게 셀 높이에 비례한 수직 화살표로 표시 (td에 직접 배치해야 %가 정상 적용됨)
-            visibleEntries.forEach(entry => {
-              const behaviorOverlap = getBehaviorOverlapForPeriod(entry, p);
-              if(behaviorOverlap) {
-                if(shouldShowBehavior() && shouldShowBehaviorArrow()) html += `<div class="vertical-arrow" style="${verticalArrowStyle(behaviorOverlap.startMin, behaviorOverlap.endMin, p)}" title="문제행동: ${entry.behavior} (${entry.behaviorTime})"></div>`;
+          // 문제행동 시간대 - 늘봄학교와 동일하게, 그 날짜 전체 기록(어느 교시 칸이든)을 훑어서 지금 교시와 겹치는 문제행동을 표시 (이 교시에 기록이 없어도 표시됨)
+          const shownBehaviorIds = new Set();
+          PERIODS.forEach(otherPeriod => {
+            const otherCellId = `${dateStr}_${otherPeriod.name}`;
+            (scheduleData[otherCellId] || []).forEach(otherEntry => {
+              if(classFilter !== 'ALL' && otherEntry.className !== classFilter) return;
+              if(shownBehaviorIds.has(otherEntry.id)) return;
+              const overlap = getBehaviorOverlapForPeriod(otherEntry, p);
+              if(overlap) {
+                shownBehaviorIds.add(otherEntry.id);
+                if(shouldShowBehavior() && shouldShowBehaviorArrow()) html += `<div class="vertical-arrow" style="${verticalArrowStyle(overlap.startMin, overlap.endMin, p)}" title="문제행동: ${otherEntry.behavior} (${otherEntry.behaviorTime})"></div>`;
               }
             });
-          }
+          });
           html += `</td>`;
         });
         html += `</tr>`;
@@ -2104,13 +2128,11 @@
 
               if(data.behavior && shouldShowBehavior()) html += `<div class="tag tag-behavior">${shouldShowBehaviorText() ? data.behavior : ''}${(shouldShowBehaviorTime() && data.behaviorTime) ? ' ('+data.behaviorTime+')' : ''}</div>`;
               if(data.positive) html += `<div class="tag tag-positive">${data.positive}</div>`;
-
-              // 문제행동 시간대 - 셀 높이에 비례한 수직 화살표 (오른쪽)
-              const behaviorOverlap = getBehaviorOverlapForPeriod(entry, p);
-              if(behaviorOverlap) {
-                if(shouldShowBehavior() && shouldShowBehaviorArrow()) html += `<div class="vertical-arrow" style="${verticalArrowStyle(behaviorOverlap.startMin, behaviorOverlap.endMin, p)}" title="문제행동: ${data.behavior} (${data.behaviorTime})"></div>`;
-              }
             }
+            // 문제행동 시간대 - 늘봄학교와 동일하게, 이 사람의 "그 날짜 전체" 기록을 훑어서 겹치는 문제행동을 전부 표시 (여러 교시에 걸친 것도 포함, entry 유무와 무관)
+            getAllBehaviorOverlapsForPeriod(selectedPerson, dateStr, p).forEach(ov => {
+              if(shouldShowBehavior() && shouldShowBehaviorArrow()) html += `<div class="vertical-arrow" style="${verticalArrowStyle(ov.startMin, ov.endMin, p)}" title="문제행동: ${ov.entry.behavior} (${ov.entry.behaviorTime})"></div>`;
+            });
             // 늘봄학교 프로그램 시간대 - 셀 왼쪽에 시간 비례 수직 화살표 + 오른쪽에 참여 중인 수업(장소/프로그램명) 텍스트로 표시
             neulbomOverlaps.forEach(ov => {
               const timeLabel = `${Math.floor(ov.startMin/60)}:${String(ov.startMin%60).padStart(2,'0')}-${Math.floor(ov.endMin/60)}:${String(ov.endMin%60).padStart(2,'0')}`;
@@ -2215,13 +2237,11 @@
               if(showTeacherTag) html += `<div class="tag tag-teacher" style="margin-top:2px;">${entry.teachers.join(', ')}</div>`;
               if(entry.behavior && shouldShowBehavior()) html += `<div class="tag tag-behavior">${shouldShowBehaviorText() ? entry.behavior : ''}${(shouldShowBehaviorTime() && entry.behaviorTime) ? ' ('+entry.behaviorTime+')' : ''}</div>`;
               if(entry.positive) html += `<div class="tag tag-positive">${entry.positive}</div>`;
-
-              // 문제행동 시간대 - 셀 높이에 비례한 수직 화살표 (오른쪽)
-              const behaviorOverlap = getBehaviorOverlapForPeriod(entry, p);
-              if(behaviorOverlap) {
-                if(shouldShowBehavior() && shouldShowBehaviorArrow()) html += `<div class="vertical-arrow" style="${verticalArrowStyle(behaviorOverlap.startMin, behaviorOverlap.endMin, p)}" title="문제행동: ${entry.behavior} (${entry.behaviorTime})"></div>`;
-              }
             }
+            // 문제행동 시간대 - 늘봄학교와 동일하게, 이 학생의 "그 날짜 전체" 기록을 훑어서 겹치는 문제행동을 전부 표시 (여러 교시에 걸친 것도 포함, entry 유무와 무관)
+            getAllBehaviorOverlapsForPeriod(s, dateStr, p).forEach(ov => {
+              if(shouldShowBehavior() && shouldShowBehaviorArrow()) html += `<div class="vertical-arrow" style="${verticalArrowStyle(ov.startMin, ov.endMin, p)}" title="문제행동: ${ov.entry.behavior} (${ov.entry.behaviorTime})"></div>`;
+            });
             // 늘봄학교 프로그램 시간대 - 셀 왼쪽에 시간 비례 수직 화살표 + 오른쪽에 참여 중인 수업(장소/프로그램명) 텍스트로 표시
             neulbomOverlaps.forEach(ov => {
               const timeLabel = `${Math.floor(ov.startMin/60)}:${String(ov.startMin%60).padStart(2,'0')}-${Math.floor(ov.endMin/60)}:${String(ov.endMin%60).padStart(2,'0')}`;
