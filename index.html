@@ -1578,6 +1578,8 @@
         (json.settings || []).forEach(row => {
           if(row['키'] === 'defaultClass' && row['값']) localStorage.setItem('defaultClass', row['값']);
           if(row['키'] === 'customLocations' && row['값']) localStorage.setItem('customLocations', row['값']);
+          if(row['키'] === 'allClassesList' && row['값']) localStorage.setItem('allClassesList', row['값']);
+          if(row['키'] === 'classMemos' && row['값']) localStorage.setItem('classMemos', row['값']);
         });
 
         // 사람 프로필 (학년도 무관 공통 정보)
@@ -2448,12 +2450,14 @@
     }
     function saveAllClassNames(list) {
       localStorage.setItem('allClassesList', JSON.stringify(list));
+      postToSheet('settings', { key: 'allClassesList', value: JSON.stringify(list) });
     }
     function getClassMemos() {
       return JSON.parse(localStorage.getItem('classMemos') || '{}');
     }
     function saveClassMemos(memos) {
       localStorage.setItem('classMemos', JSON.stringify(memos));
+      postToSheet('settings', { key: 'classMemos', value: JSON.stringify(memos) });
     }
     // "해당 학급/장소 선택" 드롭다운을 반 목록 + 설정된 장소 목록 + 기타(직접입력)로 재구성
     function buildClassSelectOptions() {
