@@ -120,8 +120,13 @@
     /* 일일매트릭스: 늘봄/문제행동 시간을 셀 높이에 비례한 수직 화살표로 표시 */
     .matrix-cell-relative { position: relative; }
     .matrix-cell-relative.has-neulbom { padding-left: 11px; }
-    .vertical-arrow { position: absolute; right: 3px; width: 4px; background: #e11d48; border-radius: 2px; pointer-events: none; }
+    .vertical-arrow { position: absolute; right: 3px; width: 3px; background: #e11d48; pointer-events: none; }
+    .vertical-arrow::before, .vertical-arrow::after { content: ''; position: absolute; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 3px solid transparent; border-right: 3px solid transparent; }
+    .vertical-arrow::before { top: -3px; border-bottom: 4px solid #e11d48; }
+    .vertical-arrow::after { bottom: -3px; border-top: 4px solid #e11d48; }
     .vertical-arrow.neulbom { left: 2px; right: auto; background: #7c3aed; }
+    .vertical-arrow.neulbom::before { border-bottom-color: #7c3aed; }
+    .vertical-arrow.neulbom::after { border-top-color: #7c3aed; }
     .tag-neulbom { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; display: block; text-align: left; }
     .memo-card-clickable { cursor: pointer; transition: background 0.15s, border-color 0.15s; }
     .memo-card-clickable:hover { background: #eff6ff; border-color: #93c5fd; }
@@ -1915,7 +1920,7 @@
       if(span <= 0) return '';
       const topPct = ((overlapStart - period.startMin) / span) * 100;
       const heightPct = ((overlapEnd - overlapStart) / span) * 100;
-      return `top:${topPct.toFixed(1)}%; height:${Math.max(heightPct, 4).toFixed(1)}%;`;
+      return `top:${topPct.toFixed(1)}%; height:${Math.max(heightPct, 12).toFixed(1)}%;`;
     }
 
     // 5. 메인 렌더링
