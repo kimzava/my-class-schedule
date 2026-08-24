@@ -191,7 +191,7 @@
 <body>
 
   <script>
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzf-akRAZeHi6LT2lNzJY4jyyeilLooVY5cQE0SZc_op_8IctElKKJcvPD0OgBnR35VpQ/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwWHF_ooG5-ALcg8FdqYe4NC26hw5zJbCidfu9BbfZKCs9VWzSOhy_l2rQ35ZnvlVhKrw/exec';
     const ACCESS_KEY = 'spedehxhfl'; // Code.gs의 ACCESS_KEY와 반드시 동일한 값으로 맞춰주세요
   </script>
 
@@ -256,6 +256,16 @@
         </select>
         <span id="week-template-btn-wrap" style="border-left:1px solid #cbd5e1; height:16px;"></span>
         <button id="week-template-save-btn" onclick="saveCurrentWeekAsTemplate()" style="padding:3px 8px; font-size:0.72rem;">📅 이번주 템플릿저장</button>
+        <span style="border-left:1px solid #cbd5e1; height:16px;"></span>
+        <span style="font-weight:bold; color:#475569;">문제행동:</span>
+        <label style="font-weight:normal; display:flex; align-items:center; gap:3px;"><input type="checkbox" id="opt-behavior-show" checked onchange="saveWeeklyViewOptions(); render()" style="width:auto;"> 표시</label>
+        <label style="font-weight:normal; display:flex; align-items:center; gap:3px;"><input type="checkbox" id="opt-behavior-time" checked onchange="saveWeeklyViewOptions(); render()" style="width:auto;"> 시간</label>
+        <label style="font-weight:normal; display:flex; align-items:center; gap:3px;"><input type="checkbox" id="opt-behavior-text" checked onchange="saveWeeklyViewOptions(); render()" style="width:auto;"> 행동</label>
+        <label style="font-weight:normal; display:flex; align-items:center; gap:3px;"><input type="checkbox" id="opt-behavior-arrow" checked onchange="saveWeeklyViewOptions(); render()" style="width:auto;"> 화살표</label>
+        <span style="border-left:1px solid #cbd5e1; height:16px;"></span>
+        <span style="font-weight:bold; color:#475569;">늘봄:</span>
+        <label style="font-weight:normal; display:flex; align-items:center; gap:3px;"><input type="checkbox" id="opt-neulbom-show" checked onchange="saveWeeklyViewOptions(); render()" style="width:auto;"> 표시</label>
+        <label style="font-weight:normal; display:flex; align-items:center; gap:3px;"><input type="checkbox" id="opt-neulbom-class" checked onchange="saveWeeklyViewOptions(); render()" style="width:auto;"> 수업</label>
       </div>
       <div id="selection-toolbar" style="visibility:hidden; display:flex; align-items:center; gap:8px; background:#eff6ff; border:1px solid #93c5fd; border-radius:6px; padding:6px 10px; margin:8px 12px 0 12px; font-size:0.78rem; flex-shrink:0;">
         <span id="selection-count-label"></span>
@@ -1186,7 +1196,7 @@
       const pushToSheet = (entry) => postToSheet('schedule', {
         id: entry.id, date, period, className: entry.className,
         students: entry.students.join(', '), helpers: entry.helpers.join(', '), teachers: entry.teachers.join(', '),
-        behavior: entry.behavior, behaviorTime: entry.behaviorTime, positive: entry.positive, memo: entry.memo
+        behavior: entry.behavior, behaviorTime: entry.behaviorTime, positive: entry.positive, memo: entry.memo, summary: entry.summary || ''
       });
 
       if(person) {
@@ -1508,7 +1518,8 @@
             behavior: row['문제행동'] || '',
             behaviorTime: row['문제행동시간'] || '',
             positive: row['칭찬'] || '',
-            memo: row['메모'] || ''
+            memo: row['메모'] || '',
+            summary: row['요약'] || ''
           });
         });
 
@@ -1980,7 +1991,7 @@
                 const cls = b ? b.cls : 'tag-helper';
                 html += `<span class="tag ${cls}" ${b ? `title=\"${b.text}\"` : ''}>${h}</span>`;
               });
-              if(entry.behavior) html += `<div class="tag tag-behavior">↕ ${entry.behavior}${entry.behaviorTime ? ' ('+entry.behaviorTime+')' : ''}</div>`;
+              if(entry.behavior && shouldShowBehavior()) html += `<div class="tag tag-behavior">↕ ${shouldShowBehaviorText() ? entry.behavior : ''}${(shouldShowBehaviorTime() && entry.behaviorTime) ? ' ('+entry.behaviorTime+')' : ''}</div>`;
               if(entry.positive) html += `<div class="tag tag-positive">${entry.positive}</div>`;
               const memoMode = getMemoDisplayMode();
               if(memoMode !== 'hide' && (entry.memo || entry.summary)) {
@@ -1988,7 +1999,7 @@
                 let memoDisplay = entry.memo || '';
                 if(memoMode === 'summary') memoDisplay = entry.summary ? entry.summary : truncateMemoText(entry.memo || '', 12);
                 else if(memoMode === 'truncate') memoDisplay = truncateMemoText(entry.memo || '', 20);
-                if(memoDisplay) html += `<div style="font-size:0.72rem; color:#475569; margin-top:2px;" title="${fullTitle}">📝 ${memoDisplay}</div>`;
+                if(memoDisplay) html += `<div style="font-size:0.72rem; color:#475569; margin-top:2px;" title="${fullTitle}">${memoDisplay}</div>`;
               }
               html += `</div>`;
             });
@@ -1998,7 +2009,7 @@
             visibleEntries.forEach(entry => {
               const behaviorOverlap = getBehaviorOverlapForPeriod(entry, p);
               if(behaviorOverlap) {
-                html += `<div class="vertical-arrow" style="${verticalArrowStyle(behaviorOverlap.startMin, behaviorOverlap.endMin, p)}" title="문제행동: ${entry.behavior} (${entry.behaviorTime})"></div>`;
+                if(shouldShowBehavior() && shouldShowBehaviorArrow()) html += `<div class="vertical-arrow" style="${verticalArrowStyle(behaviorOverlap.startMin, behaviorOverlap.endMin, p)}" title="문제행동: ${entry.behavior} (${entry.behaviorTime})"></div>`;
               }
             });
           }
@@ -2094,20 +2105,25 @@
                 if(data.helpers.length && shouldShowPersonType('helpers')) html += `<div style="font-size:0.68rem; color:#3730a3;">지원: ${data.helpers.join(', ')}</div>`;
               }
 
-              if(data.behavior) html += `<div class="tag tag-behavior">↕ ${data.behavior}${data.behaviorTime ? ' ('+data.behaviorTime+')' : ''}</div>`;
+              if(data.behavior && shouldShowBehavior()) html += `<div class="tag tag-behavior">↕ ${shouldShowBehaviorText() ? data.behavior : ''}${(shouldShowBehaviorTime() && data.behaviorTime) ? ' ('+data.behaviorTime+')' : ''}</div>`;
               if(data.positive) html += `<div class="tag tag-positive">${data.positive}</div>`;
 
               // 문제행동 시간대 - 셀 높이에 비례한 수직 화살표 (오른쪽)
               const behaviorOverlap = getBehaviorOverlapForPeriod(entry, p);
               if(behaviorOverlap) {
-                html += `<div class="vertical-arrow" style="${verticalArrowStyle(behaviorOverlap.startMin, behaviorOverlap.endMin, p)}" title="문제행동: ${data.behavior} (${data.behaviorTime})"></div>`;
+                if(shouldShowBehavior() && shouldShowBehaviorArrow()) html += `<div class="vertical-arrow" style="${verticalArrowStyle(behaviorOverlap.startMin, behaviorOverlap.endMin, p)}" title="문제행동: ${data.behavior} (${data.behaviorTime})"></div>`;
               }
             }
             // 늘봄학교 프로그램 시간대 - 셀 왼쪽에 시간 비례 수직 화살표 + 오른쪽에 참여 중인 수업(장소/프로그램명) 텍스트로 표시
             neulbomOverlaps.forEach(ov => {
               const timeLabel = `${Math.floor(ov.startMin/60)}:${String(ov.startMin%60).padStart(2,'0')}-${Math.floor(ov.endMin/60)}:${String(ov.endMin%60).padStart(2,'0')}`;
-              html += `<div class="vertical-arrow neulbom" style="${verticalArrowStyle(ov.startMin, ov.endMin, p)}" title="늘봄학교 [${ov.program.category}] ${ov.program.name} (${timeLabel})"></div>`;
-              if(shouldShowLocationInCell()) html += `<div class="tag tag-neulbom" style="margin-top:2px;">🌤️ ${ov.program.name} · ${ov.program.location}</div>`;
+              if(shouldShowNeulbom()) html += `<div class="vertical-arrow neulbom" style="${verticalArrowStyle(ov.startMin, ov.endMin, p)}" title="늘봄학교 [${ov.program.category}] ${ov.program.name} (${timeLabel})"></div>`;
+              if(shouldShowNeulbom()) {
+                const nbParts = [];
+                if(shouldShowNeulbomClass()) nbParts.push(ov.program.name);
+                if(shouldShowLocationInCell()) nbParts.push(ov.program.location);
+                if(nbParts.length) html += `<div class="tag tag-neulbom" style="margin-top:2px;">🌤️ ${nbParts.join(' · ')}</div>`;
+              }
             });
           }
           html += `</td>`;
@@ -2200,20 +2216,25 @@
               if(showLocation) html += `<span class="tag tag-main">${entry.className||'입실'}</span>`;
               if(showHelpers && entry.helpers.length) html += `<div class="tag tag-helper" style="margin-top:2px;">${entry.helpers.join(', ')}</div>`;
               if(showTeacherTag) html += `<div class="tag tag-teacher" style="margin-top:2px;">${entry.teachers.join(', ')}</div>`;
-              if(entry.behavior) html += `<div class="tag tag-behavior">↕ ${entry.behavior}${entry.behaviorTime ? ' ('+entry.behaviorTime+')' : ''}</div>`;
+              if(entry.behavior && shouldShowBehavior()) html += `<div class="tag tag-behavior">↕ ${shouldShowBehaviorText() ? entry.behavior : ''}${(shouldShowBehaviorTime() && entry.behaviorTime) ? ' ('+entry.behaviorTime+')' : ''}</div>`;
               if(entry.positive) html += `<div class="tag tag-positive">${entry.positive}</div>`;
 
               // 문제행동 시간대 - 셀 높이에 비례한 수직 화살표 (오른쪽)
               const behaviorOverlap = getBehaviorOverlapForPeriod(entry, p);
               if(behaviorOverlap) {
-                html += `<div class="vertical-arrow" style="${verticalArrowStyle(behaviorOverlap.startMin, behaviorOverlap.endMin, p)}" title="문제행동: ${entry.behavior} (${entry.behaviorTime})"></div>`;
+                if(shouldShowBehavior() && shouldShowBehaviorArrow()) html += `<div class="vertical-arrow" style="${verticalArrowStyle(behaviorOverlap.startMin, behaviorOverlap.endMin, p)}" title="문제행동: ${entry.behavior} (${entry.behaviorTime})"></div>`;
               }
             }
             // 늘봄학교 프로그램 시간대 - 셀 왼쪽에 시간 비례 수직 화살표 + 오른쪽에 참여 중인 수업(장소/프로그램명) 텍스트로 표시
             neulbomOverlaps.forEach(ov => {
               const timeLabel = `${Math.floor(ov.startMin/60)}:${String(ov.startMin%60).padStart(2,'0')}-${Math.floor(ov.endMin/60)}:${String(ov.endMin%60).padStart(2,'0')}`;
-              html += `<div class="vertical-arrow neulbom" style="${verticalArrowStyle(ov.startMin, ov.endMin, p)}" title="늘봄학교 [${ov.program.category}] ${ov.program.name} (${timeLabel})"></div>`;
-              if(shouldShowLocationInCell()) html += `<div class="tag tag-neulbom" style="margin-top:2px;">🌤️ ${ov.program.name} · ${ov.program.location}</div>`;
+              if(shouldShowNeulbom()) html += `<div class="vertical-arrow neulbom" style="${verticalArrowStyle(ov.startMin, ov.endMin, p)}" title="늘봄학교 [${ov.program.category}] ${ov.program.name} (${timeLabel})"></div>`;
+              if(shouldShowNeulbom()) {
+                const nbParts = [];
+                if(shouldShowNeulbomClass()) nbParts.push(ov.program.name);
+                if(shouldShowLocationInCell()) nbParts.push(ov.program.location);
+                if(nbParts.length) html += `<div class="tag tag-neulbom" style="margin-top:2px;">🌤️ ${nbParts.join(' · ')}</div>`;
+              }
             });
             html += `</td>`;
           });
@@ -2295,7 +2316,7 @@
         `;
       }
 
-      // 하루 전반 기록(교시 무관) - 있으면 위에 표시
+      // 하루 전반 기록(교시 무관) - 있으면 카드로, 없으면 추가 버튼으로 표시
       if(dayNoteData[dateStr]) {
         count++;
         panel.innerHTML += `
@@ -2303,6 +2324,10 @@
             <div style="font-size:0.75rem; font-weight:bold; color:#1e40af;">📓 하루 전반 기록</div>
             <div style="font-size:0.75rem; color:#334155; margin-top:3px; white-space:pre-line;">${dayNoteData[dateStr]}</div>
           </div>
+        `;
+      } else {
+        panel.innerHTML += `
+          <button class="btn btn-secondary" style="width:100%; text-align:left; padding:8px; font-size:0.75rem; color:#1e40af;" onclick="openEventModalToDayNoteTab()">+ 하루 전반 기록 추가</button>
         `;
       }
 
@@ -2319,9 +2344,9 @@
               ${entry.students.length ? `<div style="font-size:0.72rem; margin-top:2px;">학생: ${entry.students.join(', ')}</div>` : ''}
               ${entry.helpers.length ? `<div style="font-size:0.72rem; color:#3730a3; margin-top:2px;">지원인력: ${entry.helpers.join(', ')}</div>` : ''}
               ${entry.teachers.length ? `<div style="font-size:0.72rem; color:#166534; margin-top:2px;">교사: ${entry.teachers.join(', ')}</div>` : ''}
-              ${entry.behavior ? `<div class="tag tag-behavior">↕ ${entry.behavior}${entry.behaviorTime ? ' ('+entry.behaviorTime+')' : ''}</div>` : ''}
+              ${(entry.behavior && shouldShowBehavior()) ? `<div class="tag tag-behavior">↕ ${shouldShowBehaviorText() ? entry.behavior : ''}${(shouldShowBehaviorTime() && entry.behaviorTime) ? ' ('+entry.behaviorTime+')' : ''}</div>` : ''}
               ${entry.positive ? `<div class="tag tag-positive">${entry.positive}</div>` : ''}
-              ${entry.memo ? `<div style="font-size:0.75rem; color:#334155; margin-top:3px; white-space:pre-line;">📝 ${entry.memo}</div>` : ''}
+              ${entry.memo ? `<div style="font-size:0.75rem; color:#334155; margin-top:3px; white-space:pre-line;">${entry.memo}</div>` : ''}
             </div>
           `;
         });
@@ -2370,7 +2395,13 @@
         helpers: document.getElementById('opt-show-helpers').checked,
         teachers: document.getElementById('opt-show-teachers').checked,
         location: document.getElementById('opt-show-location').checked,
-        memoMode: document.getElementById('opt-memo-mode').value
+        memoMode: document.getElementById('opt-memo-mode').value,
+        behaviorShow: document.getElementById('opt-behavior-show').checked,
+        behaviorTime: document.getElementById('opt-behavior-time').checked,
+        behaviorText: document.getElementById('opt-behavior-text').checked,
+        behaviorArrow: document.getElementById('opt-behavior-arrow').checked,
+        neulbomShow: document.getElementById('opt-neulbom-show').checked,
+        neulbomClass: document.getElementById('opt-neulbom-class').checked
       };
       localStorage.setItem('weeklyViewOptions', JSON.stringify(opts));
     }
@@ -2382,8 +2413,20 @@
         if('teachers' in opts) document.getElementById('opt-show-teachers').checked = opts.teachers;
         if('location' in opts) document.getElementById('opt-show-location').checked = opts.location;
         if('memoMode' in opts) document.getElementById('opt-memo-mode').value = opts.memoMode;
+        if('behaviorShow' in opts) document.getElementById('opt-behavior-show').checked = opts.behaviorShow;
+        if('behaviorTime' in opts) document.getElementById('opt-behavior-time').checked = opts.behaviorTime;
+        if('behaviorText' in opts) document.getElementById('opt-behavior-text').checked = opts.behaviorText;
+        if('behaviorArrow' in opts) document.getElementById('opt-behavior-arrow').checked = opts.behaviorArrow;
+        if('neulbomShow' in opts) document.getElementById('opt-neulbom-show').checked = opts.neulbomShow;
+        if('neulbomClass' in opts) document.getElementById('opt-neulbom-class').checked = opts.neulbomClass;
       } catch(e) {}
     }
+    function shouldShowBehavior() { const el = document.getElementById('opt-behavior-show'); return el ? el.checked : true; }
+    function shouldShowBehaviorTime() { const el = document.getElementById('opt-behavior-time'); return el ? el.checked : true; }
+    function shouldShowBehaviorText() { const el = document.getElementById('opt-behavior-text'); return el ? el.checked : true; }
+    function shouldShowBehaviorArrow() { const el = document.getElementById('opt-behavior-arrow'); return el ? el.checked : true; }
+    function shouldShowNeulbom() { const el = document.getElementById('opt-neulbom-show'); return el ? el.checked : true; }
+    function shouldShowNeulbomClass() { const el = document.getElementById('opt-neulbom-class'); return el ? el.checked : true; }
 
     // 설정에 저장된 추가 장소 목록 (기본 제공: 통합학급, 급식실, 하교 + 사용자 추가분, 중복 제거)
     function getCustomLocations() {
@@ -2395,15 +2438,22 @@
       const custom = getCustomLocations();
       return [...defaults, ...custom.filter(c => !defaults.includes(c))];
     }
-    // 특수학급 목록 (기본 3개 + 설정에서 추가한 학급) - 학급관리 탭에서 추가/편집 가능
-    function getCustomClasses() {
-      const saved = localStorage.getItem('customClasses');
-      return saved ? JSON.parse(saved) : [];
-    }
+    // 특수학급 목록 - 기본 3개로 시작하되, 이후엔 이름 변경/추가/삭제가 자유로운 하나의 동적 목록으로 관리
     function getAllClassNames() {
+      const saved = localStorage.getItem('allClassesList');
+      if(saved) return JSON.parse(saved);
       const defaults = ['저학년반', '고학년반', '윤슬반'];
-      const custom = getCustomClasses();
-      return [...defaults, ...custom.filter(c => !defaults.includes(c))];
+      localStorage.setItem('allClassesList', JSON.stringify(defaults));
+      return defaults;
+    }
+    function saveAllClassNames(list) {
+      localStorage.setItem('allClassesList', JSON.stringify(list));
+    }
+    function getClassMemos() {
+      return JSON.parse(localStorage.getItem('classMemos') || '{}');
+    }
+    function saveClassMemos(memos) {
+      localStorage.setItem('classMemos', JSON.stringify(memos));
     }
     // "해당 학급/장소 선택" 드롭다운을 반 목록 + 설정된 장소 목록 + 기타(직접입력)로 재구성
     function buildClassSelectOptions() {
@@ -2432,9 +2482,20 @@
       const data = existing ? { ...existing } : blankEntry();
 
       // 신규 기록을 특정 인물(학생/지원인력/교사) 클릭으로 열었다면 해당 인물을 자동 체크
+      let defaultClassName = null;
       if(!existing && focusPerson) {
         if(roster.mainStudents.includes(focusPerson) || roster.extraStudents.includes(focusPerson)) {
           data.students = [focusPerson];
+          // 그 학생의 소속 특수학급을 기본 학급으로, 두 반 이상이면 저학년반/고학년반을 우선
+          const year = String(getAcademicYear(currentDate));
+          const id = resolvePersonId(year, focusPerson, false);
+          const yd = id && personYearData[id] && personYearData[id][year];
+          const classes = getSpecialClasses(yd);
+          if(classes.length) {
+            defaultClassName = classes.includes('저학년반') ? '저학년반' : (classes.includes('고학년반') ? '고학년반' : classes[0]);
+            const classTeacherName = (roster.classTeachers || {})[defaultClassName];
+            if(classTeacherName && !data.teachers.includes(classTeacherName)) data.teachers = [...data.teachers, classTeacherName];
+          }
         } else if(roster.helpers.includes(focusPerson)) {
           data.helpers = [focusPerson];
         } else if(roster.teachers.includes(focusPerson)) {
@@ -2457,7 +2518,7 @@
       const presetClasses = buildClassSelectOptions();
       const classSelect = document.getElementById('input-class');
       const customInput = document.getElementById('input-class-custom');
-      const currentClassName = data.className || (document.getElementById('class-filter').value !== 'ALL' ? document.getElementById('class-filter').value : '저학년반');
+      const currentClassName = data.className || defaultClassName || (document.getElementById('class-filter').value !== 'ALL' ? document.getElementById('class-filter').value : '저학년반');
       if(presetClasses.includes(currentClassName)) {
         classSelect.value = currentClassName;
         customInput.style.display = 'none';
@@ -3069,12 +3130,12 @@
       const allStudents = [...roster.mainStudents, ...roster.extraStudents];
       const groups = getStudentGroupsByClass(year, allStudents);
 
-      const fixedClasses = ['저학년반', '고학년반', '윤슬반'];
+      const classMemos = getClassMemos();
       container.innerHTML = getAllClassNames().map(className => {
         const teacher = classTeachers[className] || '';
         const group = groups.find(g => g.label === className);
         const students = group ? group.list : [];
-        const isCustom = !fixedClasses.includes(className);
+        const memo = classMemos[className] || '';
         return `
           <div style="border:1px solid #e2e8f0; border-radius:10px; padding:12px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
@@ -3085,17 +3146,25 @@
                   <option value="">-- 미배정 --</option>
                   ${roster.teachers.map(t => `<option value="${t}" ${t===teacher?'selected':''}>${t}</option>`).join('')}
                 </select>
-                ${isCustom ? `<button class="person-icon-btn" title="학급 삭제" onclick="removeCustomClass('${className}')">✕</button>` : ''}
+                <button class="person-icon-btn" title="학급 이름 변경" onclick="renameClass('${className}')">✏️</button>
+                <button class="person-icon-btn" title="학급 삭제" onclick="removeCustomClass('${className}')">✕</button>
               </div>
             </div>
             <div style="font-size:0.75rem; color:#64748b; margin-bottom:4px;">소속 학생 ${students.length}명 (${year}학년도 기준)</div>
             <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px;">
               ${students.length ? students.map(s => `<span class="tag tag-main">${s}</span>`).join('') : '<span style="color:#94a3b8; font-size:0.72rem;">배정된 학생 없음</span>'}
             </div>
+            <textarea placeholder="이 학급에 대한 메모 (운영방식, 유의사항 등)" style="width:100%; font-size:0.75rem; min-height:40px; margin-bottom:6px;" onblur="saveClassMemo('${className}', this.value)">${memo}</textarea>
             <button class="btn btn-secondary" style="font-size:0.72rem; padding:3px 8px;" onclick="openClassStudentEditor('${className}')">👥 소속 학생 편집</button>
           </div>
         `;
       }).join('');
+    }
+
+    function saveClassMemo(className, memo) {
+      const memos = getClassMemos();
+      memos[className] = memo;
+      saveClassMemos(memos);
     }
 
     function addCustomClass() {
@@ -3103,18 +3172,84 @@
       const name = input.value.trim();
       if(!name) return;
       if(getAllClassNames().includes(name)) { alert('이미 존재하는 학급 이름입니다.'); return; }
-      const custom = getCustomClasses();
-      custom.push(name);
-      localStorage.setItem('customClasses', JSON.stringify(custom));
+      const list = getAllClassNames();
+      list.push(name);
+      saveAllClassNames(list);
       input.value = '';
       renderClassManagement();
     }
 
     function removeCustomClass(name) {
-      if(!confirm(`"${name}" 학급을 삭제할까요? (이미 배정된 학생의 반배정 정보는 남아있지만 목록에서는 사라집니다)`)) return;
-      const custom = getCustomClasses().filter(c => c !== name);
-      localStorage.setItem('customClasses', JSON.stringify(custom));
+      if(!confirm(`"${name}" 학급을 목록에서 삭제할까요? (이미 배정된 학생·기록의 반 정보는 그대로 남지만, 새로 만드는 목록에서는 사라집니다)`)) return;
+      const list = getAllClassNames().filter(c => c !== name);
+      saveAllClassNames(list);
       renderClassManagement();
+    }
+
+    // 학급 이름 변경 - 사람 이름변경과 마찬가지로, 기존 데이터(반배정/담당교사/시간표 기록)까지 전부 캐스케이드로 갱신
+    function renameClass(oldName) {
+      const newName = prompt(`"${oldName}"의 새 이름을 입력하세요.`, oldName);
+      if(!newName || newName.trim() === '' || newName === oldName) return;
+      const trimmed = newName.trim();
+      if(getAllClassNames().includes(trimmed)) { alert('이미 존재하는 학급 이름입니다.'); return; }
+
+      // 1) 학급 목록 자체
+      saveAllClassNames(getAllClassNames().map(c => c === oldName ? trimmed : c));
+
+      // 2) 학급 메모
+      const memos = getClassMemos();
+      if(oldName in memos) { memos[trimmed] = memos[oldName]; delete memos[oldName]; saveClassMemos(memos); }
+
+      // 3) 모든 학년도의 담당교사 매핑(classTeachers) + roster에 저장된 텍스트
+      getAcademicYearsList().forEach(year => {
+        const key = `roster_${year}`;
+        const roster = JSON.parse(localStorage.getItem(key) || 'null');
+        if(!roster) return;
+        if(roster.classTeachers && roster.classTeachers[oldName]) {
+          roster.classTeachers[trimmed] = roster.classTeachers[oldName];
+          delete roster.classTeachers[oldName];
+        }
+        localStorage.setItem(key, JSON.stringify(roster));
+        postToSheet('roster', {
+          academicYear: year, mainStudents: roster.mainStudents.join(', '), extraStudents: roster.extraStudents.join(', '),
+          helpers: roster.helpers.join(', '), teachers: roster.teachers.join(', '),
+          teacherLow: roster.classTeachers['저학년반']||'', teacherHigh: roster.classTeachers['고학년반']||'', teacherYun: roster.classTeachers['윤슬반']||''
+        });
+      });
+
+      // 4) 모든 사람의 학년도별 특수학급 배정(specialClasses)
+      Object.keys(personYearData).forEach(id => {
+        Object.keys(personYearData[id]).forEach(year => {
+          const yd = personYearData[id][year];
+          const classes = getSpecialClasses(yd);
+          const idx = classes.indexOf(oldName);
+          if(idx >= 0) {
+            classes[idx] = trimmed;
+            yd.specialClasses = classes;
+            delete yd.specialClass;
+            postToSheet('personYear', { id, year, active: yd.active, status: yd.status||'', specialClass: classes.join(', '), integratedGrade: yd.integratedGrade||'', integratedClassNum: yd.integratedClassNum||'', classAssigned: yd.classAssigned===oldName?trimmed:(yd.classAssigned||''), duty: yd.duty||'' });
+          } else if(yd.classAssigned === oldName) {
+            yd.classAssigned = trimmed;
+            postToSheet('personYear', { id, year, active: yd.active, status: yd.status||'', specialClass: classes.join(', '), integratedGrade: yd.integratedGrade||'', integratedClassNum: yd.integratedClassNum||'', classAssigned: trimmed, duty: yd.duty||'' });
+          }
+        });
+      });
+      savePeopleData();
+
+      // 5) 이미 저장된 시간표 기록들의 학급/장소 필드
+      Object.keys(scheduleData).forEach(cellId => {
+        scheduleData[cellId].forEach(entry => {
+          if(entry.className === oldName) {
+            entry.className = trimmed;
+            const [date, period] = cellId.split('_');
+            postToSheet('schedule', { id: entry.id, date, period, className: trimmed, students: entry.students.join(', '), helpers: entry.helpers.join(', '), teachers: entry.teachers.join(', '), behavior: entry.behavior, behaviorTime: entry.behaviorTime, positive: entry.positive, memo: entry.memo, summary: entry.summary||'' });
+          }
+        });
+      });
+
+      renderClassManagement();
+      render();
+      alert(`"${oldName}"을(를) "${trimmed}"(으)로 변경했습니다. 관련된 모든 기록에 반영됐습니다.`);
     }
 
     function setClassTeacher(className, teacherName) {
@@ -4195,13 +4330,13 @@
         } else {
           const updated = { id: selectedEntryId, students, helpers, teachers, className, behavior, behaviorTime, positive, memo, summary };
           if(idx >= 0) entries[idx] = updated; else entries.push(updated);
-          postToSheet('schedule', { id: selectedEntryId, date, period, className, students: students.join(', '), helpers: helpers.join(', '), teachers: teachers.join(', '), behavior, behaviorTime, positive, memo });
+          postToSheet('schedule', { id: selectedEntryId, date, period, className, students: students.join(', '), helpers: helpers.join(', '), teachers: teachers.join(', '), behavior, behaviorTime, positive, memo, summary });
         }
       } else if(!isEmpty) {
         // 신규 기록 생성 (내용이 있을 때만 저장)
         const newId = generateEntryId();
         entries.push({ id: newId, students, helpers, teachers, className, behavior, behaviorTime, positive, memo, summary });
-        postToSheet('schedule', { id: newId, date, period, className, students: students.join(', '), helpers: helpers.join(', '), teachers: teachers.join(', '), behavior, behaviorTime, positive, memo });
+        postToSheet('schedule', { id: newId, date, period, className, students: students.join(', '), helpers: helpers.join(', '), teachers: teachers.join(', '), behavior, behaviorTime, positive, memo, summary });
       }
 
       closeModal();
