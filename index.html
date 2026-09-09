@@ -191,7 +191,7 @@
 <body>
 
   <script>
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzuIYgpz0M3VR7t9DWpNNEMlpOlvaFGk9D1YGQnTv6gfIVRiwv9zjPYMYG73IgTQqa6MQ/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwnVcdHJ-zxmhHkLiaFSiH5J_lG_Xq7vmj8yffUnOLoHNFUkkWbR0_wZLL-EGrSSG2WSg/exec';
     const ACCESS_KEY = 'spedehxhfl'; // Code.gs의 ACCESS_KEY와 반드시 동일한 값으로 맞춰주세요
   </script>
 
@@ -1072,6 +1072,28 @@
       entryIdCounter += 1;
       return `e${Date.now()}_${entryIdCounter}`;
     }
+
+    // 과거 버그 등으로 ID 없이 저장된 기록을 찾아 새 ID를 부여하고 시트에도 반영 (그래야 정상적으로 수정/삭제 가능해짐)
+    function repairEntriesWithoutId() {
+      let repaired = 0;
+      Object.keys(scheduleData).forEach(cellId => {
+        const sepIdx = cellId.indexOf('_');
+        const date = cellId.slice(0, sepIdx);
+        const period = cellId.slice(sepIdx + 1);
+        scheduleData[cellId].forEach(entry => {
+          if(entry.id && entry.id !== 'undefined' && entry.id !== 'null') return; // 정상적인 ID가 있으면 건드리지 않음
+          entry.id = generateEntryId();
+          repaired++;
+          postToSheet('schedule', {
+            id: entry.id, date, period, className: entry.className,
+            students: entry.students.join(', '), helpers: entry.helpers.join(', '), teachers: entry.teachers.join(', '),
+            behavior: entry.behavior, behaviorTime: entry.behaviorTime, positive: entry.positive, memo: entry.memo, summary: entry.summary || ''
+          });
+        });
+      });
+      if(repaired > 0) console.warn(`ID 없이 저장돼있던 기록 ${repaired}건을 복구했습니다 (새 ID 부여 후 시트에 반영).`);
+      return repaired;
+    }
     function blankEntry() {
       return { id: null, students: [], helpers: [], teachers: [], memo: '', behavior: '', behaviorTime: '', positive: '', className: '' };
     }
@@ -1646,6 +1668,7 @@
         const savedDefaultClass = localStorage.getItem('defaultClass');
         if(savedDefaultClass) document.getElementById('class-filter').value = savedDefaultClass;
 
+        repairEntriesWithoutId();
         setSyncStatus('synced');
       } catch(err) {
         const detail = '시트 데이터를 화면에 반영하는 중 오류 발생: ' + err.message + '\n\n원본 응답:\n' + JSON.stringify(json, null, 2).slice(0, 1500);
@@ -3430,6 +3453,7 @@
       const doCascade = confirm(`"${oldName}"을(를) "${newName}"(으)로 바꿀까요?\n\n[확인] = 기존에 저장된 시간표·출결 기록의 이름도 함께 "${newName}"(으)로 바꿉니다.\n[취소] = 명단의 이름만 바꾸고, 기존 기록은 예전 이름 "${oldName}" 그대로 남습니다.`);
 
       rosterDraft[category][idx] = newName;
+      persistRosterImmediately(year);
       renderPeopleManager(category);
 
       // ID는 그대로 유지하고, "이 학년도의 이 이름"이 가리키는 ID 매핑만 이동 (동일인물 유지의 핵심)
@@ -3460,10 +3484,34 @@
       render();
     }
 
+    // 학년도의 roster를 즉시 로컬+시트에 저장 (사람 추가/삭제/이름변경 직후 바로 반영되도록 - "설정 저장" 버튼을 따로 눌러야만 반영되던 문제 해결)
+    function persistRosterImmediately(year) {
+      const existing = JSON.parse(localStorage.getItem(`roster_${year}`) || 'null') || { classTeachers: {} };
+      const roster = {
+        mainStudents: [...rosterDraft.mainStudents],
+        extraStudents: [...rosterDraft.extraStudents],
+        helpers: [...rosterDraft.helpers],
+        teachers: [...rosterDraft.teachers],
+        classTeachers: existing.classTeachers || {}
+      };
+      localStorage.setItem(`roster_${year}`, JSON.stringify(roster));
+      postToSheet('roster', {
+        academicYear: year,
+        mainStudents: roster.mainStudents.join(', '),
+        extraStudents: roster.extraStudents.join(', '),
+        helpers: roster.helpers.join(', '),
+        teachers: roster.teachers.join(', '),
+        teacherLow: roster.classTeachers['저학년반'] || '',
+        teacherHigh: roster.classTeachers['고학년반'] || '',
+        teacherYun: roster.classTeachers['윤슬반'] || ''
+      });
+    }
+
     function removePersonAt(category, idx) {
       const name = rosterDraft[category][idx];
       if(!confirm(`"${name}"을(를) 명단에서 삭제할까요? (기존에 저장된 시간표·출결 기록은 그대로 남습니다)`)) return;
       rosterDraft[category].splice(idx, 1);
+      persistRosterImmediately(document.getElementById('cfg-year-select').value);
       renderPeopleManager(category);
       if(category === 'mainStudents' || category === 'extraStudents') renderStudentsGrouped();
     }
@@ -3602,6 +3650,7 @@
         }
       });
       input.value = '';
+      persistRosterImmediately(year);
       renderPeopleManager(category);
     }
 
@@ -4476,6 +4525,7 @@
 
     // 초기 실행: ① 브라우저 로컬 캐시 복원(새로고침해도 안 사라지도록) → ② 기본 접속 반 반영 → ③ 구글 시트 연결 시 시트 데이터로 갱신
     loadLocalCache();
+    repairEntriesWithoutId();
     loadWeeklyViewOptions();
 
     const savedDefaultClass = localStorage.getItem('defaultClass');
