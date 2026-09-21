@@ -191,7 +191,7 @@
 <body>
 
   <script>
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwnVcdHJ-zxmhHkLiaFSiH5J_lG_Xq7vmj8yffUnOLoHNFUkkWbR0_wZLL-EGrSSG2WSg/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxv8g5XihOqdXsomqyGXvrqmi5TJOaXbe5HcZsSx8VVgaL1k5jtyQpGlL-86GnICT_wsg/exec';
     const ACCESS_KEY = 'spedehxhfl'; // Code.gs의 ACCESS_KEY와 반드시 동일한 값으로 맞춰주세요
   </script>
 
@@ -271,6 +271,7 @@
         <span id="selection-count-label"></span>
         <button class="btn btn-secondary" style="padding:3px 10px;" onclick="copySelectedCells()">📋 복사</button>
         <button class="btn btn-primary" style="padding:3px 10px;" onclick="pasteToSelectedCells()">📥 붙여넣기</button>
+        <button class="btn btn-primary" style="padding:3px 10px; background:#7c3aed;" onclick="openBulkAssignModal()">🖊️ 일괄 지정</button>
         <button class="btn btn-secondary" style="padding:3px 10px;" onclick="clearCellSelection()">✕ 선택 해제</button>
         <span style="color:#64748b; font-size:0.7rem; margin-left:auto;">Shift+클릭/드래그로 셀 선택</span>
       </div>
@@ -317,6 +318,10 @@
         <option value="기타">기타 (직접 입력)</option>
       </select>
       <input type="text" id="input-class-custom" placeholder="장소를 직접 입력하세요 (예: 운동장, 보건실, 특별실 등)" style="display:none; margin-top:5px;">
+    </div>
+    <div class="form-group">
+      <label>교과</label>
+      <select id="input-subject"><option value="">-- 선택 안 함 --</option></select>
     </div>
     <div class="form-group">
       <label>특수학급 소속 학생</label>
@@ -519,6 +524,10 @@
         <div class="form-group">
           <label>🏫 추가 장소 목록 (쉼표 구분) — 반 선택 목록에 함께 나타납니다. 기본 제공: 통합학급, 급식실, 하교</label>
           <input type="text" id="cfg-custom-locations" placeholder="예: 보건실, 운동장, 특별실, 상담실">
+        </div>
+        <div class="form-group">
+          <label>📚 교과 목록 (쉼표 구분) — 기록 입력 시 "교과" 선택지로 나타납니다</label>
+          <input type="text" id="cfg-subjects" placeholder="예: 국어, 수학, 사회, 과학, 생활, 창체">
         </div>
         <p style="font-size:0.72rem; color:#94a3b8;">💡 학급/장소·메모 표시 옵션은 학급/개인 주간 뷰 화면 상단에서 바로 조절할 수 있습니다.</p>
         <div style="background:#fff7ed; border:1px solid #fdba74; border-radius:6px; padding:8px; margin-bottom:10px;">
@@ -783,6 +792,39 @@
 
       </div>
 
+    </div>
+  </div>
+
+  <!-- 여러 셀 일괄 지정 모달 -->
+  <div class="modal" id="bulk-assign-modal" style="width:480px;" onclick="event.stopPropagation()">
+    <h4 style="margin-top:0; margin-bottom:4px;">🖊️ 선택한 셀에 일괄 지정</h4>
+    <p id="bulk-assign-count" style="font-size:0.72rem; color:#64748b; margin-top:0;"></p>
+    <p style="font-size:0.7rem; color:#94a3b8;">체크한 항목만 선택된 모든 셀에 적용됩니다 (체크 안 한 항목은 각 셀의 기존 값 그대로 유지). 기존 기록이 있으면 덮어쓰고, 없으면 새로 만듭니다.</p>
+
+    <div class="form-group">
+      <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="bulk-apply-class" style="width:auto;"> 장소/학급 지정</label>
+      <select id="bulk-class-select" disabled></select>
+    </div>
+    <div class="form-group">
+      <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="bulk-apply-subject" style="width:auto;"> 교과 지정</label>
+      <select id="bulk-subject-select" disabled></select>
+    </div>
+    <div class="form-group">
+      <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="bulk-apply-students" onchange="document.getElementById('bulk-students-list').style.opacity=this.checked?1:0.4" style="width:auto;"> 학생 지정</label>
+      <div class="checkbox-grid" id="bulk-students-list" style="opacity:0.4;"></div>
+    </div>
+    <div class="form-group">
+      <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="bulk-apply-helpers" onchange="document.getElementById('bulk-helpers-list').style.opacity=this.checked?1:0.4" style="width:auto;"> 지원인력 지정</label>
+      <div class="checkbox-grid" id="bulk-helpers-list" style="opacity:0.4;"></div>
+    </div>
+    <div class="form-group">
+      <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="bulk-apply-teachers" onchange="document.getElementById('bulk-teachers-list').style.opacity=this.checked?1:0.4" style="width:auto;"> 교사 지정</label>
+      <div class="checkbox-grid" id="bulk-teachers-list" style="opacity:0.4;"></div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:10px;">
+      <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="applyBulkAssign()">적용</button>
     </div>
   </div>
 
@@ -1095,7 +1137,7 @@
       return repaired;
     }
     function blankEntry() {
-      return { id: null, students: [], helpers: [], teachers: [], memo: '', behavior: '', behaviorTime: '', positive: '', className: '' };
+      return { id: null, students: [], helpers: [], teachers: [], memo: '', behavior: '', behaviorTime: '', positive: '', className: '', subject: '' };
     }
     function getEntries(cellId) {
       return scheduleData[cellId] || [];
@@ -1541,7 +1583,8 @@
             behaviorTime: row['문제행동시간'] || '',
             positive: row['칭찬'] || '',
             memo: row['메모'] || '',
-            summary: row['요약'] || ''
+            summary: row['요약'] || '',
+            subject: row['교과'] || ''
           });
         });
 
@@ -1602,6 +1645,7 @@
           if(row['키'] === 'customLocations' && row['값']) localStorage.setItem('customLocations', row['값']);
           if(row['키'] === 'allClassesList' && row['값']) localStorage.setItem('allClassesList', row['값']);
           if(row['키'] === 'classMemos' && row['값']) localStorage.setItem('classMemos', row['값']);
+          if(row['키'] === 'allSubjectsList' && row['값']) localStorage.setItem('allSubjectsList', row['값']);
         });
 
         // 사람 프로필 (학년도 무관 공통 정보)
@@ -2207,7 +2251,10 @@
       const showLocation = shouldShowLocationInCell();
 
       // 학생/지원인력/교사 열(행·열 구조)은 항상 표시. 위 옵션은 각 셀 "안"에 표시되는 정보(장소/교차참조 이름)만 제어함
-      const studentGroups = getStudentGroupsByClass(getAcademicYear(currentDate), [...roster.mainStudents, ...roster.extraStudents]);
+      // 단, 상단 반 선택 드롭다운(class-filter)이 특정 반이면 학생 열만 그 반으로 좁힘 - 교사/지원인력은 항상 전체 표시
+      const classFilterVal = document.getElementById('class-filter').value;
+      let studentGroups = getStudentGroupsByClass(getAcademicYear(currentDate), [...roster.mainStudents, ...roster.extraStudents]);
+      if(classFilterVal !== 'ALL') studentGroups = studentGroups.filter(g => g.label === classFilterVal);
       const helperList = roster.helpers;
       const teacherList = roster.teachers;
 
@@ -2304,7 +2351,7 @@
           html += `</td>`;
         });
 
-        // 교사 열: 그 교사가 포함된 기록을 찾아 표기
+        // 교사 열: 그 교사가 포함된 기록을 찾아 학생/지원인력/장소까지 다른 열과 동일한 방식으로 표기
         teacherList.forEach((t, ti) => {
           const entry = findEntryForPerson(cellId, t);
           const rec = todayAtt[t];
@@ -2313,9 +2360,13 @@
           if(rec && rec.status === 'ABSENT') bg = '#fef2f2';
           else if(b && b.cls === 'badge-tardy') bg = '#fef9c3';
           const teacherDividerCls = ti === 0 ? ' group-divider' : '';
-          html += `<td class="clickable-cell selectable-cell${teacherDividerCls}" style="${bg ? `background:${bg};` : ''}" data-cellkey="${cellId}|${t}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${t}')">
-            ${entry && showLocation ? `<span class="tag tag-teacher">[${entry.className||'수업'}]</span>` : ''}
-          </td>`;
+          html += `<td class="clickable-cell selectable-cell${teacherDividerCls}" style="${bg ? `background:${bg};` : ''}" data-cellkey="${cellId}|${t}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${t}')">`;
+          if(entry) {
+            if(showLocation) html += `<span class="tag tag-teacher">[${entry.className||'수업'}]</span>`;
+            if(showStudents && entry.students.length) html += `<div style="font-size:0.68rem; color:#9a3412; margin-top:1px;">대상: ${entry.students.join(', ')}</div>`;
+            if(showHelpers && entry.helpers.length) html += `<div class="tag tag-helper" style="margin-top:2px;">${entry.helpers.join(', ')}</div>`;
+          }
+          html += `</td>`;
         });
 
         html += `</tr>`;
@@ -2491,6 +2542,18 @@
       localStorage.setItem('allClassesList', JSON.stringify(defaults));
       return defaults;
     }
+    // 교과 목록 - 설정에서 자유롭게 추가/삭제 가능 (학급목록과 동일한 패턴, Settings 시트에 재사용 저장)
+    function getAllSubjects() {
+      const saved = localStorage.getItem('allSubjectsList');
+      if(saved) return JSON.parse(saved);
+      const defaults = ['국어', '수학', '사회', '과학', '생활', '창체'];
+      localStorage.setItem('allSubjectsList', JSON.stringify(defaults));
+      return defaults;
+    }
+    function saveAllSubjects(list) {
+      localStorage.setItem('allSubjectsList', JSON.stringify(list));
+      postToSheet('settings', { key: 'allSubjectsList', value: JSON.stringify(list) });
+    }
     function saveAllClassNames(list) {
       localStorage.setItem('allClassesList', JSON.stringify(list));
       postToSheet('settings', { key: 'allClassesList', value: JSON.stringify(list) });
@@ -2550,8 +2613,17 @@
           }
         } else if(roster.helpers.includes(focusPerson)) {
           data.helpers = [focusPerson];
+          defaultClassName = '통합학급'; // 지원인력은 보통 통합학급 지원이 많으므로 기본값으로 우선 지정
         } else if(roster.teachers.includes(focusPerson)) {
           data.teachers = [focusPerson];
+        }
+      } else if(!existing) {
+        // 학급주간뷰에서 빈 칸으로 신규기록을 열 때(특정 인물 클릭 아님) - 반 선택 필터가 특정 반이면 그 반 담당교사를 우선 선택
+        const classFilterVal = document.getElementById('class-filter') ? document.getElementById('class-filter').value : 'ALL';
+        if(classFilterVal !== 'ALL') {
+          defaultClassName = classFilterVal;
+          const classTeacherName = (roster.classTeachers || {})[classFilterVal];
+          if(classTeacherName && !data.teachers.includes(classTeacherName)) data.teachers = [...data.teachers, classTeacherName];
         }
       }
 
@@ -2588,6 +2660,8 @@
       document.getElementById('positive-preset').value = data.positive || '';
       document.getElementById('memo-input').value = data.memo || '';
       document.getElementById('summary-input').value = data.summary || '';
+      document.getElementById('input-subject').innerHTML = '<option value="">-- 선택 안 함 --</option>' + getAllSubjects().map(s => `<option value="${s}">${s}</option>`).join('');
+      document.getElementById('input-subject').value = data.subject || '';
 
       // 모달 제목/안내: 어떤 기록을 편집하는지, 어떤 인물 때문에 열렸는지 명확히 표시
       document.getElementById('modal-title').innerText = `${cellId.replace('_',' ')} 기록`;
@@ -4041,6 +4115,7 @@
 
       // 추가 장소 목록(연도 무관, 전역 설정)
       document.getElementById('cfg-custom-locations').value = getCustomLocations().join(', ');
+      document.getElementById('cfg-subjects').value = getAllSubjects().join(', ');
 
       // 시간표 셀 메모 표시 설정
     }
@@ -4079,6 +4154,10 @@
       const customLocations = document.getElementById('cfg-custom-locations').value.split(',').map(s=>s.trim()).filter(Boolean);
       localStorage.setItem('customLocations', JSON.stringify(customLocations));
       postToSheet('settings', { key: 'customLocations', value: JSON.stringify(customLocations) });
+
+      // 교과 목록 저장 (연도 무관, 전역 설정)
+      const subjects = document.getElementById('cfg-subjects').value.split(',').map(s=>s.trim()).filter(Boolean);
+      saveAllSubjects(subjects);
 
       // 시간표 셀 메모 표시 설정 저장 (로컬 전용)
 
@@ -4391,6 +4470,7 @@
       const positive = document.getElementById('positive-preset').value;
       const memo = document.getElementById('memo-input').value;
       const summary = document.getElementById('summary-input').value;
+      const subject = document.getElementById('input-subject').value;
 
       const isEmpty = students.length === 0 && helpers.length === 0 && teachers.length === 0 && !behavior && !positive && !memo;
       const [date, period] = selectedCellId.split('_');
@@ -4406,15 +4486,15 @@
           if(idx >= 0) entries.splice(idx, 1);
           postToSheet('deleteSchedule', { id: selectedEntryId });
         } else {
-          const updated = { id: selectedEntryId, students, helpers, teachers, className, behavior, behaviorTime, positive, memo, summary };
+          const updated = { id: selectedEntryId, students, helpers, teachers, className, behavior, behaviorTime, positive, memo, summary, subject };
           if(idx >= 0) entries[idx] = updated; else entries.push(updated);
-          postToSheet('schedule', { id: selectedEntryId, date, period, className, students: students.join(', '), helpers: helpers.join(', '), teachers: teachers.join(', '), behavior, behaviorTime, positive, memo, summary });
+          postToSheet('schedule', { id: selectedEntryId, date, period, className, students: students.join(', '), helpers: helpers.join(', '), teachers: teachers.join(', '), behavior, behaviorTime, positive, memo, summary, subject });
         }
       } else if(!isEmpty) {
         // 신규 기록 생성 (내용이 있을 때만 저장)
         const newId = generateEntryId();
-        entries.push({ id: newId, students, helpers, teachers, className, behavior, behaviorTime, positive, memo, summary });
-        postToSheet('schedule', { id: newId, date, period, className, students: students.join(', '), helpers: helpers.join(', '), teachers: teachers.join(', '), behavior, behaviorTime, positive, memo, summary });
+        entries.push({ id: newId, students, helpers, teachers, className, behavior, behaviorTime, positive, memo, summary, subject });
+        postToSheet('schedule', { id: newId, date, period, className, students: students.join(', '), helpers: helpers.join(', '), teachers: teachers.join(', '), behavior, behaviorTime, positive, memo, summary, subject });
       }
 
       closeModal();
