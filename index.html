@@ -980,13 +980,14 @@
         <label>이 학년도 담당 업무</label>
         <input type="text" id="profile-duty" placeholder="예: 교육과정부장, 방과후담당 등">
       </div>
-      <div class="form-group">
-        <label>표시 색상</label>
-        <div id="profile-color-picker" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
-      </div>
       <div class="form-group" style="display:flex; gap:14px;">
         <label style="font-weight:normal; display:flex; align-items:center; gap:4px;"><input type="checkbox" id="profile-after-school" style="width:auto;"> 방과후 담당</label>
       </div>
+    </div>
+
+    <div class="form-group">
+      <label>표시 색상 (시간표에서 이 사람 이름표에 사용, 선택사항)</label>
+      <div id="profile-color-picker" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
     </div>
 
     <div class="form-group">
@@ -1178,6 +1179,86 @@
       selectedCellEls.clear();
       document.querySelectorAll('.cell-selected').forEach(el => el.classList.remove('cell-selected'));
       updateSelectionToolbar();
+    }
+
+    // ===== 여러 셀 일괄 지정 =====
+    function openBulkAssignModal() {
+      if(selectedCellEls.size === 0) { alert('먼저 Shift+클릭/드래그로 셀을 선택해주세요.'); return; }
+      const roster = getRoster();
+      document.getElementById('bulk-assign-count').textContent = `${selectedCellEls.size}개 셀에 적용됩니다.`;
+
+      const classOptions = buildClassSelectOptions();
+      document.getElementById('bulk-class-select').innerHTML = classOptions.map(c => `<option value="${c}">${c}</option>`).join('');
+      document.getElementById('bulk-subject-select').innerHTML = '<option value="">-- 선택 안 함 --</option>' + getAllSubjects().map(s => `<option value="${s}">${s}</option>`).join('');
+
+      const cb = (list) => list.map(n => `<label><input type="checkbox" value="${n}"> ${n}</label>`).join('');
+      document.getElementById('bulk-students-list').innerHTML = cb([...roster.mainStudents, ...roster.extraStudents]);
+      document.getElementById('bulk-helpers-list').innerHTML = cb(roster.helpers);
+      document.getElementById('bulk-teachers-list').innerHTML = cb(roster.teachers);
+
+      ['bulk-apply-class','bulk-apply-subject','bulk-apply-students','bulk-apply-helpers','bulk-apply-teachers'].forEach(id => document.getElementById(id).checked = false);
+      document.getElementById('bulk-class-select').disabled = true;
+      document.getElementById('bulk-subject-select').disabled = true;
+      document.getElementById('bulk-apply-class').onchange = function(){ document.getElementById('bulk-class-select').disabled = !this.checked; };
+      document.getElementById('bulk-apply-subject').onchange = function(){ document.getElementById('bulk-subject-select').disabled = !this.checked; };
+      document.getElementById('bulk-students-list').style.opacity = 0.4;
+      document.getElementById('bulk-helpers-list').style.opacity = 0.4;
+      document.getElementById('bulk-teachers-list').style.opacity = 0.4;
+
+      document.getElementById('bulk-assign-modal').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    }
+
+    function applyBulkAssign() {
+      const applyClass = document.getElementById('bulk-apply-class').checked;
+      const applySubject = document.getElementById('bulk-apply-subject').checked;
+      const applyStudents = document.getElementById('bulk-apply-students').checked;
+      const applyHelpers = document.getElementById('bulk-apply-helpers').checked;
+      const applyTeachers = document.getElementById('bulk-apply-teachers').checked;
+
+      if(!applyClass && !applySubject && !applyStudents && !applyHelpers && !applyTeachers) {
+        alert('적용할 항목을 최소 1개 이상 체크해주세요.');
+        return;
+      }
+
+      const newClass = document.getElementById('bulk-class-select').value;
+      const newSubject = document.getElementById('bulk-subject-select').value;
+      const getChecked = id => Array.from(document.querySelectorAll(`#${id} input:checked`)).map(c => c.value);
+      const newStudents = getChecked('bulk-students-list');
+      const newHelpers = getChecked('bulk-helpers-list');
+      const newTeachers = getChecked('bulk-teachers-list');
+
+      selectedCellEls.forEach(el => {
+        const { cellId } = parseCellKey(el.dataset.cellkey);
+        const sepIdx = cellId.indexOf('_');
+        const date = cellId.slice(0, sepIdx);
+        const period = cellId.slice(sepIdx + 1);
+        if(!scheduleData[cellId]) scheduleData[cellId] = [];
+        const entries = scheduleData[cellId];
+        // 여러 기록이 있는 칸은 첫번째 기록을 대상으로, 없으면 새로 생성
+        let entry = entries[0];
+        if(!entry) {
+          entry = { id: generateEntryId(), students: [], helpers: [], teachers: [], memo: '', behavior: '', behaviorTime: '', positive: '', className: '', subject: '', summary: '' };
+          entries.push(entry);
+        }
+        if(applyClass) entry.className = newClass;
+        if(applySubject) entry.subject = newSubject;
+        if(applyStudents) entry.students = [...newStudents];
+        if(applyHelpers) entry.helpers = [...newHelpers];
+        if(applyTeachers) entry.teachers = [...newTeachers];
+
+        postToSheet('schedule', {
+          id: entry.id, date, period, className: entry.className,
+          students: entry.students.join(', '), helpers: entry.helpers.join(', '), teachers: entry.teachers.join(', '),
+          behavior: entry.behavior, behaviorTime: entry.behaviorTime, positive: entry.positive, memo: entry.memo,
+          summary: entry.summary || '', subject: entry.subject || ''
+        });
+      });
+
+      closeModal();
+      clearCellSelection();
+      render();
+      alert('일괄 지정이 완료되었습니다.');
     }
 
     // Shift+클릭/드래그로 셀 선택 시작 (Shift 없이 클릭하면 기존처럼 그대로 입력 모달이 열림)
@@ -1646,6 +1727,7 @@
           if(row['키'] === 'allClassesList' && row['값']) localStorage.setItem('allClassesList', row['값']);
           if(row['키'] === 'classMemos' && row['값']) localStorage.setItem('classMemos', row['값']);
           if(row['키'] === 'allSubjectsList' && row['값']) localStorage.setItem('allSubjectsList', row['값']);
+          if(row['키'] === 'classColors' && row['값']) localStorage.setItem('classColors', row['값']);
         });
 
         // 사람 프로필 (학년도 무관 공통 정보)
@@ -2058,7 +2140,8 @@
             html += `<div class="clickable-cell empty-cell-add" onclick="openInputModal('${cellId}', null, null)">&nbsp;</div>`;
           } else {
             visibleEntries.forEach(entry => {
-              html += `<div class="matrix-entry-block" onclick="openInputModal('${cellId}', '${entry.id}', null)">`;
+              const entryBg = getClassColors()[entry.className] ? ` style="background:${getClassColors()[entry.className]}44;"` : '';
+              html += `<div class="matrix-entry-block"${entryBg} onclick="openInputModal('${cellId}', '${entry.id}', null)">`;
               if(entry.className && shouldShowLocationInCell()) html += `<div style=\"font-size:0.72rem; color:#2563eb; font-weight:bold; white-space:normal; overflow-wrap:break-word;\">[${entry.className}]</div>`;
               if(shouldShowPersonType('students')) entry.students.forEach(s => {
                 const b = formatAttBadgeForPeriod(todayAtt[s], true, p);
@@ -2564,6 +2647,21 @@
     function saveClassMemos(memos) {
       localStorage.setItem('classMemos', JSON.stringify(memos));
       postToSheet('settings', { key: 'classMemos', value: JSON.stringify(memos) });
+    }
+    // 학급별 배경색 - 시간표 셀에서 학급 구분을 색으로 쉽게 알아볼 수 있도록
+    function getClassColors() {
+      return JSON.parse(localStorage.getItem('classColors') || '{}');
+    }
+    function saveClassColors(colors) {
+      localStorage.setItem('classColors', JSON.stringify(colors));
+      postToSheet('settings', { key: 'classColors', value: JSON.stringify(colors) });
+    }
+    function setClassColor(className, color) {
+      const colors = getClassColors();
+      if(color) colors[className] = color; else delete colors[className];
+      saveClassColors(colors);
+      renderClassManagement();
+      render();
     }
     // "해당 학급/장소 선택" 드롭다운을 반 목록 + 설정된 장소 목록 + 기타(직접입력)로 재구성
     function buildClassSelectOptions() {
@@ -3257,13 +3355,17 @@
       const groups = getStudentGroupsByClass(year, allStudents);
 
       const classMemos = getClassMemos();
+      const classColors = getClassColors();
+      const swatchColors = ['#dbeafe','#dcfce7','#fef9c3','#fee2e2','#ede9fe','#fce7f3','#e0f2fe','#ffedd5'];
       container.innerHTML = getAllClassNames().map(className => {
         const teacher = classTeachers[className] || '';
         const group = groups.find(g => g.label === className);
         const students = group ? group.list : [];
         const memo = classMemos[className] || '';
+        const curColor = classColors[className] || '';
+        const colorSwatches = swatchColors.map(c => `<span onclick="setClassColor('${className}', '${c}')" style="display:inline-block; width:16px; height:16px; border-radius:50%; background:${c}; cursor:pointer; border:2px solid ${curColor===c?'#1e293b':'transparent'};"></span>`).join('');
         return `
-          <div style="border:1px solid #e2e8f0; border-radius:10px; padding:12px;">
+          <div style="border:1px solid #e2e8f0; border-radius:10px; padding:12px; ${curColor ? `background:${curColor}22;` : ''}">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
               <strong style="font-size:0.95rem;">🏫 ${className}</strong>
               <div style="display:flex; align-items:center; gap:6px;">
@@ -3275,6 +3377,10 @@
                 <button class="person-icon-btn" title="학급 이름 변경" onclick="renameClass('${className}')">✏️</button>
                 <button class="person-icon-btn" title="학급 삭제" onclick="removeCustomClass('${className}')">✕</button>
               </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:5px; margin-bottom:6px;">
+              <span style="font-size:0.7rem; color:#94a3b8;">배경색:</span>${colorSwatches}
+              <span onclick="setClassColor('${className}', '')" style="font-size:0.65rem; color:#94a3b8; cursor:pointer; margin-left:4px;">지우기</span>
             </div>
             <div style="font-size:0.75rem; color:#64748b; margin-bottom:4px;">소속 학생 ${students.length}명 (${year}학년도 기준)</div>
             <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px;">
@@ -3805,8 +3911,8 @@
         document.getElementById('profile-subject').value = profile.subject || '';
         document.getElementById('profile-duty').value = yearData.duty || '';
         document.getElementById('profile-after-school').checked = !!profile.afterSchool;
-        renderColorPicker(profile.color);
       }
+      renderColorPicker(profile.color);
 
       document.getElementById('person-profile-modal').style.display = 'block';
       document.getElementById('overlay').style.display = 'block';
@@ -3855,9 +3961,9 @@
         profile.subject = document.getElementById('profile-subject').value;
         yearData.duty = document.getElementById('profile-duty').value;
         profile.afterSchool = document.getElementById('profile-after-school').checked;
-        const colorEl = document.getElementById('profile-color-picker');
-        profile.color = colorEl.dataset.selected || (colorEl.querySelector('.color-swatch.selected') || {}).dataset?.color || profile.color;
       }
+      const colorEl = document.getElementById('profile-color-picker');
+      profile.color = colorEl.dataset.selected || (colorEl.querySelector('.color-swatch.selected') || {}).dataset?.color || profile.color;
 
       savePeopleData();
       postToSheet('people', {
