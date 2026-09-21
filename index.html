@@ -105,6 +105,9 @@
     .beh-detail textarea, .beh-detail input[type=text], .beh-detail select { width: 100%; font-size: 0.75rem; box-sizing: border-box; }
     .beh-chip { display: inline-flex; align-items: center; gap: 3px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 12px; padding: 2px 8px; font-size: 0.75rem; margin: 2px; }
     .beh-chip button { border: none; background: none; cursor: pointer; color: #94a3b8; padding: 0; font-size: 0.8rem; }
+    .qp-chip { display:inline-block; padding:3px 8px; margin:2px; border-radius:12px; border:1px solid #cbd5e1; background:white; font-size:0.72rem; cursor:pointer; user-select:none; }
+    .qp-chip.on { background:#22c55e; border-color:#16a34a; color:white; font-weight:bold; }
+    .qp-student.on { background:#2563eb; border-color:#1d4ed8; }
     .beh-group-box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; margin-bottom: 8px; background: white; }
     .tag-positive { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
 
@@ -204,7 +207,7 @@
 <body>
 
   <script>
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwWHF_ooG5-ALcg8FdqYe4NC26hw5zJbCidfu9BbfZKCs9VWzSOhy_l2rQ35ZnvlVhKrw/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxv8g5XihOqdXsomqyGXvrqmi5TJOaXbe5HcZsSx8VVgaL1k5jtyQpGlL-86GnICT_wsg/exec';
     const ACCESS_KEY = 'spedehxhfl'; // Code.gs의 ACCESS_KEY와 반드시 동일한 값으로 맞춰주세요
   </script>
 
@@ -300,6 +303,26 @@
         </div>
       </div>
       <div class="memo-collapsed-label" onclick="toggleMemoPanel()" title="메모 펼치기">📝</div>
+      <div id="quick-positive-widget" style="border:1px solid #bbf7d0; background:#f0fdf4; border-radius:8px; padding:8px; margin:8px 0;">
+        <div style="display:flex; align-items:center; gap:6px; cursor:pointer;" onclick="toggleQuickPositive()">
+          <b style="font-size:0.8rem; color:#166534; flex:1;">⭐ 긍정행동 빠른기록</b>
+          <span id="qp-toggle-icon" style="font-size:0.7rem; color:#166534;">▼</span>
+        </div>
+        <div id="qp-body" style="margin-top:6px;">
+          <div style="font-size:0.68rem; color:#64748b;">① 학생 (여러 명 선택 가능)</div>
+          <div id="qp-students"></div>
+          <div style="font-size:0.68rem; color:#64748b; margin-top:4px;">② 행동 (여러 개 선택 가능)</div>
+          <div id="qp-behaviors" style="max-height:150px; overflow-y:auto;"></div>
+          <div style="display:flex; gap:4px; align-items:center; margin-top:6px;">
+            <span style="font-size:0.7rem;" id="qp-date-label"></span>
+            <input type="text" id="qp-time" maxlength="5" inputmode="numeric" onblur="formatTimeInput(this)" style="width:56px; padding:3px; font-size:0.75rem;" title="기록 시각 (비우면 지금)">
+            <button type="button" class="btn btn-secondary" style="padding:2px 6px; font-size:0.68rem;" onclick="document.getElementById('qp-time').value=nowHHMM()">지금</button>
+            <button type="button" class="btn btn-primary" style="padding:4px 10px; font-size:0.75rem; background:#16a34a; margin-left:auto;" onclick="submitQuickPositive()">기록</button>
+          </div>
+          <div id="qp-result" style="font-size:0.7rem; margin-top:4px; min-height:1em;"></div>
+          <div id="qp-summary" style="font-size:0.7rem; color:#166534; margin-top:2px;"></div>
+        </div>
+      </div>
       <div id="daily-memo-list" style="display:flex; flex-direction:column; gap:8px;">
         <p style="color:#94a3b8; font-size:0.78rem;">수업 시간표에 작성한 특이사항이 표시됩니다.</p>
       </div>
@@ -1616,6 +1639,111 @@
       const list = getBehaviorConsequences(); list.splice(i, 1); saveBehaviorConsequences(list); renderBehaviorSettings();
     }
 
+    // ===== 긍정행동 빠른기록 위젯 (오늘의 메모 패널) =====
+    // 선택한 학생 × 행동을 한 번에 기록. 기록 시각이 속한 교시의 그 학생 기록(entry)에 긍정행동 이벤트로 추가하고,
+    // 그 교시에 학생 기록이 없으면 해당 학생만 들어간 기록을 새로 만듦
+    const qpState = { students: new Set(), behaviors: new Set(), lastBatch: null };
+    function nowHHMM() { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+    function findPeriodByTime(hhmm) {
+      const m = timeToMinutes(hhmm); if(m === null) return null;
+      return PERIODS.find(p => m >= p.startMin && m < p.endMin) || null;
+    }
+    function toggleQuickPositive() {
+      const body = document.getElementById('qp-body');
+      const open = body.style.display === 'none';
+      body.style.display = open ? 'block' : 'none';
+      document.getElementById('qp-toggle-icon').textContent = open ? '▼' : '▶';
+      localStorage.setItem('qpCollapsed', open ? '0' : '1');
+    }
+    function qpToggle(kind, value) {
+      const set = qpState[kind];
+      if(set.has(value)) set.delete(value); else set.add(value);
+      renderQuickPositive();
+    }
+    function renderQuickPositive() {
+      const box = document.getElementById('qp-students'); if(!box) return;
+      if(localStorage.getItem('qpCollapsed') === '1') { document.getElementById('qp-body').style.display = 'none'; document.getElementById('qp-toggle-icon').textContent = '▶'; }
+      const students = getRoster().mainStudents;
+      [...qpState.students].forEach(n => { if(!students.includes(n)) qpState.students.delete(n); });
+      box.innerHTML = students.map(n => `<span class="qp-chip qp-student ${qpState.students.has(n) ? 'on' : ''}" style="${qpState.students.has(n) ? '' : personColorStyle(n)}" onclick="qpToggle('students', '${escapeAttr(n)}')">${escapeAttr(n)}</span>`).join('')
+        + (students.length ? `<span class="qp-chip" style="border-style:dashed;" onclick="qpSelectAllStudents()">전체</span>` : '<span style="font-size:0.7rem; color:#94a3b8;">학생 명단이 없습니다</span>');
+      const tax = getBehaviorTaxonomy();
+      document.getElementById('qp-behaviors').innerHTML = tax.positive.map(g => `<div><span style="font-size:0.65rem; color:#64748b; margin-right:2px;">${escapeAttr(g.group)}</span>${
+        g.items.map(it => `<span class="qp-chip ${qpState.behaviors.has(it) ? 'on' : ''}" onclick="qpToggle('behaviors', '${escapeAttr(it)}')">${escapeAttr(it)}</span>`).join('')}</div>`).join('');
+      const dateStr = toDateStr(currentDate);
+      document.getElementById('qp-date-label').textContent = `${currentDate.getMonth() + 1}/${currentDate.getDate()}`;
+      // 오늘(기준일) 학생별 긍정행동 개수 요약
+      const counts = {};
+      PERIODS.forEach(p => (scheduleData[`${dateStr}_${p.name}`] || []).forEach(e => (e.behaviorEvents || []).forEach(ev => {
+        if(ev.category !== 'positive' || !ev.type) return;
+        const targets = ev.student ? [ev.student] : e.students;
+        targets.forEach(n => counts[n] = (counts[n] || 0) + 1);
+      })));
+      const names = Object.keys(counts);
+      document.getElementById('qp-summary').innerHTML = names.length ? '이날 긍정행동: ' + names.map(n => `${escapeAttr(n)} ⭐${counts[n]}`).join(' · ') : '';
+    }
+    function qpSelectAllStudents() {
+      const students = getRoster().mainStudents;
+      if(students.every(n => qpState.students.has(n))) qpState.students.clear(); else students.forEach(n => qpState.students.add(n));
+      renderQuickPositive();
+    }
+    function submitQuickPositive() {
+      const result = document.getElementById('qp-result');
+      const students = [...qpState.students], behaviors = [...qpState.behaviors];
+      if(!students.length || !behaviors.length) { result.innerHTML = '<span style="color:#b91c1c;">학생과 행동을 하나 이상 골라주세요.</span>'; return; }
+      const timeEl = document.getElementById('qp-time');
+      const hhmm = timeEl.value.trim() || nowHHMM();
+      const period = findPeriodByTime(hhmm);
+      if(!period) { result.innerHTML = `<span style="color:#b91c1c;">${hhmm}은(는) 시간표 교시 범위 밖입니다. 시각을 확인해주세요.</span>`; return; }
+      const dateStr = toDateStr(currentDate);
+      const cellId = `${dateStr}_${period.name}`;
+      if(!scheduleData[cellId]) scheduleData[cellId] = [];
+      const batch = []; let created = 0;
+      students.forEach(stu => {
+        let entry = findEntryForPerson(cellId, stu);
+        let isNew = false;
+        if(!entry) {
+          entry = Object.assign(blankEntry(), { id: generateEntryId(), students: [stu], summary: '', behaviorEvents: [] });
+          scheduleData[cellId].push(entry); isNew = true; created++;
+        }
+        if(!Array.isArray(entry.behaviorEvents)) normalizeBehaviorEntry(entry);
+        behaviors.forEach(type => {
+          const ev = Object.assign(blankBehaviorEvent(), { student: stu, category: 'positive', type, start: hhmm, end: hhmm });
+          entry.behaviorEvents.push(ev);
+          batch.push({ cellId, entryId: entry.id, eventId: ev.id, createdEntry: isNew });
+        });
+        syncBehaviorDerived(entry);
+        postToSheetSequential('schedule', entryToSheetRow(entry, dateStr, period.name));
+      });
+      qpState.lastBatch = batch;
+      qpState.behaviors.clear(); qpState.students.clear();
+      timeEl.value = '';
+      render();
+      document.getElementById('qp-result').innerHTML = `<span style="color:#166534;">✅ ${period.name} ${hhmm} · ${students.length}명 × ${behaviors.length}개 = ${batch.length}건 기록${created ? ` (시간표에 없던 기록 ${created}건 새로 생성)` : ''}</span> <a href="#" onclick="undoQuickPositive(); return false;" style="color:#b91c1c;">↶ 취소</a>`;
+    }
+    function undoQuickPositive() {
+      const batch = qpState.lastBatch; if(!batch) return;
+      const touched = new Map();
+      batch.forEach(({ cellId, entryId, eventId, createdEntry }) => {
+        const entries = scheduleData[cellId] || [];
+        const entry = entries.find(e => e.id === entryId); if(!entry) return;
+        entry.behaviorEvents = (entry.behaviorEvents || []).filter(ev => ev.id !== eventId);
+        touched.set(entryId, { cellId, entry, createdEntry });
+      });
+      touched.forEach(({ cellId, entry, createdEntry }) => {
+        syncBehaviorDerived(entry);
+        const i = cellId.indexOf('_');
+        const emptyOther = !entry.memo && !entry.behaviorEvents.length && !entry.positive && !entry.helpers.length && !entry.teachers.length;
+        if(createdEntry && emptyOther) {
+          const list = scheduleData[cellId]; list.splice(list.indexOf(entry), 1);
+          postToSheetSequential('deleteSchedule', { id: entry.id });
+        } else postToSheetSequential('schedule', entryToSheetRow(entry, cellId.slice(0, i), cellId.slice(i + 1)));
+      });
+      qpState.lastBatch = null;
+      render();
+      document.getElementById('qp-result').innerHTML = '<span style="color:#64748b;">↶ 방금 기록을 취소했습니다.</span>';
+    }
+
     // ===== 여러 셀 일괄 삭제 =====
     // 서버(Apps Script)는 행 번호를 찾은 뒤 지우므로, 삭제 요청을 동시에 여러 개 보내면 행 번호가 밀려 엉뚱한 행이 지워질 수 있음
     // → 요청을 하나씩 순서대로 보내는 큐를 사용 (Code.gs 변경/재배포 불필요)
@@ -2541,6 +2669,7 @@
 
     // 5. 메인 렌더링
     function render() {
+      try { renderQuickPositive(); } catch(e) { console.error(e); }
       Object.values(scheduleData).forEach(list => list.forEach(e => { if(!Array.isArray(e.behaviorEvents)) normalizeBehaviorEntry(e); }));
       saveLocalCache(); // 새로고침해도 사라지지 않도록 매 렌더링 시 브라우저에 자동 저장 (구글시트 연결 여부와 무관하게 동작)
       selectedCellEls.clear(); // 재렌더링으로 이전 DOM이 사라지므로 셀 선택 상태도 함께 초기화 (클립보드 내용은 유지)
