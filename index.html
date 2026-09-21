@@ -222,7 +222,7 @@
 <body>
 
   <script>
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxv8g5XihOqdXsomqyGXvrqmi5TJOaXbe5HcZsSx8VVgaL1k5jtyQpGlL-86GnICT_wsg/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8aefKvEIq-BdQ7oduk_Bl_72MS3xT5GDcjJmIENjt_AINpFMnf4QlI0mjR_Dqs9fV5g/exec';
     const ACCESS_KEY = 'spedehxhfl'; // Code.gs의 ACCESS_KEY와 반드시 동일한 값으로 맞춰주세요
   </script>
 
@@ -734,6 +734,8 @@
         </div>
         <h4 style="margin:12px 0 6px;">🔎 추정 기능 (ABA 표준, 고정)</h4>
         <div class="beh-group-box" id="beh-function-list"></div>
+        <h4 style="margin:16px 0 6px;">⌚ 애플워치(단축어) 빠른기록</h4>
+        <div class="beh-group-box" id="watch-guide"></div>
       </div>
 
       <!-- 늘봄학교 (설정 페이지 안에 직접 표시) -->
@@ -1413,6 +1415,7 @@
     function saveBehaviorTaxonomy(tax) {
       localStorage.setItem('behaviorTaxonomy', JSON.stringify(tax));
       postToSheet('settings', { key: 'behaviorTaxonomy', value: JSON.stringify(tax) });
+      publishQuickOptions();
     }
     function getBehaviorConsequences() {
       try { const v = JSON.parse(localStorage.getItem('behaviorConsequences')); if(Array.isArray(v)) return v; } catch(e) {}
@@ -1631,6 +1634,7 @@
       document.getElementById('beh-consequence-list').innerHTML = getBehaviorConsequences().map((c, i) =>
         `<span class="beh-chip">${escapeAttr(c)}<button type="button" onclick="deleteBehaviorConsequence(${i})">✕</button></span>`).join('');
       document.getElementById('beh-function-list').innerHTML = BEHAVIOR_FUNCTIONS.map(f => `<span class="beh-chip">${f}</span>`).join('');
+      renderWatchGuide();
     }
     function allBehaviorItems(tax) { return [...tax.problem, ...tax.positive].flatMap(g => g.items); }
     function addBehaviorItem(cat, gi) {
@@ -1890,6 +1894,168 @@
           `<div style="font-size:0.72rem; border-bottom:1px dashed #e2e8f0; padding:4px 0;"><b>${x.date.slice(5)} ${escapeAttr(x.period)}</b> · ${escapeAttr(x.students.join(', '))} · <span style="color:#be123c;">${escapeAttr(x.ev.type)}</span>${x.ev.func ? ` · <span style="color:#b45309;">${escapeAttr(x.ev.func)}</span>` : ''}<br>A: ${escapeAttr(x.ev.antecedent)}${(x.ev.consequences || []).length ? ` → C: ${escapeAttr(x.ev.consequences.join(', '))}` : ''}</div>`).join('') : '<div style="font-size:0.72rem; color:#94a3b8;">선행사건이 입력된 기록이 없습니다.</div>'}</div>`;
       }
       content.innerHTML = html + '</div>';
+    }
+
+    // ===== 애플워치(아이폰 단축어) 빠른기록 연동 =====
+    // 흐름: 단축어가 ?type=quickOptions 로 학생/행동 목록을 받아 "목록에서 선택" 2번 → POST {type:'quickBehavior', student, behavior}
+    //       → 서버가 한국시간으로 QuickLog 시트에 저장 → 교실 컴퓨터의 앱이 1분마다 가져가 시간표 기록(행동 이벤트)에 반영 후 대기열에서 삭제
+    // 서버에 교시/명단 로직을 따로 두지 않고 앱의 기존 로직(findPeriodByTime, findEntryForPerson)을 그대로 재사용하기 위한 구조
+    const QUICK_END_LABEL = '⏹ 행동 종료';
+    const QUICK_POLL_MS = 60 * 1000;
+
+    // 단축어가 받아갈 선택지를 Settings 시트 quickOptions 키에 올려둠 (바뀌었을 때만 전송)
+    function publishQuickOptions() {
+      if(!isSheetConnected()) return;
+      const roster = getRoster(getAcademicYear(new Date()));
+      const tax = getBehaviorTaxonomy();
+      const opts = {
+        students: [...roster.mainStudents],
+        behaviors: [...tax.problem.flatMap(g => g.items), QUICK_END_LABEL, ...tax.positive.flatMap(g => g.items).map(x => '⭐ ' + x)]
+      };
+      const str = JSON.stringify(opts);
+      if(localStorage.getItem('quickOptionsPublished') === str) return;
+      localStorage.setItem('quickOptionsPublished', str);
+      postToSheet('settings', { key: 'quickOptions', value: str });
+    }
+
+    let quickPollRunning = false;
+    let quickLogReady = false; // 시트 최초 로드가 끝나기 전엔 반영하지 않음 (로드가 덮어써서 기록이 사라지는 것 방지)
+    async function pollQuickLog() {
+      if(!isSheetConnected() || quickPollRunning || !quickLogReady) return;
+      quickPollRunning = true;
+      try {
+        const res = await fetch(`${GOOGLE_SCRIPT_URL}?type=quickLog&key=${encodeURIComponent(ACCESS_KEY)}&_=${Date.now()}`, { cache: 'no-store' });
+        const rows = await res.json();
+        if(Array.isArray(rows) && rows.length) ingestQuickLog(rows);
+      } catch(e) { console.warn('워치 기록 확인 실패:', e); }
+      quickPollRunning = false;
+    }
+    setInterval(() => { if(!document.hidden) pollQuickLog(); }, QUICK_POLL_MS);
+
+    // 대기열 기록들을 시간표 기록에 반영 (시트에서 지우기 전에 중복 반영되지 않도록 처리한 ID를 기억)
+    function ingestQuickLog(rows) {
+      let done = []; try { done = JSON.parse(localStorage.getItem('quickLogDone') || '[]'); } catch(e) {}
+      const doneSet = new Set(done);
+      const msgs = [];
+      rows.sort((a, b) => (String(a['날짜']) + a['시각']).localeCompare(String(b['날짜']) + b['시각'])).forEach(row => {
+        const id = String(row['ID'] || '');
+        if(!id) return;
+        if(!doneSet.has(id)) {
+          const m = applyQuickRecord(String(row['날짜']), String(row['시각']).slice(0, 5), String(row['학생']).trim(), String(row['행동']).trim());
+          if(m) msgs.push(m);
+          doneSet.add(id);
+        }
+        postToSheetSequential('deleteQuickLog', { id });
+      });
+      localStorage.setItem('quickLogDone', JSON.stringify([...doneSet].slice(-300)));
+      if(msgs.length) { render(); showQuickToast('⌚ 워치 기록 반영: ' + msgs.join(' / ')); }
+    }
+
+    // 교시를 못 찾으면(쉬는 시간 사이 틈 등) 가장 가까운 교시로
+    function findNearestPeriod(hhmm) {
+      const exact = findPeriodByTime(hhmm); if(exact) return exact;
+      const m = timeToMinutes(hhmm); if(m === null) return null;
+      return PERIODS.reduce((best, p) => {
+        const d = Math.min(Math.abs(m - p.startMin), Math.abs(m - p.endMin));
+        return (!best || d < best.d) ? { p, d } : best;
+      }, null).p;
+    }
+
+    function applyQuickRecord(dateStr, hhmm, student, behavior) {
+      if(!dateStr || !student || !behavior) return null;
+      // 행동 종료: 그날 그 학생의 종료시각 없는 문제행동 중 가장 최근 것에 종료시각 기록
+      if(behavior === QUICK_END_LABEL) {
+        let target = null;
+        PERIODS.forEach(p => (scheduleData[`${dateStr}_${p.name}`] || []).forEach(entry => {
+          if(!Array.isArray(entry.behaviorEvents)) normalizeBehaviorEntry(entry);
+          entry.behaviorEvents.forEach(ev => {
+            if(ev.category !== 'problem' || ev.end || !(ev.student === student || (!ev.student && entry.students.includes(student)))) return;
+            if((timeToMinutes(ev.start) || 0) > timeToMinutes(hhmm)) return;
+            if(!target || (timeToMinutes(ev.start) || 0) >= (timeToMinutes(target.ev.start) || 0)) target = { ev, entry, period: p.name };
+          });
+        }));
+        if(!target) return `${student} 종료할 행동 없음`;
+        target.ev.end = hhmm;
+        syncBehaviorDerived(target.entry);
+        postToSheetSequential('schedule', entryToSheetRow(target.entry, dateStr, target.period));
+        return `${student} ${target.ev.type} 종료 ${hhmm}`;
+      }
+      const type = behavior.replace(/^⭐\s*/, '');
+      const period = findNearestPeriod(hhmm); if(!period) return null;
+      const cellId = `${dateStr}_${period.name}`;
+      if(!scheduleData[cellId]) scheduleData[cellId] = [];
+      let entry = findEntryForPerson(cellId, student);
+      if(!entry) { entry = Object.assign(blankEntry(), { id: generateEntryId(), students: [student], summary: '', behaviorEvents: [] }); scheduleData[cellId].push(entry); }
+      if(!Array.isArray(entry.behaviorEvents)) normalizeBehaviorEntry(entry);
+      const category = getBehaviorCategory(type);
+      // 격화 흐름(자리이탈 → 때리기): 새 문제행동이 시작되면 그 학생의 아직 안 끝난 이전 문제행동은 이 시각에 종료 처리
+      if(category === 'problem') {
+        PERIODS.forEach(p => (scheduleData[`${dateStr}_${p.name}`] || []).forEach(en => {
+          if(!Array.isArray(en.behaviorEvents)) return;
+          let changed = false;
+          en.behaviorEvents.forEach(ev => {
+            if(ev.category === 'problem' && !ev.end && ev.student === student && timeToMinutes(ev.start) !== null && timeToMinutes(ev.start) < timeToMinutes(hhmm)) { ev.end = hhmm; changed = true; }
+          });
+          if(changed && en !== entry) { syncBehaviorDerived(en); postToSheetSequential('schedule', entryToSheetRow(en, dateStr, p.name)); }
+        }));
+      }
+      entry.behaviorEvents.push(Object.assign(blankBehaviorEvent(), { student, category, type, start: hhmm, end: category === 'positive' ? hhmm : '' }));
+      syncBehaviorDerived(entry);
+      postToSheetSequential('schedule', entryToSheetRow(entry, dateStr, period.name));
+      return `${student} ${type} ${hhmm}`;
+    }
+
+    function showQuickToast(text) {
+      let t = document.getElementById('quick-toast');
+      if(!t) {
+        t = document.createElement('div'); t.id = 'quick-toast';
+        t.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#1e293b; color:white; padding:10px 16px; border-radius:8px; font-size:0.8rem; z-index:9999; max-width:90vw; box-shadow:0 4px 12px rgba(0,0,0,0.2);';
+        document.body.appendChild(t);
+      }
+      t.textContent = text; t.style.display = 'block';
+      clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 8000);
+    }
+
+    function renderWatchGuide() {
+      const el = document.getElementById('watch-guide'); if(!el) return;
+      const connected = isSheetConnected();
+      const optUrl = `${GOOGLE_SCRIPT_URL}?type=quickOptions&key=${encodeURIComponent(ACCESS_KEY)}`;
+      const code = t => `<code style="background:#f1f5f9; padding:1px 4px; border-radius:3px; word-break:break-all;">${escapeAttr(t)}</code>`;
+      el.innerHTML = !connected ? '<div style="font-size:0.75rem; color:#b91c1c;">구글 시트가 연결돼야 사용할 수 있습니다.</div>' : `
+        <div style="font-size:0.75rem; line-height:1.7;">
+          <b>작동 방식</b>: 워치에서 학생 → 행동을 고르면 시트 대기열에 저장되고, 이 컴퓨터의 앱이 1분마다 가져와 그 시각 교시에 자동 기록합니다. 문제행동은 시작시각만 찍히니, 행동이 끝나면 같은 단축어에서 <b>${QUICK_END_LABEL}</b>을 고르면 종료시각이 기록됩니다.<br>
+          <b>아이폰 단축어 앱에서 새 단축어 만들기</b> (한 번만 만들면 학생/행동 목록이 바뀌어도 자동 반영)<br>
+          ① <b>URL</b> 동작: ${code(optUrl)} <button type="button" class="btn btn-secondary" style="padding:1px 6px; font-size:0.68rem;" onclick="navigator.clipboard.writeText('${optUrl}'); this.textContent='복사됨'">복사</button><br>
+          ② <b>URL의 콘텐츠 가져오기</b> (방법: GET)<br>
+          ③ <b>사전 값 가져오기</b>: 키 ${code('students')} → <b>목록에서 선택</b> (프롬프트: 누구?) → 결과를 변수 <b>학생</b>으로 설정<br>
+          ④ ②의 결과에서 다시 <b>사전 값 가져오기</b>: 키 ${code('behaviors')} → <b>목록에서 선택</b> (프롬프트: 무슨 행동?) → 변수 <b>행동</b><br>
+          ⑤ <b>URL</b> 동작: ${code(GOOGLE_SCRIPT_URL)}<br>
+          ⑥ <b>URL의 콘텐츠 가져오기</b>: 방법 <b>POST</b>, 요청 본문 <b>JSON</b>, 텍스트 필드 4개 → ${code('key')}=${code(ACCESS_KEY)}, ${code('type')}=${code('quickBehavior')}, ${code('student')}=변수 학생, ${code('behavior')}=변수 행동<br>
+          ⑦ (선택) <b>사전 값 가져오기</b> 키 ${code('message')} → <b>알림 표시</b> — 워치에 "학생01 · 때리기 (10:32) 기록됨"이 뜸<br>
+          ⑧ 단축어 설정(ⓘ)에서 <b>Apple Watch에서 보기</b> 켜기 → 워치 페이스 컴플리케이션에 추가하면 2번 탭으로 기록<br>
+          <div style="margin-top:6px; display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+            <button type="button" class="btn btn-secondary" style="padding:3px 8px; font-size:0.72rem;" onclick="testQuickRecord()">🧪 연동 테스트 (첫 학생 + 첫 행동으로 가짜 기록 보내기)</button>
+            <button type="button" class="btn btn-secondary" style="padding:3px 8px; font-size:0.72rem;" onclick="localStorage.removeItem('quickOptionsPublished'); publishQuickOptions(); this.textContent='목록 다시 올림'">🔄 단축어 목록 다시 올리기</button>
+            <span id="watch-test-result" style="font-size:0.72rem;"></span>
+          </div>
+          <div style="font-size:0.68rem; color:#64748b; margin-top:4px;">※ 기록 반영은 이 앱이 열려 있는 컴퓨터에서 이뤄집니다. 앱이 꺼져 있으면 대기열에 쌓여 있다가 다음에 열 때 한꺼번에 반영됩니다.</div>
+        </div>`;
+    }
+
+    async function testQuickRecord() {
+      const out = document.getElementById('watch-test-result');
+      const r = getRoster(getAcademicYear(new Date())); const tax = getBehaviorTaxonomy();
+      const student = r.mainStudents[0], behavior = (tax.problem[0] || { items: [] }).items[0];
+      if(!student || !behavior) { out.textContent = '학생 또는 행동 목록이 비어 있습니다.'; return; }
+      out.textContent = '보내는 중...';
+      try {
+        const res = await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ key: ACCESS_KEY, type: 'quickBehavior', student, behavior }) });
+        const json = await res.json();
+        if(!json.ok) { out.innerHTML = `<span style="color:#b91c1c;">실패: ${escapeAttr(json.error || '')} (Code.gs 재배포를 했는지 확인해주세요)</span>`; return; }
+        out.innerHTML = `<span style="color:#166534;">서버 응답: ${escapeAttr(json.message)} → 대기열 가져오는 중...</span>`;
+        await pollQuickLog();
+        out.innerHTML = `<span style="color:#166534;">✅ ${escapeAttr(json.message)} — 시간표에 반영됐습니다. 테스트 기록은 해당 칸에서 지워주세요.</span>`;
+      } catch(e) { out.innerHTML = `<span style="color:#b91c1c;">전송 실패: ${escapeAttr(e.message)}</span>`; }
     }
 
     // ===== 여러 셀 일괄 삭제 =====
@@ -2536,6 +2702,7 @@
 
         repairEntriesWithoutId();
         setSyncStatus('synced');
+        setTimeout(() => { quickLogReady = true; publishQuickOptions(); pollQuickLog(); }, 500);
       } catch(err) {
         const detail = '시트 데이터를 화면에 반영하는 중 오류 발생: ' + err.message + '\n\n원본 응답:\n' + JSON.stringify(json, null, 2).slice(0, 1500);
         console.error('시트 불러오기 실패:', detail);
