@@ -89,12 +89,12 @@
 
     /* 태그 및 아이콘 */
     .tag { display: inline-block; max-width: 100%; padding: 2px 5px; border-radius: 4px; font-size: 0.72rem; font-weight: bold; margin: 1px; white-space: normal; overflow-wrap: break-word; }
-    .tag-main { background: #ffedd5; color: #9a3412; }
+    .tag-main { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+    .tag-student-behavior { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; font-weight: bold; }
     .tag-helper { background: #e0e7ff; color: #3730a3; }
     .tag-teacher { background: #dcfce7; color: #166534; }
     .tag-behavior { background: #fecdd3; color: #9f1239; border: 1px solid #fda4af; }
-    .tag-student-behavior { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; font-weight: bold; }
-    .tag-positive { background: #fef9c3; color: #854d0e; }
+    .tag-positive { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
 
     /* 학급 주간 뷰: 한 교시+날짜 셀 안에 여러 기록(항목)이 있을 때 구분 표시 */
     .matrix-entry-block { cursor: pointer; border-radius: 4px; padding: 3px 2px; margin-bottom: 3px; transition: background 0.15s; text-align: left; }
@@ -279,7 +279,7 @@
       <div class="content-area" id="view-content" style="flex:1; overflow:auto;"></div>
     </div>
     <div class="memo-panel" id="memo-panel">
-      <div id="memo-panel-sticky-header" style="position:sticky; top:0; background:white; z-index:5; padding-bottom:8px;">
+      <div id="memo-panel-sticky-header" style="position:sticky; top:-14px; margin:-14px -14px 0 -14px; padding:14px 14px 8px 14px; background:white; z-index:5;">
         <div id="current-date-text" style="font-weight:bold; font-size:0.85rem; color:#1e40af; margin-bottom:8px;"></div>
         <div class="memo-panel-header">
           <h4 class="memo-title" style="margin:0; font-size:0.95rem; color:#0f172a;">📝 오늘의 메모 / 일지</h4>
@@ -2143,7 +2143,9 @@
             html += `<div class="clickable-cell empty-cell-add" onclick="openInputModal('${cellId}', null, null)">&nbsp;</div>`;
           } else {
             visibleEntries.forEach(entry => {
-              const entryBg = getClassColors()[entry.className] ? ` style="background:${getClassColors()[entry.className]}44;"` : '';
+              const classBg = getClassColors()[entry.className] ? `${getClassColors()[entry.className]}44` : '';
+              const entryBgColor = entry.behavior ? '#fecdd333' : classBg;
+              const entryBg = entryBgColor ? ` style="background:${entryBgColor};"` : '';
               html += `<div class="matrix-entry-block"${entryBg} onclick="openInputModal('${cellId}', '${entry.id}', null)">`;
               if(entry.className && shouldShowLocationInCell()) html += `<div style=\"font-size:0.72rem; color:#2563eb; font-weight:bold; white-space:normal; overflow-wrap:break-word;\">[${entry.className}]</div>`;
               if(shouldShowPersonType('students')) entry.students.forEach(s => {
@@ -2252,10 +2254,11 @@
           const isAssigned = !!entry;
           const neulbomOverlaps = getNeulbomOverlapsForPeriod(selectedPerson, dt, p);
 
-          // 색상 지정 (결석: 연한 붉은색, 지각: 도착 이전 교시까지만 연한 노란색)
+          // 색상 지정 (결석: 연한 붉은색, 지각: 도착 이전 교시까지만 연한 노란색, 문제행동: 연한 분홍색)
           let cellStyle = '';
           if (rec && rec.status === 'ABSENT') cellStyle = 'background:#fef2f2;';
           else if (b && b.cls === 'badge-tardy') cellStyle = 'background:#fef9c3;';
+          else if (data.behavior) cellStyle = 'background:#fecdd3;';
           else if (isAssigned) cellStyle = 'background:#f0fdf4;';
 
           const cellClass = `clickable-cell matrix-cell-relative selectable-cell${neulbomOverlaps.length ? ' has-neulbom' : ''}`;
@@ -2386,6 +2389,7 @@
             const b = formatAttBadgeForPeriod(rec, true, p);
             const neulbomOverlaps = getNeulbomOverlapsForPeriod(s, currentDate, p);
             let bg = entry ? '#fff7ed' : '';
+            if(entry && entry.behavior) bg = '#fecdd3';
             if(rec && rec.status === 'ABSENT') bg = '#fef2f2';
             else if(b && b.cls === 'badge-tardy') bg = '#fef9c3';
             const dividerCls = (gi > 0 && si === 0) ? ' group-divider' : '';
@@ -2520,8 +2524,10 @@
           // scheduleData에는 애초에 완전히 빈 기록이 저장되지 않으므로(저장 시 이미 걸러짐),
           // 여기서 다시 memo/behavior 등으로 필터링하면 "지원인력만 체크된" 기록 등이 누락된다 - 모두 표시
           count++;
+          const cardBg = entry.behavior ? '#fecdd3' : '#f8fafc';
+          const cardBorder = entry.behavior ? '#fda4af' : '#e2e8f0';
           panel.innerHTML += `
-            <div class="memo-card-clickable" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px;" onclick="openInputModal('${cellId}', '${entry.id}', null)" title="눌러서 수정">
+            <div class="memo-card-clickable" style="background:${cardBg}; border:1px solid ${cardBorder}; border-radius:6px; padding:8px;" onclick="openInputModal('${cellId}', '${entry.id}', null)" title="눌러서 수정">
               <div style="font-size:0.75rem; font-weight:bold; color:#2563eb;">${p.name} (${p.time}) [${entry.className||'학급'}]</div>
               ${entry.students.length ? `<div style="font-size:0.72rem; margin-top:2px;">학생: ${entry.students.join(', ')}</div>` : ''}
               ${entry.helpers.length ? `<div style="font-size:0.72rem; color:#3730a3; margin-top:2px;">지원인력: ${entry.helpers.join(', ')}</div>` : ''}
