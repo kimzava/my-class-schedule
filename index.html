@@ -123,6 +123,11 @@
     .ana-heat td, .ana-heat th { border:1px solid #e2e8f0; padding:4px 2px !important; text-align:center; min-width:0 !important; width:auto !important; height:auto !important; position:static !important; }
     .ana-heat th:first-child { width:72px !important; }
     .ana-bar-row > span:last-child { white-space:nowrap; }
+    #keypad-overlay { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; border:3px solid #2563eb; border-radius:14px; padding:16px 20px; z-index:10000; box-shadow:0 10px 40px rgba(0,0,0,0.25); min-width:320px; max-width:90vw; display:none; }
+    #keypad-overlay.positive { border-color:#16a34a; }
+    .kp-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-top:8px; }
+    .kp-key { border:1px solid #cbd5e1; border-radius:8px; padding:6px; font-size:0.8rem; background:#f8fafc; text-align:left; }
+    .kp-key b { display:inline-block; min-width:18px; color:#2563eb; font-size:1rem; }
     .beh-group-box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; margin-bottom: 8px; background: white; }
     .tag-positive { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
 
@@ -734,6 +739,8 @@
         </div>
         <h4 style="margin:12px 0 6px;">🔎 추정 기능 (ABA 표준, 고정)</h4>
         <div class="beh-group-box" id="beh-function-list"></div>
+        <h4 style="margin:16px 0 6px;">⌨️ 키패드(넘패드) 빠른기록</h4>
+        <div class="beh-group-box" id="keypad-settings"></div>
         <h4 style="margin:16px 0 6px;">⌚ 애플워치(단축어) 빠른기록</h4>
         <div class="beh-group-box" id="watch-guide"></div>
       </div>
@@ -1635,6 +1642,7 @@
         `<span class="beh-chip">${escapeAttr(c)}<button type="button" onclick="deleteBehaviorConsequence(${i})">✕</button></span>`).join('');
       document.getElementById('beh-function-list').innerHTML = BEHAVIOR_FUNCTIONS.map(f => `<span class="beh-chip">${f}</span>`).join('');
       renderWatchGuide();
+      renderKeypadSettings();
     }
     function allBehaviorItems(tax) { return [...tax.problem, ...tax.positive].flatMap(g => g.items); }
     function addBehaviorItem(cat, gi) {
@@ -1901,6 +1909,7 @@
     //       → 서버가 한국시간으로 QuickLog 시트에 저장 → 교실 컴퓨터의 앱이 1분마다 가져가 시간표 기록(행동 이벤트)에 반영 후 대기열에서 삭제
     // 서버에 교시/명단 로직을 따로 두지 않고 앱의 기존 로직(findPeriodByTime, findEntryForPerson)을 그대로 재사용하기 위한 구조
     const QUICK_END_LABEL = '⏹ 행동 종료';
+    let lastQuickApplied = null; // 키패드 되돌리기용: 마지막 빠른기록이 바꾼 내용
     const QUICK_POLL_MS = 60 * 1000;
 
     // 단축어가 받아갈 선택지를 Settings 시트 quickOptions 키에 올려둠 (바뀌었을 때만 전송)
@@ -1975,6 +1984,7 @@
           });
         }));
         if(!target) return `${student} 종료할 행동 없음`;
+        lastQuickApplied = { dateStr, created: null, added: null, ended: [{ ev: target.ev, entry: target.entry, period: target.period }] };
         target.ev.end = hhmm;
         syncBehaviorDerived(target.entry);
         postToSheetSequential('schedule', entryToSheetRow(target.entry, dateStr, target.period));
@@ -1985,21 +1995,25 @@
       const cellId = `${dateStr}_${period.name}`;
       if(!scheduleData[cellId]) scheduleData[cellId] = [];
       let entry = findEntryForPerson(cellId, student);
-      if(!entry) { entry = Object.assign(blankEntry(), { id: generateEntryId(), students: [student], summary: '', behaviorEvents: [] }); scheduleData[cellId].push(entry); }
+      let createdEntry = false;
+      if(!entry) { entry = Object.assign(blankEntry(), { id: generateEntryId(), students: [student], summary: '', behaviorEvents: [] }); scheduleData[cellId].push(entry); createdEntry = true; }
       if(!Array.isArray(entry.behaviorEvents)) normalizeBehaviorEntry(entry);
       const category = getBehaviorCategory(type);
+      const endedList = [];
       // 격화 흐름(자리이탈 → 때리기): 새 문제행동이 시작되면 그 학생의 아직 안 끝난 이전 문제행동은 이 시각에 종료 처리
       if(category === 'problem') {
         PERIODS.forEach(p => (scheduleData[`${dateStr}_${p.name}`] || []).forEach(en => {
           if(!Array.isArray(en.behaviorEvents)) return;
           let changed = false;
           en.behaviorEvents.forEach(ev => {
-            if(ev.category === 'problem' && !ev.end && ev.student === student && timeToMinutes(ev.start) !== null && timeToMinutes(ev.start) < timeToMinutes(hhmm)) { ev.end = hhmm; changed = true; }
+            if(ev.category === 'problem' && !ev.end && ev.student === student && timeToMinutes(ev.start) !== null && timeToMinutes(ev.start) < timeToMinutes(hhmm)) { ev.end = hhmm; changed = true; endedList.push({ ev, entry: en, period: p.name }); }
           });
           if(changed && en !== entry) { syncBehaviorDerived(en); postToSheetSequential('schedule', entryToSheetRow(en, dateStr, p.name)); }
         }));
       }
-      entry.behaviorEvents.push(Object.assign(blankBehaviorEvent(), { student, category, type, start: hhmm, end: category === 'positive' ? hhmm : '' }));
+      const newEv = Object.assign(blankBehaviorEvent(), { student, category, type, start: hhmm, end: category === 'positive' ? hhmm : '' });
+      entry.behaviorEvents.push(newEv);
+      lastQuickApplied = { dateStr, created: createdEntry ? { cellId, entry } : null, added: { ev: newEv, entry, period: period.name }, ended: endedList };
       syncBehaviorDerived(entry);
       postToSheetSequential('schedule', entryToSheetRow(entry, dateStr, period.name));
       return `${student} ${type} ${hhmm}`;
@@ -2056,6 +2070,145 @@
         await pollQuickLog();
         out.innerHTML = `<span style="color:#166534;">✅ ${escapeAttr(json.message)} — 시간표에 반영됐습니다. 테스트 기록은 해당 칸에서 지워주세요.</span>`;
       } catch(e) { out.innerHTML = `<span style="color:#b91c1c;">전송 실패: ${escapeAttr(e.message)}</span>`; }
+    }
+
+    // ===== 키패드(넘패드) 빠른기록 =====
+    // 넘패드 숫자(또는 ` 키로 연 뒤 일반 숫자) → ① 학생 번호 → ② 행동 번호 → 지금 시각으로 바로 기록 (워치와 같은 applyQuickRecord 사용)
+    // 행동 단계에서: + = 문제행동/긍정행동 목록 전환, 0 = 행동 종료 / Esc = 취소 / 기록 후 10초 안에 - 또는 Backspace = 되돌리기
+    const KEYPAD_DEFAULTS = {
+      problem: ['자리이탈', '큰소리지르기', '때리기', '수업과제거부', '울음떼쓰기', '물건던지기', '타인활동방해', '감정폭발', '교실이탈'],
+      positive: ['경청하기', '차분히앉아있기', '손들고말하기', '끝까지해내기', '다른사람돕기', '인사하기', '차례지키기', '정리정돈', '도전하기']
+    };
+    function getKeypadMap() {
+      try { const v = JSON.parse(localStorage.getItem('keypadBehaviors')); if(v && v.problem && v.positive) return v; } catch(e) {}
+      return JSON.parse(JSON.stringify(KEYPAD_DEFAULTS));
+    }
+    function saveKeypadMap(map) {
+      localStorage.setItem('keypadBehaviors', JSON.stringify(map));
+      postToSheet('settings', { key: 'keypadBehaviors', value: JSON.stringify(map) });
+    }
+    const kpState = { step: null, student: null, category: 'problem', timer: null, undoUntil: 0 };
+
+    function keypadStudents() { return getRoster(getAcademicYear(new Date())).mainStudents.slice(0, 9); }
+
+    function renderKeypadOverlay() {
+      let el = document.getElementById('keypad-overlay');
+      if(!el) { el = document.createElement('div'); el.id = 'keypad-overlay'; document.body.appendChild(el); }
+      if(!kpState.step) { el.style.display = 'none'; return; }
+      el.style.display = 'block';
+      el.classList.toggle('positive', kpState.step === 'behavior' && kpState.category === 'positive');
+      const key = (n, label) => `<div class="kp-key"><b>${n}</b> ${label ? escapeAttr(label) : '<span style="color:#cbd5e1;">-</span>'}</div>`;
+      const order = [7, 8, 9, 4, 5, 6, 1, 2, 3]; // 넘패드 배열과 같은 모양으로 표시
+      if(kpState.step === 'student') {
+        const list = keypadStudents();
+        el.innerHTML = `<div style="font-weight:bold;">⌨️ ① 누구? <span style="font-weight:normal; font-size:0.72rem; color:#64748b;">(Esc 취소)</span></div>
+          <div class="kp-grid">${order.map(n => key(n, list[n - 1])).join('')}</div>`;
+      } else {
+        const map = getKeypadMap()[kpState.category];
+        const isP = kpState.category === 'problem';
+        el.innerHTML = `<div style="font-weight:bold;">⌨️ ② ${escapeAttr(kpState.student)} — ${isP ? '🚨 문제행동' : '⭐ 긍정행동'}</div>
+          <div style="font-size:0.7rem; color:#64748b;">+ : ${isP ? '긍정행동' : '문제행동'} 목록으로 · Esc 취소</div>
+          <div class="kp-grid">${order.map(n => key(n, map[n - 1])).join('')}</div>
+          ${isP ? `<div class="kp-key" style="margin-top:6px;"><b>0</b> ⏹ 행동 종료</div>` : ''}`;
+      }
+      clearTimeout(kpState.timer);
+      kpState.timer = setTimeout(() => { kpState.step = null; renderKeypadOverlay(); }, 8000); // 8초 동안 입력 없으면 자동 닫힘
+    }
+    function closeKeypad() { kpState.step = null; renderKeypadOverlay(); }
+
+    function keypadRecord(behavior) {
+      const now = new Date();
+      const msg = applyQuickRecord(toDateStr(now), nowHHMM(), kpState.student, behavior);
+      closeKeypad();
+      render();
+      kpState.undoUntil = Date.now() + 10000;
+      showQuickToast(`⌨️ ${msg || '기록 실패'}  (10초 안에 - 또는 Backspace: 되돌리기)`);
+    }
+
+    function undoLastQuick() {
+      const u = lastQuickApplied; if(!u) return;
+      const touched = new Map();
+      (u.ended || []).forEach(x => { x.ev.end = ''; touched.set(x.entry, x.period); });
+      if(u.added) {
+        u.added.entry.behaviorEvents = u.added.entry.behaviorEvents.filter(ev => ev !== u.added.ev);
+        touched.set(u.added.entry, u.added.period);
+      }
+      touched.forEach((period, entry) => {
+        syncBehaviorDerived(entry);
+        if(u.created && u.created.entry === entry && !entry.behaviorEvents.length && !entry.memo) {
+          const list = scheduleData[u.created.cellId]; list.splice(list.indexOf(entry), 1);
+          postToSheetSequential('deleteSchedule', { id: entry.id });
+        } else postToSheetSequential('schedule', entryToSheetRow(entry, u.dateStr, period));
+      });
+      lastQuickApplied = null; kpState.undoUntil = 0;
+      render();
+      showQuickToast('↶ 방금 빠른기록을 되돌렸습니다.');
+    }
+
+    document.addEventListener('keydown', function(e) {
+      const t = e.target;
+      const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+      if(typing) return;
+      const isNumpad = e.code && e.code.startsWith('Numpad');
+      const digit = /^(Numpad|Digit)([0-9])$/.exec(e.code || '');
+      const num = digit ? Number(digit[2]) : null;
+
+      if(!kpState.step) {
+        // 되돌리기
+        if(Date.now() < kpState.undoUntil && (e.code === 'NumpadSubtract' || e.key === 'Backspace') && selectedCellEls.size === 0) { e.preventDefault(); undoLastQuick(); return; }
+        const overlayOpen = document.getElementById('overlay') && document.getElementById('overlay').style.display === 'block';
+        if(overlayOpen) return;
+        if(e.key === '`' || (isNumpad && num !== null && num >= 1)) {
+          e.preventDefault();
+          kpState.step = 'student'; kpState.category = 'problem';
+          renderKeypadOverlay();
+          if(e.key !== '`') handleKeypadNumber(num); // 넘패드 숫자로 시작했으면 그 숫자를 바로 학생 선택으로
+        }
+        return;
+      }
+      e.preventDefault();
+      if(e.key === 'Escape') { closeKeypad(); return; }
+      if(kpState.step === 'behavior' && (e.code === 'NumpadAdd' || e.key === '+' || e.key === '=')) {
+        kpState.category = kpState.category === 'problem' ? 'positive' : 'problem'; renderKeypadOverlay(); return;
+      }
+      if(num !== null) handleKeypadNumber(num);
+    });
+
+    function handleKeypadNumber(num) {
+      if(kpState.step === 'student') {
+        const stu = keypadStudents()[num - 1];
+        if(!stu) return;
+        kpState.student = stu; kpState.step = 'behavior'; renderKeypadOverlay();
+      } else if(kpState.step === 'behavior') {
+        if(num === 0) { if(kpState.category === 'problem') keypadRecord(QUICK_END_LABEL); return; }
+        const b = getKeypadMap()[kpState.category][num - 1];
+        if(!b) return;
+        keypadRecord(kpState.category === 'positive' ? '⭐ ' + b : b);
+      }
+    }
+
+    function renderKeypadSettings() {
+      const el = document.getElementById('keypad-settings'); if(!el) return;
+      const map = getKeypadMap(), tax = getBehaviorTaxonomy();
+      const stus = keypadStudents();
+      const sel = (cat, i) => {
+        const items = tax[cat].flatMap(g => g.items);
+        const cur = map[cat][i] || '';
+        const opts = [...new Set([...items, cur].filter(Boolean))];
+        return `<label style="display:flex; align-items:center; gap:4px; font-size:0.72rem;"><b style="width:14px;">${i + 1}</b><select style="flex:1; font-size:0.72rem; padding:2px;" onchange="setKeypadSlot('${cat}', ${i}, this.value)"><option value="">(비움)</option>${opts.map(o => `<option value="${escapeAttr(o)}" ${o === cur ? 'selected' : ''}>${escapeAttr(o)}</option>`).join('')}</select></label>`;
+      };
+      el.innerHTML = `<div style="font-size:0.75rem; line-height:1.6; margin-bottom:6px;">
+          화면 아무 곳에서나 <b>넘패드 숫자</b>(학생 번호) → <b>숫자</b>(행동 번호)를 누르면 지금 시각으로 바로 기록됩니다. 넘패드가 없으면 <b>\`</b> 키(숫자 1 왼쪽)를 먼저 누르고 일반 숫자키를 쓰세요.<br>
+          행동 단계에서 <b>+</b> = 긍정행동 목록 전환, <b>0</b> = 행동 종료, <b>Esc</b> = 취소 · 기록 후 10초 안에 <b>-</b> 또는 <b>Backspace</b> = 되돌리기
+        </div>
+        <div style="font-size:0.72rem; margin-bottom:6px;"><b>학생 번호</b> (학생 관리의 순서): ${stus.map((n, i) => `${i + 1}=${escapeAttr(n)}`).join(' · ') || '학생 없음'}</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div><div style="font-size:0.75rem; font-weight:bold; color:#be123c; margin-bottom:3px;">🚨 문제행동 번호</div>${[...Array(9).keys()].map(i => sel('problem', i)).join('')}<div style="font-size:0.72rem; margin-top:2px;"><b>0</b> ⏹ 행동 종료 (고정)</div></div>
+          <div><div style="font-size:0.75rem; font-weight:bold; color:#15803d; margin-bottom:3px;">⭐ 긍정행동 번호 (+ 누른 뒤)</div>${[...Array(9).keys()].map(i => sel('positive', i)).join('')}</div>
+        </div>`;
+    }
+    function setKeypadSlot(cat, i, value) {
+      const map = getKeypadMap(); map[cat][i] = value; saveKeypadMap(map);
     }
 
     // ===== 여러 셀 일괄 삭제 =====
@@ -2634,6 +2787,7 @@
           if(row['키'] === 'classColors' && row['값']) localStorage.setItem('classColors', row['값']);
           if(row['키'] === 'behaviorTaxonomy' && row['값']) localStorage.setItem('behaviorTaxonomy', row['값']);
           if(row['키'] === 'behaviorConsequences' && row['값']) localStorage.setItem('behaviorConsequences', row['값']);
+          if(row['키'] === 'keypadBehaviors' && row['값']) localStorage.setItem('keypadBehaviors', row['값']);
         });
 
         // 사람 프로필 (학년도 무관 공통 정보)
