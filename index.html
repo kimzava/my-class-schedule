@@ -85,7 +85,7 @@
     /* 결석 / 지각 시각화 색상 */
     .cell-absent { background: #fef2f2 !important; }
     .cell-tardy { background: #fef9c3 !important; }
-    .cell-has-behavior { background: #fff1f2 !important; border: 2px solid #fda4af !important; }
+    .cell-has-behavior { background: #fff5f6 !important; border: 2px solid #fecdd3 !important; }
 
     /* 태그 및 아이콘 */
     .tag { display: inline-block; max-width: 100%; padding: 2px 5px; border-radius: 4px; font-size: 0.72rem; font-weight: bold; margin: 1px; white-space: normal; overflow-wrap: break-word; }
@@ -204,7 +204,7 @@
 <body>
 
   <script>
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxv8g5XihOqdXsomqyGXvrqmi5TJOaXbe5HcZsSx8VVgaL1k5jtyQpGlL-86GnICT_wsg/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwWHF_ooG5-ALcg8FdqYe4NC26hw5zJbCidfu9BbfZKCs9VWzSOhy_l2rQ35ZnvlVhKrw/exec';
     const ACCESS_KEY = 'spedehxhfl'; // Code.gs의 ACCESS_KEY와 반드시 동일한 값으로 맞춰주세요
   </script>
 
@@ -1285,6 +1285,8 @@
 
     // ===== 사람별 색상 (프로필에서 지정한 색을 이름표 왼쪽 띠 / 매트릭스 열 머리 윗줄로 표시) =====
     // 이름표 바탕색은 유형(학생=노랑/교사=초록/지원=남색)과 출결·문제행동 상태를 나타내므로 그대로 두고, 개인 색은 띠로만 겹쳐 표시
+    const BEHAVIOR_BG = '#fff5f6';      // 학급주간 블록(#fecdd3 20%)과 같은 농도
+    const BEHAVIOR_BORDER = '#fecdd3';
     function getPersonColor(name) {
       if(!name) return '';
       const year = String(getAcademicYear(currentDate));
@@ -1292,13 +1294,35 @@
       if(!id) { for(const y of Object.keys(rosterIdMap)) { if(rosterIdMap[y][name]) { id = rosterIdMap[y][name]; break; } } }
       return (id && people[id] && people[id].color) || '';
     }
+    // hex 색을 흰색과 섞어 연하게 (ratio: 원래 색 비율 0~1)
+    function tintColor(hex, ratio) {
+      const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if(!m) return '';
+      const n = parseInt(m[1], 16);
+      const mix = c => Math.round(255 - (255 - c) * ratio);
+      return '#' + [n >> 16 & 255, n >> 8 & 255, n & 255].map(c => mix(c).toString(16).padStart(2, '0')).join('');
+    }
+    function shadeColor(hex, ratio) { // 검정과 섞어 진하게 (글자색용)
+      const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if(!m) return '';
+      const n = parseInt(m[1], 16);
+      return '#' + [n >> 16 & 255, n >> 8 & 255, n & 255].map(c => Math.round(c * (1 - ratio)).toString(16).padStart(2, '0')).join('');
+    }
+    // 이름표(블록): 지정 색 쪽으로 바탕/테두리/글자색 변경 (출결·문제행동 상태 표시는 호출부에서 우선 처리)
     function personColorStyle(name) {
       const c = getPersonColor(name);
-      return c ? `box-shadow: inset 4px 0 0 ${c}; padding-left:8px;` : '';
+      return c ? `background:${tintColor(c, 0.22)}; border:1px solid ${tintColor(c, 0.6)}; color:${shadeColor(c, 0.35)};` : '';
+    }
+    // 그 사람의 셀 배경 (개인주간 칸, 매트릭스 열)
+    function personCellBg(name) {
+      const c = getPersonColor(name);
+      return c ? tintColor(c, 0.1) : '';
     }
     function personHeaderColorStyle(name) {
       const c = getPersonColor(name);
-      return c ? `border-top: 4px solid ${c};` : '';
+      return c ? `background:${tintColor(c, 0.28)}; border-top: 4px solid ${c}; color:${shadeColor(c, 0.35)};` : '';
+    }
+    // 이름표 기본 클래스일 때만 개인 색 적용 (출결 배지/문제행동 강조 등 상태 클래스가 붙으면 상태 색 유지)
+    function personTagStyleIfDefault(cls, name) {
+      return ['tag-main', 'tag-teacher', 'tag-helper'].includes(cls) ? personColorStyle(name) : '';
     }
     function coloredNameList(list) {
       return list.map(n => { const c = getPersonColor(n); return c ? `<span style="color:${c};">●</span>${n}` : n; }).join(', ');
@@ -2585,7 +2609,7 @@
           } else {
             visibleEntries.forEach(entry => {
               const classBg = getClassColors()[entry.className] ? `${getClassColors()[entry.className]}44` : '';
-              const entryBgColor = entry.behavior ? '#fecdd333' : classBg;
+              const entryBgColor = entry.behavior ? BEHAVIOR_BG : classBg;
               const entryBg = entryBgColor ? ` style="background:${entryBgColor};"` : '';
               html += `<div class="matrix-entry-block"${entryBg} onclick="openInputModal('${cellId}', '${entry.id}', null)">`;
               if(entry.className && shouldShowLocationInCell()) html += `<div style=\"font-size:0.72rem; color:#2563eb; font-weight:bold; white-space:normal; overflow-wrap:break-word;\">[${entry.className}]</div>`;
@@ -2593,18 +2617,18 @@
                 const b = formatAttBadgeForPeriod(todayAtt[s], true, p);
                 let cls = b ? b.cls : 'tag-main';
                 if(!b && entryHasProblemFor(entry, s)) cls = 'tag-student-behavior'; // 문제행동은 해당 학생 이름표만 붉은색으로 강조
-                html += `<span class="tag ${cls}" style="${personColorStyle(s)}" ${b ? `title=\"${b.text}\"` : ''}>${s}</span>`;
+                html += `<span class="tag ${cls}" style="${personTagStyleIfDefault(cls, s)}" ${b ? `title=\"${b.text}\"` : ''}>${s}</span>`;
               });
               // 학생과 동일하게 담당교사도 항상 표시하고, 상태에 따라 색으로만 구분 (출결 상태가 지난 뒤 사라지지 않도록)
               if(shouldShowPersonType('teachers')) entry.teachers.forEach(t => {
                 const b = formatAttBadgeForPeriod(todayAtt[t], false, p);
                 const cls = b ? b.cls : 'tag-teacher';
-                html += `<span class="tag ${cls}" style="${personColorStyle(t)}" ${b ? `title=\"${b.text}\"` : ''}>${t}</span>`;
+                html += `<span class="tag ${cls}" style="${personTagStyleIfDefault(cls, t)}" ${b ? `title=\"${b.text}\"` : ''}>${t}</span>`;
               });
               if(shouldShowPersonType('helpers')) entry.helpers.forEach(h => {
                 const b = formatAttBadgeForPeriod(todayAtt[h], false, p);
                 const cls = b ? b.cls : 'tag-helper';
-                html += `<span class="tag ${cls}" style="${personColorStyle(h)}" ${b ? `title=\"${b.text}\"` : ''}>${h}</span>`;
+                html += `<span class="tag ${cls}" style="${personTagStyleIfDefault(cls, h)}" ${b ? `title=\"${b.text}\"` : ''}>${h}</span>`;
               });
               if(entry.behavior && shouldShowBehavior()) html += `<div class="tag tag-behavior">${shouldShowBehaviorText() ? entry.behavior : ''}${(shouldShowBehaviorTime() && entry.behaviorTime) ? ' ('+entry.behaviorTime+')' : ''}</div>`;
               if(entry.positive) html += `<div class="tag tag-positive">${entry.positive}</div>`;
@@ -2700,8 +2724,8 @@
           let cellStyle = '';
           if (rec && rec.status === 'ABSENT') cellStyle = 'background:#fef2f2;';
           else if (b && b.cls === 'badge-tardy') cellStyle = 'background:#fef9c3;';
-          else if (entryHasProblemFor(data, selectedPerson)) cellStyle = 'background:#fecdd3;';
-          else if (isAssigned) cellStyle = 'background:#f0fdf4;';
+          else if (entryHasProblemFor(data, selectedPerson)) cellStyle = `background:${BEHAVIOR_BG};`;
+          else if (isAssigned) cellStyle = `background:${personCellBg(selectedPerson) || '#f0fdf4'};`;
 
           const cellClass = `clickable-cell matrix-cell-relative selectable-cell${neulbomOverlaps.length ? ' has-neulbom' : ''}`;
           html += `<td class="${cellClass}" style="${cellStyle}" data-cellkey="${cellId}|${selectedPerson}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${selectedPerson}')">`;
@@ -2831,8 +2855,8 @@
             const rec = todayAtt[s];
             const b = formatAttBadgeForPeriod(rec, true, p);
             const neulbomOverlaps = getNeulbomOverlapsForPeriod(s, currentDate, p);
-            let bg = entry ? '#fff7ed' : '';
-            if(entry && entryHasProblemFor(entry, s)) bg = '#fecdd3';
+            let bg = entry ? (personCellBg(s) || '#fff7ed') : '';
+            if(entry && entryHasProblemFor(entry, s)) bg = BEHAVIOR_BG;
             if(rec && rec.status === 'ABSENT') bg = '#fef2f2';
             else if(b && b.cls === 'badge-tardy') bg = '#fef9c3';
             const dividerCls = (gi > 0 && si === 0) ? ' group-divider' : '';
@@ -2871,7 +2895,7 @@
           const entry = findEntryForPerson(cellId, h);
           const rec = todayAtt[h];
           const b = formatAttBadgeForPeriod(rec, false, p);
-          let bg = entry ? '#e0e7ff' : '';
+          let bg = entry ? (personCellBg(h) || '#e0e7ff') : '';
           if(rec && rec.status === 'ABSENT') bg = '#fef2f2';
           else if(b && b.cls === 'badge-tardy') bg = '#fef9c3';
           const helperDividerCls = hi === 0 ? ' group-divider' : '';
@@ -2890,7 +2914,7 @@
           const entry = findEntryForPerson(cellId, t);
           const rec = todayAtt[t];
           const b = formatAttBadgeForPeriod(rec, false, p);
-          let bg = entry ? '#dcfce7' : '';
+          let bg = entry ? (personCellBg(t) || '#dcfce7') : '';
           if(rec && rec.status === 'ABSENT') bg = '#fef2f2';
           else if(b && b.cls === 'badge-tardy') bg = '#fef9c3';
           const teacherDividerCls = ti === 0 ? ' group-divider' : '';
@@ -2968,8 +2992,8 @@
           // scheduleData에는 애초에 완전히 빈 기록이 저장되지 않으므로(저장 시 이미 걸러짐),
           // 여기서 다시 memo/behavior 등으로 필터링하면 "지원인력만 체크된" 기록 등이 누락된다 - 모두 표시
           count++;
-          const cardBg = entry.behavior ? '#fecdd3' : '#f8fafc';
-          const cardBorder = entry.behavior ? '#fda4af' : '#e2e8f0';
+          const cardBg = entry.behavior ? BEHAVIOR_BG : '#f8fafc';
+          const cardBorder = entry.behavior ? BEHAVIOR_BORDER : '#e2e8f0';
           panel.innerHTML += `
             <div class="memo-card-clickable" style="background:${cardBg}; border:1px solid ${cardBorder}; border-radius:6px; padding:8px;" onclick="openInputModal('${cellId}', '${entry.id}', null)" title="눌러서 수정">
               <div style="font-size:0.75rem; font-weight:bold; color:#2563eb;">${p.name} (${p.time}) [${entry.className||'학급'}]</div>
