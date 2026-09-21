@@ -108,6 +108,21 @@
     .qp-chip { display:inline-block; padding:3px 8px; margin:2px; border-radius:12px; border:1px solid #cbd5e1; background:white; font-size:0.72rem; cursor:pointer; user-select:none; }
     .qp-chip.on { background:#22c55e; border-color:#16a34a; color:white; font-weight:bold; }
     .qp-student.on { background:#2563eb; border-color:#1d4ed8; }
+    .ana-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:12px; }
+    .ana-card { background:white; border:1px solid #e2e8f0; border-radius:10px; padding:12px; }
+    .ana-card h5 { margin:0 0 8px; font-size:0.85rem; color:#0f172a; }
+    .ana-kpi { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+    .ana-kpi > div { flex:1; min-width:120px; background:white; border:1px solid #e2e8f0; border-radius:10px; padding:10px; }
+    .ana-kpi b { display:block; font-size:1.4rem; }
+    .ana-kpi span { font-size:0.7rem; color:#64748b; }
+    .ana-bar-row { display:flex; align-items:center; gap:6px; font-size:0.72rem; margin:3px 0; }
+    .ana-bar-row .lbl { width:96px; text-align:right; flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ana-bar-row .bar { height:14px; border-radius:3px; }
+    .ana-heat { border-collapse:collapse; font-size:0.68rem; width:100%; }
+    .ana-heat { table-layout:fixed; min-width:0 !important; }
+    .ana-heat td, .ana-heat th { border:1px solid #e2e8f0; padding:4px 2px !important; text-align:center; min-width:0 !important; width:auto !important; height:auto !important; position:static !important; }
+    .ana-heat th:first-child { width:72px !important; }
+    .ana-bar-row > span:last-child { white-space:nowrap; }
     .beh-group-box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; margin-bottom: 8px; background: white; }
     .tag-positive { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
 
@@ -525,6 +540,7 @@
       <button class="settings-tab-btn" data-tab="helpers" onclick="switchSettingsTab('helpers')">지원인력 관리</button>
       <button class="settings-tab-btn" data-tab="teachers" onclick="switchSettingsTab('teachers')">교사 관리</button>
       <button class="settings-tab-btn" data-tab="classes" onclick="switchSettingsTab('classes')">학급 관리</button>
+      <button class="settings-tab-btn" data-tab="analysis" onclick="switchSettingsTab('analysis')">📊 행동 분석</button>
       <button class="settings-tab-btn" data-tab="behavior" onclick="switchSettingsTab('behavior')">행동 기록</button>
       <button class="settings-tab-btn" data-tab="neulbom" onclick="switchSettingsTab('neulbom')">늘봄학교</button>
       <button class="settings-tab-btn" data-tab="templates" onclick="switchSettingsTab('templates')">템플릿 관리</button>
@@ -684,6 +700,23 @@
           <input type="text" id="add-class-input" placeholder="새 학급 이름 (예: 통합지원반)" style="flex:1;">
           <button type="button" class="btn btn-secondary" onclick="addCustomClass()">+ 학급 추가</button>
         </div>
+      </div>
+
+      <!-- 행동 분석 대시보드 -->
+      <div id="settings-tab-analysis" class="settings-tab-content" style="display:none;">
+        <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; margin-bottom:12px;">
+          <div><label style="font-size:0.7rem;">시작일</label><input type="date" id="ana-start" onchange="renderBehaviorAnalysis()"></div>
+          <div><label style="font-size:0.7rem;">종료일</label><input type="date" id="ana-end" onchange="renderBehaviorAnalysis()"></div>
+          <div style="display:flex; gap:3px;">
+            <button type="button" class="btn btn-secondary" style="padding:4px 8px; font-size:0.72rem;" onclick="setAnalysisRange(7)">1주</button>
+            <button type="button" class="btn btn-secondary" style="padding:4px 8px; font-size:0.72rem;" onclick="setAnalysisRange(28)">4주</button>
+            <button type="button" class="btn btn-secondary" style="padding:4px 8px; font-size:0.72rem;" onclick="setAnalysisRange('year')">학년도 전체</button>
+          </div>
+          <div><label style="font-size:0.7rem;">구분</label><select id="ana-category" onchange="renderBehaviorAnalysis()"><option value="problem">🚨 문제행동</option><option value="positive">⭐ 긍정행동</option></select></div>
+          <div><label style="font-size:0.7rem;">학생</label><select id="ana-student" onchange="renderBehaviorAnalysis()"></select></div>
+          <div><label style="font-size:0.7rem;">행동 유형</label><select id="ana-type" onchange="renderBehaviorAnalysis()"></select></div>
+        </div>
+        <div id="ana-content"></div>
       </div>
 
       <!-- 행동 기록 설정: 행동 분류체계 + 후속결과(대응) 선택지 -->
@@ -1742,6 +1775,121 @@
       qpState.lastBatch = null;
       render();
       document.getElementById('qp-result').innerHTML = '<span style="color:#64748b;">↶ 방금 기록을 취소했습니다.</span>';
+    }
+
+    // ===== 행동 분석 대시보드 (설정 → 📊 행동 분석) =====
+    function openBehaviorAnalysis() {
+      if(!document.getElementById('ana-start').value) setAnalysisRange(28, true);
+      const stuSel = document.getElementById('ana-student');
+      const cur = stuSel.value;
+      const r = getRoster();
+      stuSel.innerHTML = '<option value="">전체 학생</option>' + [...r.mainStudents, ...r.extraStudents].map(n => `<option value="${escapeAttr(n)}">${escapeAttr(n)}</option>`).join('');
+      stuSel.value = cur;
+      renderBehaviorAnalysis();
+    }
+    function setAnalysisRange(days, silent) {
+      const end = new Date(currentDate); let start = new Date(end);
+      if(days === 'year') { const y = getAcademicYear(end); start = new Date(y, 2, 1); }
+      else start.setDate(end.getDate() - days + 1);
+      document.getElementById('ana-start').value = toDateStr(start);
+      document.getElementById('ana-end').value = toDateStr(end);
+      if(!silent) renderBehaviorAnalysis();
+    }
+    // 기간 내 행동 이벤트를 평탄화: [{date, period, dow, student(s), ev}]
+    function collectBehaviorEvents(startStr, endStr) {
+      const out = [];
+      Object.keys(scheduleData).forEach(cellId => {
+        const i = cellId.indexOf('_'); const date = cellId.slice(0, i), period = cellId.slice(i + 1);
+        if(date < startStr || date > endStr) return;
+        (scheduleData[cellId] || []).forEach(entry => {
+          if(!Array.isArray(entry.behaviorEvents)) normalizeBehaviorEntry(entry);
+          entry.behaviorEvents.forEach(ev => {
+            if(!ev.type) return;
+            out.push({ date, period, dow: new Date(date + 'T00:00:00').getDay(), students: ev.student ? [ev.student] : entry.students, ev });
+          });
+        });
+      });
+      return out;
+    }
+    function anaBars(counts, color, total) {
+      const keys = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+      if(!keys.length) return '<div style="font-size:0.72rem; color:#94a3b8;">데이터 없음</div>';
+      const max = Math.max(...keys.map(k => counts[k]));
+      return keys.map(k => `<div class="ana-bar-row"><span class="lbl" title="${escapeAttr(k)}">${escapeAttr(k)}</span><div class="bar" style="width:${Math.max(4, counts[k] / max * 100 * 0.7)}%; background:${color};"></div><span>${counts[k]}${total ? ` (${Math.round(counts[k] / total * 100)}%)` : ''}</span></div>`).join('');
+    }
+    function renderBehaviorAnalysis() {
+      const startStr = document.getElementById('ana-start').value, endStr = document.getElementById('ana-end').value;
+      const cat = document.getElementById('ana-category').value;
+      const stu = document.getElementById('ana-student').value;
+      const typeSel = document.getElementById('ana-type');
+      const all = collectBehaviorEvents(startStr, endStr).filter(x => (x.ev.category || 'problem') === cat && (!stu || x.students.includes(stu)));
+      // 유형 선택지는 현재 조건의 실제 기록 + 설정 목록
+      const prevType = typeSel.value;
+      const tax = getBehaviorTaxonomy();
+      const types = [...new Set([...tax[cat].flatMap(g => g.items), ...all.map(x => x.ev.type)])];
+      typeSel.innerHTML = '<option value="">전체 유형</option>' + types.map(t => `<option value="${escapeAttr(t)}">${escapeAttr(t)}</option>`).join('');
+      typeSel.value = types.includes(prevType) ? prevType : '';
+      const list = typeSel.value ? all.filter(x => x.ev.type === typeSel.value) : all;
+      const color = cat === 'problem' ? '#f43f5e' : '#22c55e';
+      const content = document.getElementById('ana-content');
+      if(!list.length) { content.innerHTML = '<div class="ana-card" style="text-align:center; color:#94a3b8; font-size:0.85rem;">선택한 조건에 해당하는 기록이 없습니다.</div>'; return; }
+
+      const dur = x => { const s = timeToMinutes(x.ev.start), e = timeToMinutes(x.ev.end); return (s !== null && e !== null && e > s) ? e - s : null; };
+      const durs = list.map(dur).filter(d => d !== null);
+      const ints = list.map(x => Number(x.ev.intensity)).filter(n => n >= 1 && n <= 3);
+      const days = new Set(list.map(x => x.date)).size;
+
+      // KPI
+      let html = `<div class="ana-kpi">
+        <div><span>총 발생</span><b style="color:${color};">${list.length}건</b></div>
+        <div><span>발생한 날</span><b>${days}일</b><span>하루 평균 ${(list.length / days).toFixed(1)}건</span></div>
+        ${cat === 'problem' ? `<div><span>평균 지속시간</span><b>${durs.length ? Math.round(durs.reduce((a, b) => a + b, 0) / durs.length) + '분' : '-'}</b><span>시간 입력된 ${durs.length}건 기준</span></div>
+        <div><span>평균 강도</span><b>${ints.length ? (ints.reduce((a, b) => a + b, 0) / ints.length).toFixed(1) : '-'}</b><span>1=약 · 2=중 · 3=강</span></div>` : ''}
+      </div><div class="ana-grid">`;
+
+      // 요일 × 교시 히트맵
+      const dows = [1, 2, 3, 4, 5], dowName = ['일', '월', '화', '수', '목', '금', '토'];
+      const heat = {}; list.forEach(x => { const k = x.dow + '|' + x.period; heat[k] = (heat[k] || 0) + 1; });
+      const hmax = Math.max(1, ...Object.values(heat));
+      const rgb = cat === 'problem' ? '244,63,94' : '34,197,94';
+      html += `<div class="ana-card"><h5>🗓️ 요일 × 교시 (진할수록 자주 발생)</h5><div style="overflow-x:auto;"><table class="ana-heat"><tr><th></th>${dows.map(d => `<th>${dowName[d]}</th>`).join('')}</tr>` +
+        PERIODS.map(p => `<tr><th style="text-align:left; white-space:nowrap;">${escapeAttr(p.shortLabel || p.name)}</th>${dows.map(d => { const v = heat[d + '|' + p.name] || 0;
+          return `<td style="background:${v ? `rgba(${rgb},${(0.15 + 0.85 * v / hmax).toFixed(2)})` : 'white'}; color:${v / hmax > 0.6 ? 'white' : '#334155'};">${v || ''}</td>`; }).join('')}</tr>`).join('') + '</table></div></div>';
+
+      // 유형 분포
+      const byType = {}; list.forEach(x => byType[x.ev.type] = (byType[x.ev.type] || 0) + 1);
+      html += `<div class="ana-card"><h5>📋 행동 유형 분포</h5>${anaBars(byType, color, list.length)}</div>`;
+
+      // 학생별
+      if(!stu) {
+        const byStu = {}; list.forEach(x => x.students.forEach(n => byStu[n] = (byStu[n] || 0) + 1));
+        html += `<div class="ana-card"><h5>👤 학생별 발생</h5>${anaBars(byStu, '#6366f1')}</div>`;
+      }
+
+      // 주별 추이 (건수 막대 + 평균강도)
+      const weekKey = ds => { const d = new Date(ds + 'T00:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return toDateStr(d); };
+      const weeks = {}; list.forEach(x => { const k = weekKey(x.date); (weeks[k] = weeks[k] || { n: 0, ints: [] }).n++; const n = Number(x.ev.intensity); if(n >= 1 && n <= 3) weeks[k].ints.push(n); });
+      const wk = Object.keys(weeks).sort(); const wmax = Math.max(...wk.map(k => weeks[k].n));
+      html += `<div class="ana-card"><h5>📈 주별 추이${cat === 'problem' ? ' (막대=건수, 숫자 아래=평균강도)' : ''}</h5><div style="display:flex; align-items:flex-end; gap:4px; height:130px; overflow-x:auto; padding-top:14px;">` +
+        wk.map(k => { const w = weeks[k]; const avg = w.ints.length ? (w.ints.reduce((a, b) => a + b, 0) / w.ints.length).toFixed(1) : '';
+          return `<div style="display:flex; flex-direction:column; align-items:center; min-width:34px; font-size:0.62rem;"><span>${w.n}</span><div style="width:22px; height:${Math.max(4, w.n / wmax * 80)}px; background:${color}; border-radius:3px 3px 0 0;"></div><span style="color:#64748b;">${Number(k.slice(5, 7))}/${Number(k.slice(8))}~</span>${cat === 'problem' && avg ? `<span style="color:#be123c;">강${avg}</span>` : ''}</div>`; }).join('') + '</div></div>';
+
+      if(cat === 'problem') {
+        // 강도 분포
+        const byInt = {}; list.forEach(x => { const k = BEHAVIOR_INTENSITY[x.ev.intensity] || '미입력'; byInt[k] = (byInt[k] || 0) + 1; });
+        html += `<div class="ana-card"><h5>💥 강도 분포</h5>${anaBars(byInt, '#fb7185', list.length)}</div>`;
+        // ABC 상세기록 요약
+        const detailed = list.filter(x => x.ev.func || (x.ev.consequences || []).length || x.ev.antecedent);
+        const byFunc = {}, byCons = {};
+        detailed.forEach(x => { if(x.ev.func) byFunc[x.ev.func] = (byFunc[x.ev.func] || 0) + 1; (x.ev.consequences || []).forEach(c => byCons[c] = (byCons[c] || 0) + 1); });
+        html += `<div class="ana-card"><h5>🔎 추정 기능 <span style="font-weight:normal; font-size:0.7rem; color:#64748b;">(상세기록 ${detailed.length}건)</span></h5>${anaBars(byFunc, '#f59e0b')}</div>`;
+        html += `<div class="ana-card"><h5>↩️ 후속결과(대응)</h5>${anaBars(byCons, '#0ea5e9')}</div>`;
+        // 최근 선행사건 일화기록
+        const recentA = detailed.filter(x => x.ev.antecedent).sort((a, b) => (b.date + (b.ev.start || '')).localeCompare(a.date + (a.ev.start || ''))).slice(0, 8);
+        html += `<div class="ana-card" style="grid-column:1/-1;"><h5>📝 최근 선행사건 기록</h5>${recentA.length ? recentA.map(x =>
+          `<div style="font-size:0.72rem; border-bottom:1px dashed #e2e8f0; padding:4px 0;"><b>${x.date.slice(5)} ${escapeAttr(x.period)}</b> · ${escapeAttr(x.students.join(', '))} · <span style="color:#be123c;">${escapeAttr(x.ev.type)}</span>${x.ev.func ? ` · <span style="color:#b45309;">${escapeAttr(x.ev.func)}</span>` : ''}<br>A: ${escapeAttr(x.ev.antecedent)}${(x.ev.consequences || []).length ? ` → C: ${escapeAttr(x.ev.consequences.join(', '))}` : ''}</div>`).join('') : '<div style="font-size:0.72rem; color:#94a3b8;">선행사건이 입력된 기록이 없습니다.</div>'}</div>`;
+      }
+      content.innerHTML = html + '</div>';
     }
 
     // ===== 여러 셀 일괄 삭제 =====
@@ -3949,6 +4097,7 @@
       if(tab === 'templates') openTemplateModal();
       if(tab === 'classes') renderClassManagement();
       if(tab === 'behavior') renderBehaviorSettings();
+      if(tab === 'analysis') openBehaviorAnalysis();
     }
 
     // ===== 학급 관리: 특수학급별 담당교사 + 소속 학생을 학년도 기준으로 한눈에 =====
