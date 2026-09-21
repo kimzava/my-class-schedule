@@ -94,6 +94,18 @@
     .tag-helper { background: #e0e7ff; color: #3730a3; }
     .tag-teacher { background: #dcfce7; color: #166534; }
     .tag-behavior { background: #fecdd3; color: #9f1239; border: 1px solid #fda4af; }
+    .tag-positive-beh { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .beh-row { border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px; margin-bottom: 6px; background: #f8fafc; }
+    .beh-row.beh-problem { border-left: 4px solid #f43f5e; }
+    .beh-row.beh-positive { border-left: 4px solid #22c55e; }
+    .beh-row-main { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+    .beh-row-main select, .beh-row-main input { padding: 3px 4px; font-size: 0.75rem; }
+    .beh-detail { margin-top: 6px; padding-top: 6px; border-top: 1px dashed #cbd5e1; display: none; }
+    .beh-detail label { font-size: 0.7rem; color: #475569; display: block; margin: 4px 0 2px; }
+    .beh-detail textarea, .beh-detail input[type=text], .beh-detail select { width: 100%; font-size: 0.75rem; box-sizing: border-box; }
+    .beh-chip { display: inline-flex; align-items: center; gap: 3px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 12px; padding: 2px 8px; font-size: 0.75rem; margin: 2px; }
+    .beh-chip button { border: none; background: none; cursor: pointer; color: #94a3b8; padding: 0; font-size: 0.8rem; }
+    .beh-group-box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; margin-bottom: 8px; background: white; }
     .tag-positive { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
 
     /* 학급 주간 뷰: 한 교시+날짜 셀 안에 여러 기록(항목)이 있을 때 구분 표시 */
@@ -273,8 +285,9 @@
         <button class="btn btn-secondary" style="padding:3px 10px;" onclick="copySelectedCells()">📋 복사</button>
         <button class="btn btn-primary" style="padding:3px 10px;" onclick="pasteToSelectedCells()">📥 붙여넣기</button>
         <button class="btn btn-primary" style="padding:3px 10px; background:#7c3aed;" onclick="openBulkAssignModal()">🖊️ 일괄 지정</button>
+        <button class="btn btn-secondary" style="padding:3px 10px; background:#fee2e2; color:#b91c1c; border-color:#fca5a5;" onclick="bulkDeleteSelectedCells()">🗑️ 일괄 삭제</button>
         <button class="btn btn-secondary" style="padding:3px 10px;" onclick="clearCellSelection()">✕ 선택 해제</button>
-        <span style="color:#64748b; font-size:0.7rem; margin-left:auto;">Shift+클릭/드래그로 셀 선택</span>
+        <span style="color:#64748b; font-size:0.7rem; margin-left:auto;">Shift+클릭/드래그로 셀 선택 · Delete키로 삭제</span>
       </div>
       <div class="content-area" id="view-content" style="flex:1; overflow:auto;"></div>
     </div>
@@ -343,21 +356,9 @@
       <div class="checkbox-grid" id="cb-teachers"></div>
     </div>
     <div class="form-group">
-      <label>🚨 돌발/문제행동 기록 (수직 화살표 ↕ 및 색상 강조)</label>
-      <div style="display:flex; gap:4px; margin-bottom:4px; align-items:center;">
-        <select id="behavior-preset" style="flex:2;">
-          <option value="">-- 행동 선택 --</option>
-          <option value="소리지름">소리지름</option>
-          <option value="수업거부">수업거부</option>
-          <option value="자리이탈">자리이탈</option>
-          <option value="공격행동">공격행동</option>
-          <option value="물건던짐">물건던짐</option>
-          <option value="자해행동">자해행동</option>
-        </select>
-        <input type="text" placeholder="09:00" pattern="^([01][0-9]|2[0-3]):[0-5][0-9]$" inputmode="numeric" maxlength="5" onblur="formatTimeInput(this)" id="behavior-time-start" style="flex:1;">
-        <span>~</span>
-        <input type="text" placeholder="09:00" pattern="^([01][0-9]|2[0-3]):[0-5][0-9]$" inputmode="numeric" maxlength="5" onblur="formatTimeInput(this)" id="behavior-time-end" style="flex:1;">
-      </div>
+      <label>🚨 행동 기록 <span style="font-weight:normal; font-size:0.7rem; color:#64748b;">(문제행동=분홍 강조·화살표 / 긍정행동=초록 · 📝로 ABC 상세기록)</span></label>
+      <div id="behavior-events-list"></div>
+      <button type="button" class="btn btn-secondary" style="padding:3px 10px; font-size:0.75rem;" onclick="addBehaviorEventRow()">+ 행동 추가</button>
     </div>
     <div class="form-group">
       <label>⭐ 잘한 행동 / 칭찬 이모지</label>
@@ -501,6 +502,7 @@
       <button class="settings-tab-btn" data-tab="helpers" onclick="switchSettingsTab('helpers')">지원인력 관리</button>
       <button class="settings-tab-btn" data-tab="teachers" onclick="switchSettingsTab('teachers')">교사 관리</button>
       <button class="settings-tab-btn" data-tab="classes" onclick="switchSettingsTab('classes')">학급 관리</button>
+      <button class="settings-tab-btn" data-tab="behavior" onclick="switchSettingsTab('behavior')">행동 기록</button>
       <button class="settings-tab-btn" data-tab="neulbom" onclick="switchSettingsTab('neulbom')">늘봄학교</button>
       <button class="settings-tab-btn" data-tab="templates" onclick="switchSettingsTab('templates')">템플릿 관리</button>
     </div>
@@ -659,6 +661,23 @@
           <input type="text" id="add-class-input" placeholder="새 학급 이름 (예: 통합지원반)" style="flex:1;">
           <button type="button" class="btn btn-secondary" onclick="addCustomClass()">+ 학급 추가</button>
         </div>
+      </div>
+
+      <!-- 행동 기록 설정: 행동 분류체계 + 후속결과(대응) 선택지 -->
+      <div id="settings-tab-behavior" class="settings-tab-content" style="display:none;">
+        <p style="font-size:0.75rem; color:#64748b;">시간표 칸의 "행동 기록"에서 고를 수 있는 목록입니다. 항목을 지워도 이미 저장된 기록은 그대로 남습니다.</p>
+        <h4 style="margin:12px 0 6px; color:#be123c;">🚨 문제행동</h4>
+        <div id="beh-tax-problem"></div>
+        <div style="display:flex; gap:4px; margin-bottom:16px;"><input type="text" id="beh-new-group-problem" placeholder="새 카테고리 (예: 기타)" style="flex:1;"><button type="button" class="btn btn-secondary" onclick="addBehaviorGroup('problem')">+ 카테고리</button></div>
+        <h4 style="margin:12px 0 6px; color:#15803d;">⭐ 긍정행동</h4>
+        <div id="beh-tax-positive"></div>
+        <div style="display:flex; gap:4px; margin-bottom:16px;"><input type="text" id="beh-new-group-positive" placeholder="새 카테고리" style="flex:1;"><button type="button" class="btn btn-secondary" onclick="addBehaviorGroup('positive')">+ 카테고리</button></div>
+        <h4 style="margin:12px 0 6px;">↩️ 후속결과(대응방식) 선택지</h4>
+        <div class="beh-group-box"><div id="beh-consequence-list"></div>
+          <div style="display:flex; gap:4px; margin-top:6px;"><input type="text" id="beh-new-consequence" placeholder="새 대응방식" style="flex:1;"><button type="button" class="btn btn-secondary" onclick="addBehaviorConsequence()">+ 추가</button></div>
+        </div>
+        <h4 style="margin:12px 0 6px;">🔎 추정 기능 (ABA 표준, 고정)</h4>
+        <div class="beh-group-box" id="beh-function-list"></div>
       </div>
 
       <!-- 늘봄학교 (설정 페이지 안에 직접 표시) -->
@@ -1264,6 +1283,420 @@
       alert('일괄 지정이 완료되었습니다.');
     }
 
+    // ===== 사람별 색상 (프로필에서 지정한 색을 이름표 왼쪽 띠 / 매트릭스 열 머리 윗줄로 표시) =====
+    // 이름표 바탕색은 유형(학생=노랑/교사=초록/지원=남색)과 출결·문제행동 상태를 나타내므로 그대로 두고, 개인 색은 띠로만 겹쳐 표시
+    function getPersonColor(name) {
+      if(!name) return '';
+      const year = String(getAcademicYear(currentDate));
+      let id = rosterIdMap[year] && rosterIdMap[year][name];
+      if(!id) { for(const y of Object.keys(rosterIdMap)) { if(rosterIdMap[y][name]) { id = rosterIdMap[y][name]; break; } } }
+      return (id && people[id] && people[id].color) || '';
+    }
+    function personColorStyle(name) {
+      const c = getPersonColor(name);
+      return c ? `box-shadow: inset 4px 0 0 ${c}; padding-left:8px;` : '';
+    }
+    function personHeaderColorStyle(name) {
+      const c = getPersonColor(name);
+      return c ? `border-top: 4px solid ${c};` : '';
+    }
+    function coloredNameList(list) {
+      return list.map(n => { const c = getPersonColor(n); return c ? `<span style="color:${c};">●</span>${n}` : n; }).join(', ');
+    }
+
+    // ===== 행동 기록 시스템 =====
+    // entry.behaviorEvents = [{ id, student, category:'problem'|'positive', type, intensity(1~3|''), start, end,
+    //                           antecedent, consequences:[], consequenceNote, func, intervention }]
+    // 시트 저장: 기존 "문제행동" 열에 이벤트 배열 JSON을 그대로 저장 (Code.gs 변경/재배포 불필요)
+    // 화면 호환: entry.behavior(문제행동 요약 문자열) / entry.behaviorTime(문제행동 전체 구간)은 이벤트에서 자동 계산되는 파생값
+    const DEFAULT_BEHAVIOR_TAXONOMY = {
+      problem: [
+        { group: '신체/공격', items: ['때리기', '물건던지기', '머리박기', '상동행동'] },
+        { group: '회피/이탈', items: ['자리이탈', '교실이탈', '가출', '수업과제거부'] },
+        { group: '정서표출', items: ['큰소리지르기', '울음떼쓰기', '감정폭발'] },
+        { group: '관계', items: ['타인활동방해'] }
+      ],
+      positive: [
+        { group: '자기조절', items: ['차분히앉아있기', '조용히있기', '경청하기'] },
+        { group: '참여/성취', items: ['손들고말하기', '끝까지해내기', '도전하기', '정리정돈'] },
+        { group: '사회성', items: ['다른사람돕기', '인사하기', '차례지키기', '인사약속바로말하기'] }
+      ]
+    };
+    const DEFAULT_BEHAVIOR_CONSEQUENCES = ['무시(계획된 무시)', '관심제공', '요구철회', '신체개입', '타임아웃', '대체행동안내', '기타'];
+    const BEHAVIOR_FUNCTIONS = ['관심끌기', '회피/도피', '감각추구', '획득/요구충족', '복합/불명확'];
+    const BEHAVIOR_INTENSITY = { 1: '약', 2: '중', 3: '강' };
+
+    function getBehaviorTaxonomy() {
+      try { const v = JSON.parse(localStorage.getItem('behaviorTaxonomy')); if(v && v.problem && v.positive) return v; } catch(e) {}
+      return JSON.parse(JSON.stringify(DEFAULT_BEHAVIOR_TAXONOMY));
+    }
+    function saveBehaviorTaxonomy(tax) {
+      localStorage.setItem('behaviorTaxonomy', JSON.stringify(tax));
+      postToSheet('settings', { key: 'behaviorTaxonomy', value: JSON.stringify(tax) });
+    }
+    function getBehaviorConsequences() {
+      try { const v = JSON.parse(localStorage.getItem('behaviorConsequences')); if(Array.isArray(v)) return v; } catch(e) {}
+      return [...DEFAULT_BEHAVIOR_CONSEQUENCES];
+    }
+    function saveBehaviorConsequences(list) {
+      localStorage.setItem('behaviorConsequences', JSON.stringify(list));
+      postToSheet('settings', { key: 'behaviorConsequences', value: JSON.stringify(list) });
+    }
+    function getBehaviorCategory(type) {
+      const tax = getBehaviorTaxonomy();
+      if(tax.positive.some(g => g.items.includes(type))) return 'positive';
+      return 'problem'; // 목록에 없는 과거 행동(소리지름 등)은 문제행동으로 간주
+    }
+    function newBehaviorEventId() { return 'bev_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+    function blankBehaviorEvent() {
+      return { id: newBehaviorEventId(), student: '', category: 'problem', type: '', intensity: '', start: '', end: '',
+               antecedent: '', consequences: [], consequenceNote: '', func: '', intervention: '' };
+    }
+
+    // 문제행동 요약/전체 구간을 이벤트에서 다시 계산 (entry를 직접 수정하고 반환)
+    function syncBehaviorDerived(entry) {
+      const probs = (entry.behaviorEvents || []).filter(ev => ev.category === 'problem' && ev.type);
+      entry.behavior = probs.map(ev => (ev.student ? ev.student + ' ' : '') + ev.type + (ev.intensity ? `(${BEHAVIOR_INTENSITY[ev.intensity]})` : '')).join(' → ');
+      const timed = probs.filter(ev => timeToMinutes(ev.start) !== null && timeToMinutes(ev.end) !== null && timeToMinutes(ev.start) < timeToMinutes(ev.end));
+      if(timed.length) {
+        const s = timed.reduce((a, ev) => timeToMinutes(ev.start) < timeToMinutes(a) ? ev.start : a, timed[0].start);
+        const e = timed.reduce((a, ev) => timeToMinutes(ev.end) > timeToMinutes(a) ? ev.end : a, timed[0].end);
+        entry.behaviorTime = `${s}-${e}`;
+      } else entry.behaviorTime = '';
+      return entry;
+    }
+
+    // 시트/캐시에서 읽은 기록을 이벤트 구조로 변환 (JSON이면 파싱, 예전 문자열이면 이벤트 1개로 변환)
+    function normalizeBehaviorEntry(entry) {
+      if(!entry) return;
+      let events = [];
+      const raw = (entry.behavior || '').trim();
+      if(raw.startsWith('[')) {
+        try { events = JSON.parse(raw); } catch(e) { events = []; }
+      } else if(raw) {
+        const m = (entry.behaviorTime || '').match(/(\d{1,2}:\d{2})\s*[-~〜～]\s*(\d{1,2}:\d{2})/);
+        events = [Object.assign(blankBehaviorEvent(), { type: raw, category: getBehaviorCategory(raw), start: m ? m[1] : '', end: m ? m[2] : '' })];
+      }
+      entry.behaviorEvents = Array.isArray(events) ? events.map(ev => Object.assign(blankBehaviorEvent(), ev)) : [];
+      syncBehaviorDerived(entry);
+    }
+
+    function findEntryById(id) {
+      if(!id) return null;
+      for(const list of Object.values(scheduleData)) { const e = list.find(x => x.id === id); if(e) return e; }
+      return null;
+    }
+    // schedule 저장 요청 직전에 "문제행동" 열을 이벤트 JSON으로 바꿔줌 → 어디서 저장하든(붙여넣기/일괄지정/학급이름변경 등) 상세기록이 유실되지 않음
+    function prepareSheetData(type, data) {
+      if(type !== 'schedule' || !data || !data.id) return data;
+      const entry = findEntryById(data.id);
+      if(!entry || !Array.isArray(entry.behaviorEvents)) return data;
+      syncBehaviorDerived(entry);
+      return Object.assign({}, data, {
+        behavior: entry.behaviorEvents.length ? JSON.stringify(entry.behaviorEvents) : '',
+        behaviorTime: entry.behaviorTime
+      });
+    }
+
+    // 특정 인물 기준 문제행동 이벤트 (학생이면 본인 또는 "전체" 대상 이벤트만, 교사/지원인력이면 그 수업의 모든 문제행동)
+    function getProblemEventsFor(entry, name) {
+      if(!entry) return [];
+      if(!Array.isArray(entry.behaviorEvents)) normalizeBehaviorEntry(entry);
+      const probs = entry.behaviorEvents.filter(ev => ev.category === 'problem' && ev.type);
+      if(!name || !entry.students.includes(name)) return probs;
+      return probs.filter(ev => !ev.student || ev.student === name);
+    }
+    function entryHasProblemFor(entry, name) { return getProblemEventsFor(entry, name).length > 0; }
+    function positiveBehaviorTagsHtml(entry) {
+      if(!entry || !Array.isArray(entry.behaviorEvents)) return '';
+      return entry.behaviorEvents.filter(ev => ev.category === 'positive' && ev.type)
+        .map(ev => `<div class="tag tag-positive-beh">⭐ ${ev.student ? ev.student + ' ' : ''}${ev.type}</div>`).join('');
+    }
+
+    // --- 입력 모달의 행동 이벤트 편집 ---
+    let modalBehaviorEvents = [];
+    function escapeAttr(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+    function behaviorTypeOptionsHtml(selected) {
+      const tax = getBehaviorTaxonomy();
+      let html = '<option value="">-- 행동 선택 --</option>';
+      let found = !selected;
+      [['problem', '🚨 '], ['positive', '⭐ ']].forEach(([cat, icon]) => {
+        tax[cat].forEach(g => {
+          html += `<optgroup label="${icon}${escapeAttr(g.group)}">` + g.items.map(it => {
+            if(it === selected) found = true;
+            return `<option value="${escapeAttr(it)}" ${it === selected ? 'selected' : ''}>${escapeAttr(it)}</option>`;
+          }).join('') + '</optgroup>';
+        });
+      });
+      if(!found) html += `<optgroup label="(목록에 없는 기존 값)"><option value="${escapeAttr(selected)}" selected>${escapeAttr(selected)}</option></optgroup>`;
+      return html;
+    }
+
+    function getModalStudentChoices() {
+      const checked = Array.from(document.querySelectorAll('#cb-main-students input:checked, #cb-extra-students input:checked')).map(c => c.value);
+      return checked;
+    }
+
+    function renderBehaviorEventRows() {
+      const container = document.getElementById('behavior-events-list');
+      if(!container) return;
+      const students = getModalStudentChoices();
+      const consequences = getBehaviorConsequences();
+      container.innerHTML = modalBehaviorEvents.map((ev, i) => {
+        const stuOpts = ['<option value="">(학생 전체)</option>']
+          .concat([...new Set([...students, ev.student].filter(Boolean))].map(n => `<option value="${escapeAttr(n)}" ${n === ev.student ? 'selected' : ''}>${escapeAttr(n)}</option>`)).join('');
+        const hasDetail = ev.antecedent || (ev.consequences && ev.consequences.length) || ev.consequenceNote || ev.func || ev.intervention;
+        const consOpts = [...new Set([...consequences, ...(ev.consequences || [])])];
+        return `<div class="beh-row ${ev.category === 'positive' ? 'beh-positive' : 'beh-problem'}" data-idx="${i}" data-id="${escapeAttr(ev.id)}">
+          <div class="beh-row-main">
+            <select class="bev-student" style="flex:0 0 84px;">${stuOpts}</select>
+            <select class="bev-type" style="flex:2; min-width:84px;" onchange="onBehaviorTypeChange(this)">${behaviorTypeOptionsHtml(ev.type)}</select>
+            <select class="bev-intensity" title="강도" style="width:64px;">
+              <option value="">강도-</option>${[1,2,3].map(n => `<option value="${n}" ${String(ev.intensity) === String(n) ? 'selected' : ''}>${BEHAVIOR_INTENSITY[n]}</option>`).join('')}
+            </select>
+            <input type="text" class="bev-start" placeholder="시작" maxlength="5" inputmode="numeric" onblur="formatTimeInput(this)" value="${escapeAttr(ev.start)}" style="width:60px;">
+            <span>~</span>
+            <input type="text" class="bev-end" placeholder="종료" maxlength="5" inputmode="numeric" onblur="formatTimeInput(this)" value="${escapeAttr(ev.end)}" style="width:60px;">
+            <button type="button" class="btn btn-secondary" style="padding:2px 6px; ${hasDetail ? 'background:#fef3c7;' : ''}" title="ABC 상세기록" onclick="toggleBehaviorDetail(this)">📝</button>
+            <button type="button" class="btn btn-secondary" style="padding:2px 6px; color:#b91c1c;" title="이 행동 삭제" onclick="removeBehaviorEventRow(${i})">✕</button>
+          </div>
+          <div class="beh-detail" style="${hasDetail ? 'display:block;' : ''}">
+            <label>A. 선행사건 (행동 직전 상황 — 일화기록)</label>
+            <textarea class="bev-antecedent" rows="2" placeholder="예: 수학 활동지를 나눠주자">${escapeAttr(ev.antecedent)}</textarea>
+            <label>C. 후속결과 (교사/주변의 대응 — 복수선택)</label>
+            <div class="bev-consequences" style="display:flex; flex-wrap:wrap; gap:2px 10px;">
+              ${consOpts.map(c => `<label style="display:inline-flex; align-items:center; gap:3px; font-size:0.72rem; margin:0;"><input type="checkbox" value="${escapeAttr(c)}" ${(ev.consequences || []).includes(c) ? 'checked' : ''} style="width:auto;">${escapeAttr(c)}</label>`).join('')}
+            </div>
+            <input type="text" class="bev-consequence-note" placeholder="대응 보충 메모 (선택)" value="${escapeAttr(ev.consequenceNote)}" style="margin-top:3px;">
+            <label>추정 기능</label>
+            <select class="bev-func"><option value="">-- 선택 안 함 --</option>${BEHAVIOR_FUNCTIONS.map(f => `<option value="${f}" ${f === ev.func ? 'selected' : ''}>${f}</option>`).join('')}</select>
+            <label>중재방법 / 메모</label>
+            <textarea class="bev-intervention" rows="2">${escapeAttr(ev.intervention)}</textarea>
+          </div>
+        </div>`;
+      }).join('') || '<div style="font-size:0.72rem; color:#94a3b8; margin-bottom:4px;">기록된 행동이 없습니다.</div>';
+    }
+
+    // 현재 화면의 입력값을 이벤트 배열로 읽어오기
+    function collectBehaviorEventRows() {
+      const rows = document.querySelectorAll('#behavior-events-list .beh-row');
+      return Array.from(rows).map(row => {
+        const q = c => row.querySelector(c);
+        const type = q('.bev-type').value;
+        return {
+          id: row.dataset.id || newBehaviorEventId(),
+          student: q('.bev-student').value,
+          category: type ? getBehaviorCategory(type) : 'problem',
+          type,
+          intensity: q('.bev-intensity').value ? Number(q('.bev-intensity').value) : '',
+          start: q('.bev-start').value.trim(),
+          end: q('.bev-end').value.trim(),
+          antecedent: q('.bev-antecedent').value.trim(),
+          consequences: Array.from(row.querySelectorAll('.bev-consequences input:checked')).map(c => c.value),
+          consequenceNote: q('.bev-consequence-note').value.trim(),
+          func: q('.bev-func').value,
+          intervention: q('.bev-intervention').value.trim()
+        };
+      });
+    }
+
+    function addBehaviorEventRow() {
+      modalBehaviorEvents = collectBehaviorEventRows();
+      const ev = blankBehaviorEvent();
+      // 편의: 직전 행동의 학생·종료시각을 이어받음 (자리이탈 → 공격행동처럼 격화되는 흐름 기록용)
+      const prev = modalBehaviorEvents[modalBehaviorEvents.length - 1];
+      if(prev) { ev.student = prev.student; ev.start = prev.end || ''; }
+      modalBehaviorEvents.push(ev);
+      renderBehaviorEventRows();
+    }
+    function removeBehaviorEventRow(i) {
+      modalBehaviorEvents = collectBehaviorEventRows();
+      modalBehaviorEvents.splice(i, 1);
+      renderBehaviorEventRows();
+    }
+    function toggleBehaviorDetail(btn) {
+      const d = btn.closest('.beh-row').querySelector('.beh-detail');
+      d.style.display = d.style.display === 'block' ? 'none' : 'block';
+    }
+    function onBehaviorTypeChange(sel) {
+      const row = sel.closest('.beh-row');
+      const cat = sel.value ? getBehaviorCategory(sel.value) : 'problem';
+      row.classList.toggle('beh-positive', cat === 'positive');
+      row.classList.toggle('beh-problem', cat !== 'positive');
+    }
+    // 학생 체크박스가 바뀌면 행동의 "학생" 선택지도 갱신
+    document.addEventListener('change', function(e) {
+      if(e.target && e.target.closest && e.target.closest('#cb-main-students, #cb-extra-students') && document.getElementById('behavior-events-list')) {
+        modalBehaviorEvents = collectBehaviorEventRows();
+        renderBehaviorEventRows();
+      }
+    });
+
+    // --- 설정: 행동 분류체계 / 후속결과 관리 ---
+    function renderBehaviorSettings() {
+      const tax = getBehaviorTaxonomy();
+      ['problem', 'positive'].forEach(cat => {
+        document.getElementById('beh-tax-' + cat).innerHTML = tax[cat].map((g, gi) => `
+          <div class="beh-group-box">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+              <b style="font-size:0.85rem;">${escapeAttr(g.group)}</b>
+              <button type="button" class="btn btn-secondary" style="padding:1px 6px; font-size:0.7rem;" onclick="renameBehaviorGroup('${cat}', ${gi})">이름변경</button>
+              <button type="button" class="btn btn-secondary" style="padding:1px 6px; font-size:0.7rem; color:#b91c1c;" onclick="deleteBehaviorGroup('${cat}', ${gi})">카테고리 삭제</button>
+            </div>
+            <div>${g.items.map((it, ii) => `<span class="beh-chip">${escapeAttr(it)}<button type="button" onclick="deleteBehaviorItem('${cat}', ${gi}, ${ii})">✕</button></span>`).join('') || '<span style="font-size:0.72rem; color:#94a3b8;">항목 없음</span>'}</div>
+            <div style="display:flex; gap:4px; margin-top:4px;"><input type="text" id="beh-new-item-${cat}-${gi}" placeholder="새 행동" style="flex:1; font-size:0.75rem;" onkeydown="if(event.key==='Enter'){addBehaviorItem('${cat}', ${gi});}"><button type="button" class="btn btn-secondary" style="padding:2px 8px; font-size:0.72rem;" onclick="addBehaviorItem('${cat}', ${gi})">+ 추가</button></div>
+          </div>`).join('');
+      });
+      document.getElementById('beh-consequence-list').innerHTML = getBehaviorConsequences().map((c, i) =>
+        `<span class="beh-chip">${escapeAttr(c)}<button type="button" onclick="deleteBehaviorConsequence(${i})">✕</button></span>`).join('');
+      document.getElementById('beh-function-list').innerHTML = BEHAVIOR_FUNCTIONS.map(f => `<span class="beh-chip">${f}</span>`).join('');
+    }
+    function allBehaviorItems(tax) { return [...tax.problem, ...tax.positive].flatMap(g => g.items); }
+    function addBehaviorItem(cat, gi) {
+      const input = document.getElementById(`beh-new-item-${cat}-${gi}`);
+      const v = input.value.trim(); if(!v) return;
+      const tax = getBehaviorTaxonomy();
+      if(allBehaviorItems(tax).includes(v)) { alert('이미 있는 행동입니다.'); return; }
+      tax[cat][gi].items.push(v); saveBehaviorTaxonomy(tax); renderBehaviorSettings();
+    }
+    function deleteBehaviorItem(cat, gi, ii) {
+      const tax = getBehaviorTaxonomy();
+      tax[cat][gi].items.splice(ii, 1); saveBehaviorTaxonomy(tax); renderBehaviorSettings();
+    }
+    function addBehaviorGroup(cat) {
+      const input = document.getElementById('beh-new-group-' + cat);
+      const v = input.value.trim(); if(!v) return;
+      const tax = getBehaviorTaxonomy();
+      if(tax[cat].some(g => g.group === v)) { alert('이미 있는 카테고리입니다.'); return; }
+      tax[cat].push({ group: v, items: [] }); saveBehaviorTaxonomy(tax); input.value = ''; renderBehaviorSettings();
+    }
+    function renameBehaviorGroup(cat, gi) {
+      const tax = getBehaviorTaxonomy();
+      const v = (prompt('새 카테고리 이름', tax[cat][gi].group) || '').trim(); if(!v) return;
+      tax[cat][gi].group = v; saveBehaviorTaxonomy(tax); renderBehaviorSettings();
+    }
+    function deleteBehaviorGroup(cat, gi) {
+      const tax = getBehaviorTaxonomy();
+      if(!confirm(`"${tax[cat][gi].group}" 카테고리와 그 안의 행동 ${tax[cat][gi].items.length}개를 목록에서 지울까요?\n(이미 저장된 기록은 유지됩니다)`)) return;
+      tax[cat].splice(gi, 1); saveBehaviorTaxonomy(tax); renderBehaviorSettings();
+    }
+    function addBehaviorConsequence() {
+      const input = document.getElementById('beh-new-consequence');
+      const v = input.value.trim(); if(!v) return;
+      const list = getBehaviorConsequences();
+      if(list.includes(v)) { alert('이미 있는 항목입니다.'); return; }
+      list.push(v); saveBehaviorConsequences(list); input.value = ''; renderBehaviorSettings();
+    }
+    function deleteBehaviorConsequence(i) {
+      const list = getBehaviorConsequences(); list.splice(i, 1); saveBehaviorConsequences(list); renderBehaviorSettings();
+    }
+
+    // ===== 여러 셀 일괄 삭제 =====
+    // 서버(Apps Script)는 행 번호를 찾은 뒤 지우므로, 삭제 요청을 동시에 여러 개 보내면 행 번호가 밀려 엉뚱한 행이 지워질 수 있음
+    // → 요청을 하나씩 순서대로 보내는 큐를 사용 (Code.gs 변경/재배포 불필요)
+    let sheetWriteQueue = Promise.resolve();
+    function postToSheetSequential(type, data) {
+      if(!isSheetConnected()) return Promise.resolve();
+      data = prepareSheetData(type, data);
+      sheetWriteQueue = sheetWriteQueue.then(() =>
+        fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ type, data, key: ACCESS_KEY }) })
+          .then(res => res.json())
+          .then(json => {
+            if(json && json.ok) { setSyncStatus('synced'); return; }
+            setSyncStatus('error', `[${type}] 요청은 갔지만 시트가 실패로 응답했습니다.\n\n서버 응답: ` + JSON.stringify(json));
+          })
+          .catch(err => {
+            console.error('시트 저장 오류:', err);
+            setSyncStatus('error', `[${type}] 요청 전송 실패: ` + err.message);
+          })
+      );
+      return sheetWriteQueue;
+    }
+
+    function entryToSheetRow(entry, date, period) {
+      return {
+        id: entry.id, date, period, className: entry.className,
+        students: entry.students.join(', '), helpers: entry.helpers.join(', '), teachers: entry.teachers.join(', '),
+        behavior: entry.behavior, behaviorTime: entry.behaviorTime, positive: entry.positive, memo: entry.memo,
+        summary: entry.summary || '', subject: entry.subject || ''
+      };
+    }
+
+    // 선택된 셀들에서 무엇이 지워질지 미리 계산 (실제 삭제 전 확인창에 보여주기 위함)
+    //  - 학급주간 셀(인물 없음): 그 칸의 기록 전체 삭제
+    //  - 개인주간/매트릭스 셀(인물 있음): 그 사람만 기록에서 빼고, 아무도 남지 않으면 기록 자체 삭제
+    function planBulkDelete() {
+      const plan = { deleteIds: [], removePerson: [] }; // removePerson: [{cellId, entryId, person}]
+      const seenDelete = new Set();
+      selectedCellEls.forEach(el => {
+        const { cellId, person } = parseCellKey(el.dataset.cellkey);
+        if(person) {
+          const entry = findEntryForPerson(cellId, person);
+          if(entry && !seenDelete.has(entry.id)) plan.removePerson.push({ cellId, entryId: entry.id, person });
+        } else {
+          getEntries(cellId).forEach(e => {
+            if(!seenDelete.has(e.id)) { seenDelete.add(e.id); plan.deleteIds.push({ cellId, entryId: e.id }); }
+          });
+        }
+      });
+      // 통째로 지울 기록에 포함된 인물 제거 작업은 중복이므로 제외
+      plan.removePerson = plan.removePerson.filter(r => !seenDelete.has(r.entryId));
+      return plan;
+    }
+
+    function bulkDeleteSelectedCells() {
+      if(selectedCellEls.size === 0) { alert('먼저 Shift+클릭/드래그로 셀을 선택해주세요.'); return; }
+      const plan = planBulkDelete();
+      const total = plan.deleteIds.length + plan.removePerson.length;
+      if(total === 0) { alert('선택한 셀에 삭제할 기록이 없습니다.'); clearCellSelection(); return; }
+
+      let msg = `선택한 ${selectedCellEls.size}개 셀의 기록을 삭제할까요?\n\n`;
+      if(plan.deleteIds.length) msg += `• 기록 ${plan.deleteIds.length}건 통째로 삭제\n`;
+      if(plan.removePerson.length) msg += `• ${plan.removePerson.length}건은 해당 인물만 기록에서 제외 (같은 수업의 다른 사람 기록은 유지, 아무도 안 남으면 삭제)\n`;
+      msg += '\n메모·문제행동 기록도 함께 지워지며 되돌릴 수 없습니다.';
+      if(!confirm(msg)) return;
+
+      const splitCell = cellId => { const i = cellId.indexOf('_'); return { date: cellId.slice(0, i), period: cellId.slice(i + 1) }; };
+
+      plan.deleteIds.forEach(({ cellId, entryId }) => {
+        const entries = scheduleData[cellId] || [];
+        const idx = entries.findIndex(e => e.id === entryId);
+        if(idx >= 0) entries.splice(idx, 1);
+        if(entryId) postToSheetSequential('deleteSchedule', { id: entryId });
+      });
+
+      plan.removePerson.forEach(({ cellId, entryId, person }) => {
+        const entries = scheduleData[cellId] || [];
+        const idx = entries.findIndex(e => e.id === entryId);
+        if(idx < 0) return;
+        const entry = entries[idx];
+        ['students', 'helpers', 'teachers'].forEach(k => { entry[k] = entry[k].filter(x => x !== person); });
+        if(entry.students.length + entry.helpers.length + entry.teachers.length === 0) {
+          entries.splice(idx, 1);
+          postToSheetSequential('deleteSchedule', { id: entryId });
+        } else {
+          const { date, period } = splitCell(cellId);
+          postToSheetSequential('schedule', entryToSheetRow(entry, date, period));
+        }
+      });
+
+      Object.keys(scheduleData).forEach(k => { if(scheduleData[k].length === 0) delete scheduleData[k]; });
+      clearCellSelection();
+      render();
+    }
+
+    // 셀이 선택된 상태에서 Delete/Backspace 키 → 일괄 삭제 (입력창에 타이핑 중이거나 모달이 열려있으면 무시)
+    document.addEventListener('keydown', function(e) {
+      if(e.key !== 'Delete' && e.key !== 'Backspace') return;
+      if(selectedCellEls.size === 0) return;
+      const t = e.target;
+      if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+      if(document.getElementById('overlay') && document.getElementById('overlay').style.display === 'block') return;
+      e.preventDefault();
+      bulkDeleteSelectedCells();
+    });
+
     // Shift+클릭/드래그로 셀 선택 시작 (Shift 없이 클릭하면 기존처럼 그대로 입력 모달이 열림)
     document.getElementById('view-content').addEventListener('mousedown', function(e) {
       if(!e.shiftKey) return;
@@ -1460,6 +1893,7 @@
     // 구글 시트로 저장/삭제 요청 전송 (Content-Type을 지정하지 않아야 CORS 사전요청 없이 바로 전송됨)
     function postToSheet(type, data) {
       if(!isSheetConnected()) return;
+      data = prepareSheetData(type, data);
       fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ type, data, key: ACCESS_KEY }) })
         .then(res => res.json())
         .then(json => {
@@ -1670,6 +2104,7 @@
             summary: row['요약'] || '',
             subject: row['교과'] || ''
           });
+          normalizeBehaviorEntry(scheduleData[cellId][scheduleData[cellId].length - 1]);
         });
 
         (json.attendance || []).forEach(row => {
@@ -1731,6 +2166,8 @@
           if(row['키'] === 'classMemos' && row['값']) localStorage.setItem('classMemos', row['값']);
           if(row['키'] === 'allSubjectsList' && row['값']) localStorage.setItem('allSubjectsList', row['값']);
           if(row['키'] === 'classColors' && row['값']) localStorage.setItem('classColors', row['값']);
+          if(row['키'] === 'behaviorTaxonomy' && row['값']) localStorage.setItem('behaviorTaxonomy', row['값']);
+          if(row['키'] === 'behaviorConsequences' && row['값']) localStorage.setItem('behaviorConsequences', row['값']);
         });
 
         // 사람 프로필 (학년도 무관 공통 정보)
@@ -2059,8 +2496,11 @@
         entries.forEach(entry => {
           const isRelevant = entry.students.includes(personName) || entry.helpers.includes(personName) || entry.teachers.includes(personName);
           if(!isRelevant) return;
-          const overlap = getBehaviorOverlapForPeriod(entry, period);
-          if(overlap) results.push({ entry, startMin: overlap.startMin, endMin: overlap.endMin });
+          getProblemEventsFor(entry, personName).forEach(ev => {
+            if(!ev.start || !ev.end) return;
+            const overlap = getBehaviorOverlapForPeriod({ behaviorTime: `${ev.start}-${ev.end}` }, period);
+            if(overlap) results.push({ entry, startMin: overlap.startMin, endMin: overlap.endMin });
+          });
         });
       });
       return results;
@@ -2077,6 +2517,7 @@
 
     // 5. 메인 렌더링
     function render() {
+      Object.values(scheduleData).forEach(list => list.forEach(e => { if(!Array.isArray(e.behaviorEvents)) normalizeBehaviorEntry(e); }));
       saveLocalCache(); // 새로고침해도 사라지지 않도록 매 렌더링 시 브라우저에 자동 저장 (구글시트 연결 여부와 무관하게 동작)
       selectedCellEls.clear(); // 재렌더링으로 이전 DOM이 사라지므로 셀 선택 상태도 함께 초기화 (클립보드 내용은 유지)
       document.getElementById('selection-toolbar').style.visibility = 'hidden';
@@ -2151,22 +2592,23 @@
               if(shouldShowPersonType('students')) entry.students.forEach(s => {
                 const b = formatAttBadgeForPeriod(todayAtt[s], true, p);
                 let cls = b ? b.cls : 'tag-main';
-                if(!b && entry.behavior) cls = 'tag-student-behavior'; // 문제행동은 해당 학생 이름표만 붉은색으로 강조
-                html += `<span class="tag ${cls}" ${b ? `title=\"${b.text}\"` : ''}>${s}</span>`;
+                if(!b && entryHasProblemFor(entry, s)) cls = 'tag-student-behavior'; // 문제행동은 해당 학생 이름표만 붉은색으로 강조
+                html += `<span class="tag ${cls}" style="${personColorStyle(s)}" ${b ? `title=\"${b.text}\"` : ''}>${s}</span>`;
               });
               // 학생과 동일하게 담당교사도 항상 표시하고, 상태에 따라 색으로만 구분 (출결 상태가 지난 뒤 사라지지 않도록)
               if(shouldShowPersonType('teachers')) entry.teachers.forEach(t => {
                 const b = formatAttBadgeForPeriod(todayAtt[t], false, p);
                 const cls = b ? b.cls : 'tag-teacher';
-                html += `<span class="tag ${cls}" ${b ? `title=\"${b.text}\"` : ''}>${t}</span>`;
+                html += `<span class="tag ${cls}" style="${personColorStyle(t)}" ${b ? `title=\"${b.text}\"` : ''}>${t}</span>`;
               });
               if(shouldShowPersonType('helpers')) entry.helpers.forEach(h => {
                 const b = formatAttBadgeForPeriod(todayAtt[h], false, p);
                 const cls = b ? b.cls : 'tag-helper';
-                html += `<span class="tag ${cls}" ${b ? `title=\"${b.text}\"` : ''}>${h}</span>`;
+                html += `<span class="tag ${cls}" style="${personColorStyle(h)}" ${b ? `title=\"${b.text}\"` : ''}>${h}</span>`;
               });
               if(entry.behavior && shouldShowBehavior()) html += `<div class="tag tag-behavior">${shouldShowBehaviorText() ? entry.behavior : ''}${(shouldShowBehaviorTime() && entry.behaviorTime) ? ' ('+entry.behaviorTime+')' : ''}</div>`;
               if(entry.positive) html += `<div class="tag tag-positive">${entry.positive}</div>`;
+              html += positiveBehaviorTagsHtml(entry);
               const memoMode = getMemoDisplayMode();
               if(memoMode !== 'hide' && (entry.memo || entry.summary)) {
                 const fullTitle = (entry.memo || '').replace(/"/g,'&quot;');
@@ -2258,7 +2700,7 @@
           let cellStyle = '';
           if (rec && rec.status === 'ABSENT') cellStyle = 'background:#fef2f2;';
           else if (b && b.cls === 'badge-tardy') cellStyle = 'background:#fef9c3;';
-          else if (data.behavior) cellStyle = 'background:#fecdd3;';
+          else if (entryHasProblemFor(data, selectedPerson)) cellStyle = 'background:#fecdd3;';
           else if (isAssigned) cellStyle = 'background:#f0fdf4;';
 
           const cellClass = `clickable-cell matrix-cell-relative selectable-cell${neulbomOverlaps.length ? ' has-neulbom' : ''}`;
@@ -2271,24 +2713,25 @@
               // 학생인 경우: 어떤 반/장소에 있는지, 지원인력/교사가 누구인지
               if(isStudentPerson) {
                 if(shouldShowLocationInCell()) html += `<div style=\"font-weight:bold; color:#1e40af; white-space:normal; overflow-wrap:break-word;\">[${cls}]</div>`;
-                if(data.helpers.length && shouldShowPersonType('helpers')) html += `<div style="font-size:0.68rem; color:#3730a3;">지원: ${data.helpers.join(', ')}</div>`;
-                if(data.teachers.length && shouldShowPersonType('teachers')) html += `<div style="font-size:0.68rem; color:#166534;">교사: ${data.teachers.join(', ')}</div>`;
+                if(data.helpers.length && shouldShowPersonType('helpers')) html += `<div style="font-size:0.68rem; color:#3730a3;">지원: ${coloredNameList(data.helpers)}</div>`;
+                if(data.teachers.length && shouldShowPersonType('teachers')) html += `<div style="font-size:0.68rem; color:#166534;">교사: ${coloredNameList(data.teachers)}</div>`;
               } 
               // 지원인력인 경우: 어느 반/장소 지원인지, 누구 지원인지, 담당 교사는 누구인지
               else if(isHelperPerson) {
                 if(shouldShowLocationInCell()) html += `<div style="font-weight:bold; color:#3730a3;">[${cls} 지원]</div>`;
-                if(data.students.length && shouldShowPersonType('students')) html += data.students.map(s => `<span class="tag tag-main" style="margin-top:2px;">${s}</span>`).join('');
-                if(data.teachers.length && shouldShowPersonType('teachers')) html += `<div style="font-size:0.68rem; color:#166534;">교사: ${data.teachers.join(', ')}</div>`;
+                if(data.students.length && shouldShowPersonType('students')) html += data.students.map(s => `<span class="tag tag-main" style="margin-top:2px;${personColorStyle(s)}">${s}</span>`).join('');
+                if(data.teachers.length && shouldShowPersonType('teachers')) html += `<div style="font-size:0.68rem; color:#166534;">교사: ${coloredNameList(data.teachers)}</div>`;
               } 
               // 교사인 경우
               else {
                 if(shouldShowLocationInCell()) html += `<div style="font-weight:bold; color:#166534;">[${cls} 수업]</div>`;
-                if(data.students.length && shouldShowPersonType('students')) html += `<div style="font-size:0.68rem; color:#9a3412;">학생: ${data.students.join(', ')}</div>`;
-                if(data.helpers.length && shouldShowPersonType('helpers')) html += `<div style="font-size:0.68rem; color:#3730a3;">지원: ${data.helpers.join(', ')}</div>`;
+                if(data.students.length && shouldShowPersonType('students')) html += `<div style="font-size:0.68rem; color:#9a3412;">학생: ${coloredNameList(data.students)}</div>`;
+                if(data.helpers.length && shouldShowPersonType('helpers')) html += `<div style="font-size:0.68rem; color:#3730a3;">지원: ${coloredNameList(data.helpers)}</div>`;
               }
 
               if(data.behavior && shouldShowBehavior()) html += `<div class="tag tag-behavior">${shouldShowBehaviorText() ? data.behavior : ''}${(shouldShowBehaviorTime() && data.behaviorTime) ? ' ('+data.behaviorTime+')' : ''}</div>`;
               if(data.positive) html += `<div class="tag tag-positive">${data.positive}</div>`;
+              html += positiveBehaviorTagsHtml(data);
             }
             // 문제행동 시간대 - 늘봄학교와 동일하게, 이 사람의 "그 날짜 전체" 기록을 훑어서 겹치는 문제행동을 전부 표시 (여러 교시에 걸친 것도 포함, entry 유무와 무관)
             getAllBehaviorOverlapsForPeriod(selectedPerson, dateStr, p).forEach(ov => {
@@ -2360,18 +2803,18 @@
         g.list.forEach((s, si) => {
           const b = formatAttBadge(todayAtt[s], true);
           const dividerCls = (gi > 0 && si === 0) ? 'group-divider' : '';
-          html += `<th class="${dividerCls}">${s}${b ? `<br><span class="${b.cls}">${b.text}</span>` : ''}</th>`;
+          html += `<th class="${dividerCls}" style="${personHeaderColorStyle(s)}">${s}${b ? `<br><span class="${b.cls}">${b.text}</span>` : ''}</th>`;
         });
       });
       // 지원인력
       helperList.forEach((h, hi) => {
         const b = formatAttBadge(todayAtt[h], false);
-        html += `<th class="${hi === 0 ? 'group-divider' : ''}">${h}${b ? `<br><span class="${b.cls}">${b.text}</span>` : ''}</th>`;
+        html += `<th class="${hi === 0 ? 'group-divider' : ''}" style="${personHeaderColorStyle(h)}">${h}${b ? `<br><span class="${b.cls}">${b.text}</span>` : ''}</th>`;
       });
       // 교사
       teacherList.forEach((t, ti) => {
         const b = formatAttBadge(todayAtt[t], false);
-        html += `<th class="${ti === 0 ? 'group-divider' : ''}">${t}${b ? `<br><span class="${b.cls}">${b.text}</span>` : ''}</th>`;
+        html += `<th class="${ti === 0 ? 'group-divider' : ''}" style="${personHeaderColorStyle(t)}">${t}${b ? `<br><span class="${b.cls}">${b.text}</span>` : ''}</th>`;
       });
       html += `</tr></thead><tbody>`;
 
@@ -2389,7 +2832,7 @@
             const b = formatAttBadgeForPeriod(rec, true, p);
             const neulbomOverlaps = getNeulbomOverlapsForPeriod(s, currentDate, p);
             let bg = entry ? '#fff7ed' : '';
-            if(entry && entry.behavior) bg = '#fecdd3';
+            if(entry && entryHasProblemFor(entry, s)) bg = '#fecdd3';
             if(rec && rec.status === 'ABSENT') bg = '#fef2f2';
             else if(b && b.cls === 'badge-tardy') bg = '#fef9c3';
             const dividerCls = (gi > 0 && si === 0) ? ' group-divider' : '';
@@ -2398,10 +2841,11 @@
             if(entry) {
               const showTeacherTag = showTeachers && shouldShowTeacherTag(entry, roster, false);
               if(showLocation) html += `<span class="tag tag-main">${entry.className||'입실'}</span>`;
-              if(showHelpers && entry.helpers.length) html += entry.helpers.map(h => `<span class="tag tag-helper" style="margin-top:2px;">${h}</span>`).join('');
-              if(showTeacherTag) html += entry.teachers.map(t => `<span class="tag tag-teacher" style="margin-top:2px;">${t}</span>`).join('');
+              if(showHelpers && entry.helpers.length) html += entry.helpers.map(h => `<span class="tag tag-helper" style="margin-top:2px;${personColorStyle(h)}">${h}</span>`).join('');
+              if(showTeacherTag) html += entry.teachers.map(t => `<span class="tag tag-teacher" style="margin-top:2px;${personColorStyle(t)}">${t}</span>`).join('');
               if(entry.behavior && shouldShowBehavior()) html += `<div class="tag tag-behavior">${shouldShowBehaviorText() ? entry.behavior : ''}${(shouldShowBehaviorTime() && entry.behaviorTime) ? ' ('+entry.behaviorTime+')' : ''}</div>`;
               if(entry.positive) html += `<div class="tag tag-positive">${entry.positive}</div>`;
+              html += positiveBehaviorTagsHtml(entry);
             }
             // 문제행동 시간대 - 늘봄학교와 동일하게, 이 학생의 "그 날짜 전체" 기록을 훑어서 겹치는 문제행동을 전부 표시 (여러 교시에 걸친 것도 포함, entry 유무와 무관)
             getAllBehaviorOverlapsForPeriod(s, dateStr, p).forEach(ov => {
@@ -2435,8 +2879,8 @@
           if(entry) {
             const showTeacherTag = showTeachers && shouldShowTeacherTag(entry, roster, false);
             if(showLocation) html += `<div class="tag tag-helper">[${entry.className||'지원'}]</div>`;
-            if(showStudents && entry.students.length) html += entry.students.map(s => `<span class="tag tag-main" style="margin-top:2px;">${s}</span>`).join('');
-            if(showTeacherTag) html += entry.teachers.map(t => `<span class="tag tag-teacher" style="margin-top:2px;">${t}</span>`).join('');
+            if(showStudents && entry.students.length) html += entry.students.map(s => `<span class="tag tag-main" style="margin-top:2px;${personColorStyle(s)}">${s}</span>`).join('');
+            if(showTeacherTag) html += entry.teachers.map(t => `<span class="tag tag-teacher" style="margin-top:2px;${personColorStyle(t)}">${t}</span>`).join('');
           }
           html += `</td>`;
         });
@@ -2453,8 +2897,8 @@
           html += `<td class="clickable-cell selectable-cell${teacherDividerCls}" style="${bg ? `background:${bg};` : ''}" data-cellkey="${cellId}|${t}" onclick="openInputModal('${cellId}', ${entry ? `'${entry.id}'` : 'null'}, '${t}')">`;
           if(entry) {
             if(showLocation) html += `<span class="tag tag-teacher">[${entry.className||'수업'}]</span>`;
-            if(showStudents && entry.students.length) html += entry.students.map(s => `<span class="tag tag-main" style="margin-top:2px;">${s}</span>`).join('');
-            if(showHelpers && entry.helpers.length) html += entry.helpers.map(h => `<span class="tag tag-helper" style="margin-top:2px;">${h}</span>`).join('');
+            if(showStudents && entry.students.length) html += entry.students.map(s => `<span class="tag tag-main" style="margin-top:2px;${personColorStyle(s)}">${s}</span>`).join('');
+            if(showHelpers && entry.helpers.length) html += entry.helpers.map(h => `<span class="tag tag-helper" style="margin-top:2px;${personColorStyle(h)}">${h}</span>`).join('');
           }
           html += `</td>`;
         });
@@ -2533,7 +2977,7 @@
               ${entry.helpers.length ? `<div style="font-size:0.72rem; color:#3730a3; margin-top:2px;">지원인력: ${entry.helpers.join(', ')}</div>` : ''}
               ${entry.teachers.length ? `<div style="font-size:0.72rem; color:#166534; margin-top:2px;">교사: ${entry.teachers.join(', ')}</div>` : ''}
               ${(entry.behavior && shouldShowBehavior()) ? `<div class="tag tag-behavior">${shouldShowBehaviorText() ? entry.behavior : ''}${(shouldShowBehaviorTime() && entry.behaviorTime) ? ' ('+entry.behaviorTime+')' : ''}</div>` : ''}
-              ${entry.positive ? `<div class="tag tag-positive">${entry.positive}</div>` : ''}
+              ${entry.positive ? `<div class="tag tag-positive">${entry.positive}</div>` : ''}${positiveBehaviorTagsHtml(entry)}
               ${entry.memo ? `<div style="font-size:0.75rem; color:#334155; margin-top:3px; white-space:pre-line;">${entry.memo}</div>` : ''}
             </div>
           `;
@@ -2760,10 +3204,9 @@
         customInput.value = currentClassName;
       }
 
-      document.getElementById('behavior-preset').value = data.behavior || '';
-      const btMatch = (data.behaviorTime || '').match(/(\d{1,2}:\d{2})\s*[-~〜～]\s*(\d{1,2}:\d{2})/);
-      document.getElementById('behavior-time-start').value = btMatch ? btMatch[1] : '';
-      document.getElementById('behavior-time-end').value = btMatch ? btMatch[2] : '';
+      if(!Array.isArray(data.behaviorEvents)) normalizeBehaviorEntry(data);
+      modalBehaviorEvents = JSON.parse(JSON.stringify(data.behaviorEvents || []));
+      renderBehaviorEventRows();
       document.getElementById('positive-preset').value = data.positive || '';
       document.getElementById('memo-input').value = data.memo || '';
       document.getElementById('summary-input').value = data.summary || '';
@@ -3352,6 +3795,7 @@
       if(tab === 'neulbom') openNeulbomModal();
       if(tab === 'templates') openTemplateModal();
       if(tab === 'classes') renderClassManagement();
+      if(tab === 'behavior') renderBehaviorSettings();
     }
 
     // ===== 학급 관리: 특수학급별 담당교사 + 소속 학생을 학년도 기준으로 한눈에 =====
@@ -4578,16 +5022,15 @@
         ? (document.getElementById('input-class-custom').value.trim() || '기타')
         : classSelectVal;
 
-      const behavior = document.getElementById('behavior-preset').value;
-      const btStart = document.getElementById('behavior-time-start').value;
-      const btEnd = document.getElementById('behavior-time-end').value;
-      const behaviorTime = (btStart && btEnd) ? `${btStart}-${btEnd}` : '';
+      const behaviorEvents = collectBehaviorEventRows().filter(ev => ev.type);
+      const derived = syncBehaviorDerived({ behaviorEvents });
+      const behavior = derived.behavior, behaviorTime = derived.behaviorTime;
       const positive = document.getElementById('positive-preset').value;
       const memo = document.getElementById('memo-input').value;
       const summary = document.getElementById('summary-input').value;
       const subject = document.getElementById('input-subject').value;
 
-      const isEmpty = students.length === 0 && helpers.length === 0 && teachers.length === 0 && !behavior && !positive && !memo;
+      const isEmpty = students.length === 0 && helpers.length === 0 && teachers.length === 0 && behaviorEvents.length === 0 && !positive && !memo;
       const [date, period] = selectedCellId.split('_');
 
       if(!scheduleData[selectedCellId]) scheduleData[selectedCellId] = [];
@@ -4601,14 +5044,14 @@
           if(idx >= 0) entries.splice(idx, 1);
           postToSheet('deleteSchedule', { id: selectedEntryId });
         } else {
-          const updated = { id: selectedEntryId, students, helpers, teachers, className, behavior, behaviorTime, positive, memo, summary, subject };
+          const updated = { id: selectedEntryId, students, helpers, teachers, className, behavior, behaviorTime, behaviorEvents, positive, memo, summary, subject };
           if(idx >= 0) entries[idx] = updated; else entries.push(updated);
           postToSheet('schedule', { id: selectedEntryId, date, period, className, students: students.join(', '), helpers: helpers.join(', '), teachers: teachers.join(', '), behavior, behaviorTime, positive, memo, summary, subject });
         }
       } else if(!isEmpty) {
         // 신규 기록 생성 (내용이 있을 때만 저장)
         const newId = generateEntryId();
-        entries.push({ id: newId, students, helpers, teachers, className, behavior, behaviorTime, positive, memo, summary, subject });
+        entries.push({ id: newId, students, helpers, teachers, className, behavior, behaviorTime, behaviorEvents, positive, memo, summary, subject });
         postToSheet('schedule', { id: newId, date, period, className, students: students.join(', '), helpers: helpers.join(', '), teachers: teachers.join(', '), behavior, behaviorTime, positive, memo, summary, subject });
       }
 
